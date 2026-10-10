@@ -1,0 +1,33 @@
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    ports: ["6380:6379", "3001:3000"]   # graph (host 6380) + FalkorDB Browser (3001)
+    volumes: ["falkordb-data:/var/lib/falkordb/data"]
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: causaldeploy
+      POSTGRES_PASSWORD: causaldeploy
+      POSTGRES_DB: causaldeploy
+    ports: ["5432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+
+  api:
+    build: ./core
+    env_file: [.env]
+    environment:
+      CD_FALKORDB_HOST: falkordb
+      CD_FALKORDB_PORT: "6379"
+      CD_POSTGRES_DSN: postgresql://causaldeploy:causaldeploy@postgres:5432/causaldeploy
+      CD_REDIS_URL: redis://redis:6379/0
+    ports: ["8000:8000"]
+    depends_on: [falkordb, postgres, redis]
+
+volumes:
+  falkordb-data:
+  postgres-data:
