@@ -57,4 +57,5 @@ jobs:
       - name: Generated API client is current (no manual edits)
         run: npm run gen:api && git diff --exit-code lib/api
       - run: npm run lint
+      - run: npm test
       - run: npm run build

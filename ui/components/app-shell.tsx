@@ -1,20 +1,20 @@
 "use client";
 
-import { GitBranch, LayoutDashboard, Moon, Siren, Sun } from "lucide-react";
+import { BarChart3, GitBranch, LayoutDashboard, Moon, Siren, Sun } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useEffect, type ReactNode } from "react";
-import { ErrorState, LoadingState } from "@/components/states";
+import type { ReactNode } from "react";
+import { AuthGate } from "@/components/auth-gate";
 import { Button } from "@/components/ui/button";
 import { useRepo } from "@/components/repo-context";
-import { ApiError } from "@/lib/api/client";
-import { useMe } from "@/lib/api/hooks";
+import type { components } from "@/lib/api/schema";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/incidents", label: "Incidents", icon: Siren },
+  { href: "/dashboard", label: "Analytics", icon: BarChart3 },
 ] as const;
 
 function ThemeToggle() {
@@ -55,31 +55,12 @@ function RepoSwitcher({ repos }: { repos: string[] }) {
 
 /** Protected shell: redirects to /login without a session, shows nav, repo switcher and theme. */
 export function AppShell({ children }: { children: ReactNode }) {
-  const me = useMe();
-  const router = useRouter();
   const path = usePathname();
-  const unauthenticated = me.error instanceof ApiError && me.error.status === 401;
+  return <AuthGate>{(me) => <Shell me={me} path={path}>{children}</Shell>}</AuthGate>;
+}
 
-  useEffect(() => {
-    if (unauthenticated) router.replace("/login");
-  }, [unauthenticated, router]);
-
-  if (me.isLoading || unauthenticated) {
-    return (
-      <div className="mx-auto max-w-3xl p-8">
-        <LoadingState />
-      </div>
-    );
-  }
-  if (me.error) {
-    return (
-      <div className="mx-auto max-w-3xl p-8">
-        <ErrorState error={me.error} onRetry={() => me.refetch()} />
-      </div>
-    );
-  }
-
-  const repos = Object.keys(me.data?.repos ?? {});
+function Shell({ me, path, children }: { me: components["schemas"]["User"]; path: string; children: ReactNode }) {
+  const repos = Object.keys(me.repos);
   return (
     <div className="flex min-h-dvh">
       <aside className="hidden w-56 shrink-0 flex-col gap-1 border-r bg-card p-4 md:flex">
@@ -108,7 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="flex items-center justify-between gap-4 border-b bg-card px-6 py-3">
           <RepoSwitcher repos={repos} />
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">{me.data?.login}</span>
+            <span className="text-sm text-muted-foreground">{me.login}</span>
             <ThemeToggle />
           </div>
         </header>
