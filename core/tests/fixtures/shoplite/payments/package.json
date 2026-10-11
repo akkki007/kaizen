@@ -1,0 +1,1 @@
+{ "name": "payments", "version": "1.0.0", "dependencies": { "express": "^4.19.2", "money-utils": "^2.0.0" } }

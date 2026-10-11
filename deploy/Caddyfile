@@ -1,0 +1,19 @@
+# TLS is automatic (Let's Encrypt) for {$CD_PUBLIC_DOMAIN}.
+# CausalDeploy owns /api/v1, /webhooks, /auth, health and docs; everything else is the ShopLite gateway.
+{$CD_PUBLIC_DOMAIN} {
+	encode gzip
+
+	@causaldeploy path /api/v1/* /webhooks/* /auth/* /healthz /readyz /docs /openapi.json
+	handle @causaldeploy {
+		reverse_proxy api:8000
+	}
+
+	@internal path /metrics
+	handle @internal {
+		respond "not found" 404
+	}
+
+	handle {
+		reverse_proxy gateway:4001
+	}
+}

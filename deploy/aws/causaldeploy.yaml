@@ -1,0 +1,189 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CausalDeploy single-VM production host (EC2 + Elastic IP + Secrets Manager).
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.small
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  SshCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: Who may reach SSH (key auth only). Tighten if you have a fixed IP.
+  PublicDomain:
+    Type: String
+    Default: shoplite-demo.duckdns.org
+  UbuntuAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+
+Resources:
+  SecretsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Encrypts CausalDeploy production secrets
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountAdmin
+            Effect: Allow
+            Principal: { AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root" }
+            Action: "kms:*"
+            Resource: "*"
+
+  SessionSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: causaldeploy/prod/session
+      Description: Signs session cookies (generated; never leaves Secrets Manager except to the host)
+      KmsKeyId: !Ref SecretsKey
+      GenerateSecretString:
+        PasswordLength: 64
+        ExcludePunctuation: true
+
+  WebhookSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: causaldeploy/prod/webhook
+      Description: GitHub webhook HMAC secret (generated; paste the same value into the GitHub App)
+      KmsKeyId: !Ref SecretsKey
+      GenerateSecretString:
+        PasswordLength: 48
+        ExcludePunctuation: true
+
+  PostgresPassword:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: causaldeploy/prod/postgres
+      KmsKeyId: !Ref SecretsKey
+      GenerateSecretString:
+        PasswordLength: 40
+        ExcludePunctuation: true
+
+  ExternalSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: causaldeploy/prod/external
+      Description: "JSON filled in after the GitHub App exists: app_id, app_private_key, oauth_client_id, oauth_client_secret, openai_api_key"
+      KmsKeyId: !Ref SecretsKey
+      SecretString: '{"app_id":"","app_private_key":"","oauth_client_id":"","oauth_client_secret":"","openai_api_key":""}'
+
+  HostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: read-causaldeploy-secrets
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref SessionSecret
+                  - !Ref WebhookSecret
+                  - !Ref PostgresPassword
+                  - !Ref ExternalSecrets
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: !GetAtt SecretsKey.Arn
+
+  HostProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref HostRole]
+
+  HostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: CausalDeploy host (HTTP/HTTPS public, SSH restricted)
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: !Ref SshCidr }
+
+  DeployKey:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub "${AWS::StackName}-deploy"
+
+  Host:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref DeployKey
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref HostSecurityGroup]
+      IamInstanceProfile: !Ref HostProfile
+      MetadataOptions: { HttpTokens: required }
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: { VolumeSize: 30, VolumeType: gp3, Encrypted: true }
+      Tags: [{ Key: Name, Value: causaldeploy }]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y docker.io docker-compose-v2 unzip jq curl
+          systemctl enable --now docker
+          usermod -aG docker ubuntu
+          curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscli.zip
+          unzip -q /tmp/awscli.zip -d /tmp && /tmp/aws/install
+          mkdir -p /opt/causaldeploy /opt/shoplite
+          chown -R ubuntu:ubuntu /opt/causaldeploy /opt/shoplite
+          docker network create edge || true
+          cat > /usr/local/bin/cd-fetch-env <<'SCRIPT'
+          #!/bin/bash
+          # Writes /opt/causaldeploy/.env from Secrets Manager. Values never touch a log or argv.
+          set -euo pipefail
+          R=${AWS::Region}
+          get() { aws secretsmanager get-secret-value --region "$R" --secret-id "$1" --query SecretString --output text; }
+          EXT=$(get causaldeploy/prod/external)
+          umask 077
+          {
+            echo "CD_PUBLIC_DOMAIN=${PublicDomain}"
+            echo "CD_PUBLIC_BASE_URL=https://${PublicDomain}"
+            echo "CD_SESSION_SECRET=$(get causaldeploy/prod/session)"
+            echo "CD_GITHUB_WEBHOOK_SECRET=$(get causaldeploy/prod/webhook)"
+            echo "POSTGRES_PASSWORD=$(get causaldeploy/prod/postgres)"
+            echo "CD_GITHUB_APP_ID=$(echo "$EXT" | jq -r .app_id)"
+            echo "CD_GITHUB_APP_PRIVATE_KEY=$(echo "$EXT" | jq -r .app_private_key | base64 -w0 | sed 's/^/base64:/')"
+            echo "CD_GITHUB_OAUTH_CLIENT_ID=$(echo "$EXT" | jq -r .oauth_client_id)"
+            echo "CD_GITHUB_OAUTH_CLIENT_SECRET=$(echo "$EXT" | jq -r .oauth_client_secret)"
+            echo "CD_OPENAI_API_KEY=$(echo "$EXT" | jq -r .openai_api_key)"
+          } > /opt/causaldeploy/.env
+          chown ubuntu:ubuntu /opt/causaldeploy/.env
+          SCRIPT
+          chmod +x /usr/local/bin/cd-fetch-env
+
+  HostIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref Host
+
+Outputs:
+  PublicIp:
+    Value: !Ref HostIp
+  InstanceId:
+    Value: !Ref Host
+  DeployKeyPairId:
+    Value: !GetAtt DeployKey.KeyPairId
+    Description: Private key is in SSM Parameter Store at /ec2/keypair/<this id>
+  ExternalSecretsArn:
+    Value: !Ref ExternalSecrets

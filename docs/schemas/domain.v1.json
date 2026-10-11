@@ -1,0 +1,435 @@
+{
+  "models": {
+    "Candidate": {
+      "$defs": {
+        "Evidence": {
+          "additionalProperties": false,
+          "description": "One citeable fact. `node_id` must resolve to a node/edge in the evidence graph.",
+          "properties": {
+            "kind": {
+              "title": "Kind",
+              "type": "string"
+            },
+            "node_id": {
+              "title": "Node Id",
+              "type": "string"
+            },
+            "summary": {
+              "title": "Summary",
+              "type": "string"
+            }
+          },
+          "required": [
+            "node_id",
+            "kind",
+            "summary"
+          ],
+          "title": "Evidence",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "commit_sha": {
+          "title": "Commit Sha",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "features": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "title": "Features",
+          "type": "object"
+        },
+        "incident_id": {
+          "title": "Incident Id",
+          "type": "string"
+        },
+        "rank": {
+          "minimum": 1,
+          "title": "Rank",
+          "type": "integer"
+        },
+        "score": {
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "incident_id",
+        "commit_sha",
+        "rank",
+        "score",
+        "confidence"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
+    "Hypothesis": {
+      "$defs": {
+        "Candidate": {
+          "additionalProperties": false,
+          "properties": {
+            "commit_sha": {
+              "title": "Commit Sha",
+              "type": "string"
+            },
+            "confidence": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Confidence",
+              "type": "number"
+            },
+            "evidence": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/Evidence"
+              },
+              "title": "Evidence",
+              "type": "array"
+            },
+            "features": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "default": {},
+              "title": "Features",
+              "type": "object"
+            },
+            "incident_id": {
+              "title": "Incident Id",
+              "type": "string"
+            },
+            "rank": {
+              "minimum": 1,
+              "title": "Rank",
+              "type": "integer"
+            },
+            "score": {
+              "minimum": 0,
+              "title": "Score",
+              "type": "number"
+            }
+          },
+          "required": [
+            "incident_id",
+            "commit_sha",
+            "rank",
+            "score",
+            "confidence"
+          ],
+          "title": "Candidate",
+          "type": "object"
+        },
+        "Evidence": {
+          "additionalProperties": false,
+          "description": "One citeable fact. `node_id` must resolve to a node/edge in the evidence graph.",
+          "properties": {
+            "kind": {
+              "title": "Kind",
+              "type": "string"
+            },
+            "node_id": {
+              "title": "Node Id",
+              "type": "string"
+            },
+            "summary": {
+              "title": "Summary",
+              "type": "string"
+            }
+          },
+          "required": [
+            "node_id",
+            "kind",
+            "summary"
+          ],
+          "title": "Evidence",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "alternatives": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "ambiguous": {
+          "default": false,
+          "title": "Ambiguous",
+          "type": "boolean"
+        },
+        "citations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Citations",
+          "type": "array"
+        },
+        "explanation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Explanation"
+        },
+        "incident_id": {
+          "title": "Incident Id",
+          "type": "string"
+        },
+        "top": {
+          "$ref": "#/$defs/Candidate"
+        }
+      },
+      "required": [
+        "incident_id",
+        "top"
+      ],
+      "title": "Hypothesis",
+      "type": "object"
+    },
+    "Incident": {
+      "$defs": {
+        "IncidentStatus": {
+          "enum": [
+            "open",
+            "investigating",
+            "resolved"
+          ],
+          "title": "IncidentStatus",
+          "type": "string"
+        },
+        "RemediationKind": {
+          "enum": [
+            "revert",
+            "patch",
+            "config",
+            "dependency"
+          ],
+          "title": "RemediationKind",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "confirmed_root_cause": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confirmed Root Cause"
+        },
+        "detected_at": {
+          "format": "date-time",
+          "title": "Detected At",
+          "type": "string"
+        },
+        "env": {
+          "title": "Env",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "onset_ts": {
+          "format": "date-time",
+          "title": "Onset Ts",
+          "type": "string"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "resolution_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RemediationKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "resolved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved At"
+        },
+        "service": {
+          "title": "Service",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/IncidentStatus",
+          "default": "open"
+        }
+      },
+      "required": [
+        "id",
+        "repo",
+        "service",
+        "env",
+        "onset_ts",
+        "detected_at"
+      ],
+      "title": "Incident",
+      "type": "object"
+    },
+    "Remediation": {
+      "$defs": {
+        "RemediationKind": {
+          "enum": [
+            "revert",
+            "patch",
+            "config",
+            "dependency"
+          ],
+          "title": "RemediationKind",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "approved_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved By"
+        },
+        "diff": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diff"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "incident_id": {
+          "title": "Incident Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/RemediationKind"
+        },
+        "target_commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Commit"
+        }
+      },
+      "required": [
+        "id",
+        "incident_id",
+        "kind"
+      ],
+      "title": "Remediation",
+      "type": "object"
+    },
+    "VerificationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_error_rate": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Baseline Error Rate",
+          "type": "number"
+        },
+        "error_rate_after": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Error Rate After",
+          "type": "number"
+        },
+        "error_rate_before": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Error Rate Before",
+          "type": "number"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "remediation_id": {
+          "title": "Remediation Id",
+          "type": "string"
+        },
+        "tests_passed": {
+          "title": "Tests Passed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "remediation_id",
+        "passed",
+        "tests_passed",
+        "error_rate_before",
+        "error_rate_after",
+        "baseline_error_rate"
+      ],
+      "title": "VerificationResult",
+      "type": "object"
+    }
+  }
+}

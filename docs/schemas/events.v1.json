@@ -1,0 +1,652 @@
+{
+  "$defs": {
+    "BuildEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sha": {
+          "title": "Sha",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "success",
+            "failure"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "type": {
+          "const": "build",
+          "default": "build",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "id",
+        "sha",
+        "status",
+        "started_at"
+      ],
+      "title": "BuildEvent",
+      "type": "object"
+    },
+    "CommitEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "title": "Author",
+          "type": "string"
+        },
+        "branch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Branch"
+        },
+        "files": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FileChange"
+          },
+          "title": "Files",
+          "type": "array"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "parents": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Parents",
+          "type": "array"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sha": {
+          "minLength": 7,
+          "title": "Sha",
+          "type": "string"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "commit",
+          "default": "commit",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "sha",
+        "author",
+        "ts",
+        "message"
+      ],
+      "title": "CommitEvent",
+      "type": "object"
+    },
+    "DeploymentEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "build_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Build Id"
+        },
+        "env": {
+          "title": "Env",
+          "type": "string"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "services": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Services",
+          "type": "array"
+        },
+        "sha_from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha From"
+        },
+        "sha_to": {
+          "title": "Sha To",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "success",
+            "failure",
+            "rollback"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "type": {
+          "const": "deployment",
+          "default": "deployment",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "id",
+        "env",
+        "sha_to",
+        "started_at",
+        "status"
+      ],
+      "title": "DeploymentEvent",
+      "type": "object"
+    },
+    "FileChange": {
+      "additionalProperties": false,
+      "properties": {
+        "hunks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Hunk"
+          },
+          "title": "Hunks",
+          "type": "array"
+        },
+        "old_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Old Path"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "added",
+            "modified",
+            "removed",
+            "renamed"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "status"
+      ],
+      "title": "FileChange",
+      "type": "object"
+    },
+    "HealthEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "env": {
+          "title": "Env",
+          "type": "string"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Ms"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "service": {
+          "title": "Service",
+          "type": "string"
+        },
+        "status_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status Code"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "health",
+          "default": "health",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "service",
+        "env",
+        "ts",
+        "ok"
+      ],
+      "title": "HealthEvent",
+      "type": "object"
+    },
+    "Hunk": {
+      "additionalProperties": false,
+      "description": "Changed line range in the *new* file (1-based, inclusive) plus the old range.",
+      "properties": {
+        "added": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Added",
+          "type": "integer"
+        },
+        "end": {
+          "minimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "old_end": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Old End",
+          "type": "integer"
+        },
+        "old_start": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Old Start",
+          "type": "integer"
+        },
+        "removed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Removed",
+          "type": "integer"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "Hunk",
+      "type": "object"
+    },
+    "TelemetryEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint"
+        },
+        "env": {
+          "default": "prod",
+          "title": "Env",
+          "type": "string"
+        },
+        "error_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Type"
+        },
+        "kind": {
+          "enum": [
+            "log",
+            "error",
+            "request"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Ms"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "schema_version": {
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "service": {
+          "title": "Service",
+          "type": "string"
+        },
+        "stack": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Stack",
+          "type": "array"
+        },
+        "status_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status Code"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "telemetry",
+          "default": "telemetry",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "service",
+        "ts",
+        "kind"
+      ],
+      "title": "TelemetryEvent",
+      "type": "object"
+    },
+    "VerificationResultEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_error_rate": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Baseline Error Rate",
+          "type": "number"
+        },
+        "details_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Details Url"
+        },
+        "error_rate_after": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Error Rate After",
+          "type": "number"
+        },
+        "error_rate_before": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Error Rate Before",
+          "type": "number"
+        },
+        "incident_id": {
+          "title": "Incident Id",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "remediation_id": {
+          "title": "Remediation Id",
+          "type": "string"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "tests_passed": {
+          "title": "Tests Passed",
+          "type": "boolean"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "verification_result",
+          "default": "verification_result",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "remediation_id",
+        "incident_id",
+        "passed",
+        "tests_passed",
+        "error_rate_before",
+        "error_rate_after",
+        "baseline_error_rate",
+        "ts"
+      ],
+      "title": "VerificationResultEvent",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "build": "#/$defs/BuildEvent",
+      "commit": "#/$defs/CommitEvent",
+      "deployment": "#/$defs/DeploymentEvent",
+      "health": "#/$defs/HealthEvent",
+      "telemetry": "#/$defs/TelemetryEvent",
+      "verification_result": "#/$defs/VerificationResultEvent"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/CommitEvent"
+    },
+    {
+      "$ref": "#/$defs/BuildEvent"
+    },
+    {
+      "$ref": "#/$defs/DeploymentEvent"
+    },
+    {
+      "$ref": "#/$defs/TelemetryEvent"
+    },
+    {
+      "$ref": "#/$defs/HealthEvent"
+    },
+    {
+      "$ref": "#/$defs/VerificationResultEvent"
+    }
+  ]
+}

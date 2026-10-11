@@ -1,0 +1,36 @@
+name: deploy
+on:
+  push: { branches: [main] }
+  workflow_dispatch:
+concurrency: { group: deploy-prod, cancel-in-progress: false }
+permissions:
+  contents: read
+  packages: write
+jobs:
+  deploy:
+    # Enabled once the host exists: repository variable DEPLOY_ENABLED=true plus DEPLOY_HOST and secret DEPLOY_SSH_KEY.
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/causaldeploy-core:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ github.token }}" }
+      - run: docker build -t "${IMAGE,,}" core && docker push "${IMAGE,,}"
+      - name: Ship config and deploy
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ vars.DEPLOY_HOST }}
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          install -m 600 /dev/null key && printf '%s\n' "$SSH_KEY" > key
+          SSH="ssh -i key -o StrictHostKeyChecking=accept-new ubuntu@$HOST"
+          scp -i key -o StrictHostKeyChecking=accept-new deploy/docker-compose.prod.yml deploy/Caddyfile deploy/deploy.sh "ubuntu@$HOST:/opt/causaldeploy/"
+          printf '%s' "$GHCR_TOKEN" | $SSH "docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+          $SSH "cd /opt/causaldeploy && chmod +x deploy.sh && ./deploy.sh ${IMAGE,,}"
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS "https://${{ vars.PUBLIC_DOMAIN }}/readyz" && exit 0; sleep 5
+          done; exit 1
