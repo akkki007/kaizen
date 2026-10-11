@@ -1,4 +1,4 @@
-"""App installation lifecycle: remember installations/repositories and request the initial import."""
+"""App installation lifecycle: remember installations, repositories and request the first import."""
 
 from typing import Any
 
