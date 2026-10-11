@@ -109,7 +109,7 @@ export function PrDetails({ pr, phase, open, visible, panelRef, hideRef, onHide 
         </button>
         <span id={titleId} className="details-bar-title">
           <span key={pr.number} className="swap-in">
-            PR #{pr.number} Details
+            Incident #{pr.number}
           </span>
         </span>
       </header>

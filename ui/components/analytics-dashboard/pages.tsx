@@ -491,7 +491,7 @@ export function SettingsPage() {
       <header className="page-head enter" style={{ "--i": 1 } as CSSProperties}>
         <div className="page-head-text">
           <h1 className="page-title">Settings</h1>
-          <p className="page-sub">Manage your profile, notifications and how {assistantName} answers PR questions.</p>
+          <p className="page-sub">Manage your profile, notifications and how {assistantName} answers incident questions.</p>
         </div>
       </header>
 
@@ -569,7 +569,7 @@ export function SettingsPage() {
             <li className="setting-row">
               <div>
                 <p className="setting-title">Answer style</p>
-                <p className="setting-detail">How much detail replies in the PR panel include.</p>
+                <p className="setting-detail">How much detail replies in the incident panel include.</p>
               </div>
               <Segmented label="Answer style" options={STYLES} value={form.style} onChange={(v) => update("style", v)} />
             </li>
