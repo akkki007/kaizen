@@ -77,6 +77,7 @@ services:
 
 networks:
   edge:
+    external: true   # created by the host's cloud-init: shared with the ShopLite stack
     name: edge
 
 volumes:
