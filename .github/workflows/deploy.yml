@@ -1,6 +1,7 @@
 name: deploy
 on:
-  push: { branches: [main] }
+  # feat/m1-foundations lets the first deploy run before the PR is merged; drop it after merging
+  push: { branches: [main, feat/m1-foundations] }
   workflow_dispatch:
 concurrency: { group: deploy-prod, cancel-in-progress: false }
 permissions:
