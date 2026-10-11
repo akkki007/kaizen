@@ -99,8 +99,8 @@ export function PrDetails({ pr, phase, open, visible, panelRef, hideRef, onHide 
           ref={hideRef}
           type="button"
           className="icon-btn press has-tip tip-below details-hide"
-          data-tip="Hide PR details"
-          aria-label="Hide PR details"
+          data-tip="Hide incident details"
+          aria-label="Hide incident details"
           aria-expanded={visible}
           aria-controls={panelId}
           onClick={onHide}
@@ -125,7 +125,7 @@ export function PrDetails({ pr, phase, open, visible, panelRef, hideRef, onHide 
 
             <dl className="kv">
               <div>
-                <dt>Author</dt>
+                <dt>Service</dt>
                 <dd>
                   <PersonAvatar handle={pr.author} size={22} />
                   {pr.author}
@@ -136,19 +136,19 @@ export function PrDetails({ pr, phase, open, visible, panelRef, hideRef, onHide 
                 <dd>{pr.repository}</dd>
               </div>
               <div>
-                <dt>Opened</dt>
+                <dt>Detected</dt>
                 <dd>{pr.opened}</dd>
               </div>
             </dl>
 
-            <Disclosure key={`p-${pr.number}`} title="Problem">
+            <Disclosure key={`p-${pr.number}`} title="What happened">
               {pr.problem.map((p, i) => (
                 <p key={i}>
                   <RichText text={p} />
                 </p>
               ))}
             </Disclosure>
-            <Disclosure key={`a-${pr.number}`} title="Approach">
+            <Disclosure key={`a-${pr.number}`} title="Investigation">
               {pr.approach.map((p, i) => (
                 <p key={i}>
                   <RichText text={p} />
@@ -210,7 +210,7 @@ function Composer({ onSubmit }: { onSubmit: (text: string) => void }) {
         id={inputId}
         className="composer-input"
         rows={1}
-        placeholder="Ask anything about PR"
+        placeholder="Ask about this incident"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}
@@ -276,5 +276,5 @@ function RichText({ text }: { text: string }) {
 
 function answerFor(pr: AnalyticsPullRequest) {
   const firstSentence = (pr.approach[0] ?? pr.title).split(". ")[0].replace(/`/g, "");
-  return `${firstSentence}. It touches ${pr.repository} and was opened by ${pr.author} at ${pr.opened}.`;
+  return `${firstSentence}. It affects ${pr.author} in ${pr.repository}, detected ${pr.opened}.`;
 }

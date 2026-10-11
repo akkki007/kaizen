@@ -21,14 +21,13 @@ import {
   type AnalyticsDashboardUser,
   type AnswerHandler,
 } from "@/components/analytics-dashboard/context";
-import { analyticsDashboardDemoData, type AnalyticsDashboardData } from "@/components/analytics-dashboard/data";
+import type { AnalyticsDashboardData } from "@/components/analytics-dashboard/data";
 import { PrDetails, type Phase } from "@/components/analytics-dashboard/details";
 import { CodeIcon, HomeIcon, LayersIcon, PanelIcon, SettingsIcon } from "@/components/analytics-dashboard/icons";
 import { OverviewPage, RepositoriesPage, ReviewsPage, SettingsPage } from "@/components/analytics-dashboard/pages";
 import { Avatar } from "@/components/analytics-dashboard/ui";
 import "./analytics-dashboard.css";
 
-export { analyticsDashboardDemoData } from "@/components/analytics-dashboard/data";
 export type {
   AnalyticsActivity,
   AnalyticsDashboardData,
@@ -50,7 +49,7 @@ const EXIT_MS = 150;
 const NAV = [
   { page: "overview", label: "Overview", Icon: HomeIcon },
   { page: "repositories", label: "Repositories", Icon: LayersIcon },
-  { page: "reviews", label: "Code review", Icon: CodeIcon },
+  { page: "reviews", label: "Incidents", Icon: CodeIcon },
   { page: "settings", label: "Settings", Icon: SettingsIcon },
 ] as const satisfies readonly { page: AnalyticsDashboardPage; label: string; Icon: typeof HomeIcon }[];
 
@@ -61,20 +60,13 @@ const PAGES: Record<AnalyticsDashboardPage, () => ReactNode> = {
   settings: SettingsPage,
 };
 
-const DEFAULT_USER: AnalyticsDashboardUser = {
-  name: "atharv",
-  email: "atharv@obsidianui.dev",
-  avatar: "https://www.obsidianui.dev/analytics-dashboard/avatars/atharv.webp",
-  role: "CLI & tooling · Admin",
-};
-
 export interface AnalyticsDashboardProps {
-  /** People, metrics, activity, repositories, and pull requests. Defaults to demo data. */
-  data?: AnalyticsDashboardData;
+  /** Services, metrics, activity, repositories, and incidents. */
+  data: AnalyticsDashboardData;
   /** Product name and optional logo at the top of the sidebar. */
   brand?: { name: string; logo?: ReactNode };
   /** Signed-in account shown in the sidebar and on the Settings page. */
-  user?: AnalyticsDashboardUser;
+  user: AnalyticsDashboardUser;
   /** Controlled page. */
   page?: AnalyticsDashboardPage;
   /** Initial page when uncontrolled. */
@@ -83,9 +75,9 @@ export interface AnalyticsDashboardProps {
   /** Initial accent color. Settings → Appearance changes it. */
   defaultAccent?: AnalyticsDashboardAccent;
   onAccentChange?: (accent: AnalyticsDashboardAccent) => void;
-  /** Assistant name in the PR panel composer. */
+  /** Assistant name in the incident panel composer. */
   assistantName?: string;
-  /** Answers questions asked in the PR panel. Without it, the panel replies with a summary of the pull request. */
+  /** Answers questions asked in the incident panel. Without it, the panel replies with a short summary. */
   onAsk?: AnswerHandler;
   /** Plain color behind the window. */
   background?: string;
@@ -108,15 +100,15 @@ function useContainerWidth() {
 }
 
 export function AnalyticsDashboard({
-  data = analyticsDashboardDemoData,
-  brand = { name: "PR Dashboard" },
-  user = DEFAULT_USER,
+  data,
+  brand = { name: "CausalDeploy" },
+  user,
   page: pageProp,
   defaultPage = "overview",
   onPageChange,
   defaultAccent = "blue",
   onAccentChange,
-  assistantName = "Claude",
+  assistantName = "CausalDeploy",
   onAsk,
   background,
   className,
@@ -343,10 +335,10 @@ export function AnalyticsDashboard({
                   ref={reopenRef}
                   type="button"
                   className="icon-btn press has-tip tip-below tip-end details-reopen"
-                  data-tip="Show PR details"
+                  data-tip="Show incident details"
                   data-visible={!detailsVisible}
                   inert={detailsVisible}
-                  aria-label="Show PR details"
+                  aria-label="Show incident details"
                   aria-expanded={detailsVisible}
                   aria-controls={detailsId}
                   onClick={showDetails}

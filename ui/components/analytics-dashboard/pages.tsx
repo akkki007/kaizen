@@ -14,7 +14,6 @@ import {
   MessageIcon,
   PullRequestIcon,
   SearchIcon,
-  StarIcon,
   TrendIcon,
 } from "./icons";
 import { Avatar, Digits, formatCount, PersonAvatar, PrRow, Segmented, Sparkline, StatusIcon, StatusPill, Switch } from "./ui";
@@ -62,7 +61,7 @@ export function OverviewPage() {
         <section className="card enter" style={{ "--i": 3 } as CSSProperties} aria-labelledby={`${id}-activity`}>
           <header className="card-head">
             <h2 id={`${id}-activity`} className="card-title">
-              Commit activity
+              Incidents by service
             </h2>
             <ul className="legend" aria-label="Contributors">
               {data.people.map((p) => (
@@ -79,7 +78,7 @@ export function OverviewPage() {
         <section className="card enter" style={{ "--i": 3.5 } as CSSProperties} aria-labelledby={`${id}-contrib`}>
           <header className="card-head">
             <h2 id={`${id}-contrib`} className="card-title">
-              Top contributors
+              Most affected services
             </h2>
           </header>
           <Leaderboard data={activity} people={data.people} />
@@ -89,7 +88,7 @@ export function OverviewPage() {
       <section className="block enter" style={{ "--i": 4.5 } as CSSProperties} aria-labelledby={`${id}-prs`}>
         <div className="block-head">
           <h2 id={`${id}-prs`} className="block-title">
-            Today PRs
+            Recent incidents
           </h2>
           <button type="button" className="link-more" onClick={() => navigate("reviews")}>
             View all
@@ -138,7 +137,7 @@ function ActivityChart({ data, people }: { data: AnalyticsActivity; people: Anal
   const summary = data.labels.map((label, i) => `${label} ${totals[i]}`).join(", ");
 
   return (
-    <figure className="chart" role="img" aria-label={`Commits per period: ${summary}`}>
+    <figure className="chart" role="img" aria-label={`Incidents per period: ${summary}`}>
       <div className="chart-grid" aria-hidden="true">
         {[1, 0.5, 0].map((f) => (
           <span key={f} data-value={Math.round(ceil * f)} />
@@ -147,7 +146,7 @@ function ActivityChart({ data, people }: { data: AnalyticsActivity; people: Anal
       <ol className="chart-cols" aria-hidden="true" style={{ "--cols": Math.max(1, data.labels.length) } as CSSProperties}>
         {data.labels.map((label, i) => (
           <li key={label} className="chart-col" style={{ "--col": i } as CSSProperties}>
-            <div className="bar-wrap has-tip tip-top" data-tip={`${label} · ${totals[i]} commits`} style={{ height: `${(totals[i] / ceil) * 100}%` }}>
+            <div className="bar-wrap has-tip tip-top" data-tip={`${label} · ${totals[i]} incidents`} style={{ height: `${(totals[i] / ceil) * 100}%` }}>
               <div className="bar">
                 {people.map((p) => {
                   const v = data.series[p.handle]?.[i] ?? 0;
@@ -183,7 +182,7 @@ function Leaderboard({ data, people }: { data: AnalyticsActivity; people: Analyt
             <div className="leader-line">
               <span className="leader-name">{r.handle}</span>
               <span className="leader-count">
-                <Digits value={r.commits} delay={560 + i * 80} /> commits
+                <Digits value={r.commits} delay={560 + i * 80} /> incidents
               </span>
             </div>
             <div className="share" aria-hidden="true">
@@ -191,13 +190,13 @@ function Leaderboard({ data, people }: { data: AnalyticsActivity; people: Analyt
             </div>
             <div className="leader-meta">
               <span className="badge badge-add">
-                <Digits value={`+${formatCount(r.lines.added)}`} delay={620 + i * 80} />
+                <Digits value={formatCount(r.lines.added)} delay={620 + i * 80} /> resolved
               </span>
               <span className="badge badge-del">
-                <Digits value={`\u2212${formatCount(r.lines.removed)}`} delay={660 + i * 80} />
+                <Digits value={formatCount(r.lines.removed)} delay={660 + i * 80} /> open
               </span>
               <span className="leader-pct">
-                <Digits value={Math.round((r.commits / total) * 100)} delay={700 + i * 80} />% of commits
+                <Digits value={Math.round((r.commits / total) * 100)} delay={700 + i * 80} />% of incidents
               </span>
             </div>
           </div>
@@ -209,25 +208,24 @@ function Leaderboard({ data, people }: { data: AnalyticsActivity; people: Analyt
 
 /* ───────────── Repositories ───────────── */
 
-type SortId = "recent" | "name" | "stars";
+type SortId = "recent" | "name" | "incidents";
 
 const SORTS = [
   { id: "recent", label: "Recent" },
   { id: "name", label: "Name" },
-  { id: "stars", label: "Stars" },
+  { id: "incidents", label: "Incidents" },
 ] as const satisfies readonly { id: SortId; label: string }[];
 
 const compare: Record<SortId, (a: AnalyticsRepository, b: AnalyticsRepository) => number> = {
   recent: (a, b) => a.updatedMinutes - b.updatedMinutes,
   name: (a, b) => a.name.localeCompare(b.name),
-  stars: (a, b) => b.stars - a.stars,
+  incidents: (a, b) => b.openPrs - a.openPrs,
 };
 
 export function RepositoriesPage() {
   const { data } = useDashboard();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortId>("recent");
-  const [starred, setStarred] = useState<Set<string>>(() => new Set(data.repositories[0] ? [data.repositories[0].name] : []));
 
   const q = query.trim().toLowerCase();
   const list = data.repositories
@@ -235,22 +233,13 @@ export function RepositoriesPage() {
     .sort(compare[sort]);
   const openPrs = data.repositories.reduce((sum, r) => sum + r.openPrs, 0);
 
-  function toggleStar(name: string) {
-    setStarred((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }
-
   return (
     <div className="page-content">
       <header className="page-head enter" style={{ "--i": 1 } as CSSProperties}>
         <div className="page-head-text">
           <h1 className="page-title">Repositories</h1>
           <p className="page-sub">
-            {data.repositories.length} repositories · {openPrs} open pull requests · {data.pullRequests.length} this week
+            {data.repositories.length} repositories · {openPrs} open incidents · {data.pullRequests.length} tracked
           </p>
         </div>
       </header>
@@ -282,7 +271,7 @@ export function RepositoriesPage() {
       ) : (
         <ul className="repo-grid" aria-label="Repositories">
           {list.map((repo, i) => (
-            <RepoCard key={repo.name} repo={repo} index={i} starred={starred.has(repo.name)} onStar={() => toggleStar(repo.name)} />
+            <RepoCard key={repo.name} repo={repo} index={i} />
           ))}
         </ul>
       )}
@@ -290,13 +279,12 @@ export function RepositoriesPage() {
   );
 }
 
-function RepoCard({ repo, index, starred, onStar }: { repo: AnalyticsRepository; index: number; starred: boolean; onStar: () => void }) {
+function RepoCard({ repo, index }: { repo: AnalyticsRepository; index: number }) {
   const slash = repo.name.indexOf("/");
   const org = slash >= 0 ? repo.name.slice(0, slash + 1) : "";
   const name = slash >= 0 ? repo.name.slice(slash + 1) : repo.name;
   const peak = Math.max(1, ...repo.activity);
   const VisIcon = repo.visibility === "Private" ? LockIcon : GlobeIcon;
-  const stars = repo.stars + (starred ? 1 : 0);
 
   return (
     <li className="card repo enter" style={{ "--i": 3 + index * 0.35 } as CSSProperties}>
@@ -307,19 +295,10 @@ function RepoCard({ repo, index, starred, onStar }: { repo: AnalyticsRepository;
           {name}
         </h2>
         <span className="tag">{repo.visibility}</span>
-        <button
-          type="button"
-          className="star-btn press"
-          aria-pressed={starred}
-          aria-label={`${starred ? "Unstar" : "Star"} ${repo.name}`}
-          onClick={onStar}
-        >
-          <StarIcon size={16} strokeWidth={1.8} />
-        </button>
       </div>
       <p className="repo-desc">{repo.description}</p>
 
-      <div className="mini-bars" role="img" aria-label={`Commits over the last ${repo.activity.length} days, peak ${peak} per day`}>
+      <div className="mini-bars" role="img" aria-label={`Incidents over the last ${repo.activity.length} days, peak ${peak} per day`}>
         {repo.activity.map((v, i) => (
           <span key={i} style={{ "--h": v / peak, "--bar": i } as CSSProperties} />
         ))}
@@ -331,14 +310,10 @@ function RepoCard({ repo, index, starred, onStar }: { repo: AnalyticsRepository;
           {repo.language}
         </span>
         <span className="repo-stat">
-          <StarIcon size={13} strokeWidth={1.9} />
-          <Digits value={stars} format={formatCount} delay={420 + index * 80} />
-        </span>
-        <span className="repo-stat">
           <PullRequestIcon size={13} strokeWidth={1.9} />
-          {repo.openPrs} open
+          {repo.openPrs} open incidents
         </span>
-        <span className="repo-updated">Updated {repo.updated}</span>
+        <span className="repo-updated">Last incident {repo.updated}</span>
       </div>
     </li>
   );
@@ -348,7 +323,7 @@ function RepoCard({ repo, index, starred, onStar }: { repo: AnalyticsRepository;
 
 type FilterId = "all" | AnalyticsPrStatus["kind"];
 
-const FILTER_LABELS: Record<FilterId, string> = { all: "All", open: "Open", review: "In review", merged: "Merged" };
+const FILTER_LABELS: Record<FilterId, string> = { all: "All", open: "Open", review: "Investigating", merged: "Resolved" };
 const ORDER: FilterId[] = ["all", "open", "review", "merged"];
 
 export function ReviewsPage() {
@@ -373,9 +348,9 @@ export function ReviewsPage() {
     <div className="page-content">
       <header className="page-head enter" style={{ "--i": 1 } as CSSProperties}>
         <div className="page-head-text">
-          <h1 className="page-title">Code review</h1>
+          <h1 className="page-title">Incident queue</h1>
           <p className="page-sub">
-            {waiting} {waiting === 1 ? "pull request is" : "pull requests are"} waiting for review
+            {waiting} {waiting === 1 ? "incident needs" : "incidents need"} attention
           </p>
         </div>
       </header>
@@ -384,7 +359,7 @@ export function ReviewsPage() {
         <Segmented label="Filter by status" options={options} value={filter} onChange={setFilter} className="seg-wide" />
       </div>
 
-      <ul key={filter} className="review-list" aria-label={`${FILTER_LABELS[filter]} pull requests`}>
+      <ul key={filter} className="review-list" aria-label={`${FILTER_LABELS[filter]} incidents`}>
         {list.map((pr, i) => (
           <ReviewRow key={pr.number} pr={pr} index={i} selected={selected === pr.number} onOpen={openPr} />
         ))}
@@ -435,7 +410,7 @@ function ReviewRow({ pr, index, selected, onOpen }: { pr: AnalyticsPullRequest; 
         type="button"
         className="btn-details press"
         aria-pressed={selected}
-        aria-label={`Details for PR #${pr.number}`}
+        aria-label={`Details for incident #${pr.number}`}
         onClick={() => onOpen(pr.number)}
       >
         Details
@@ -458,10 +433,10 @@ type Form = {
 };
 
 const NOTIFICATIONS: { id: NotifyId; title: string; detail: string }[] = [
-  { id: "requests", title: "Review requests", detail: "When someone asks you to review a pull request." },
-  { id: "mentions", title: "Mentions", detail: "When you are @mentioned in a comment or description." },
-  { id: "merged", title: "Merged pull requests", detail: "When a pull request you authored is merged." },
-  { id: "digest", title: "Weekly digest", detail: "A Friday summary of commits, merges and review time." },
+  { id: "requests", title: "New incidents", detail: "When an incident is detected in a repository you can access." },
+  { id: "mentions", title: "Verification results", detail: "When a proposed fix passes or fails verification." },
+  { id: "merged", title: "Fix approvals", detail: "When a remediation you approved is merged." },
+  { id: "digest", title: "Weekly digest", detail: "A Friday summary of incidents, time to detect and fixes verified." },
 ];
 
 const STYLES = [

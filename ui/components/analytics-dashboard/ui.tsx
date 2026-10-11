@@ -166,7 +166,7 @@ export function Switch({
   );
 }
 
-const STATUS_TEXT: Record<AnalyticsPrStatus["kind"], string> = { merged: "Merged", review: "In review", open: "Open" };
+const STATUS_TEXT: Record<AnalyticsPrStatus["kind"], string> = { merged: "Resolved", review: "Investigating", open: "Open" };
 const STATUS_ICON = { merged: MergeIcon, review: DraftIcon, open: PullRequestIcon } as const;
 
 export function StatusPill({ status }: { status: AnalyticsPrStatus }) {
@@ -221,14 +221,14 @@ export function PrRow({
       <PersonAvatar handle={pr.author} size={40} />
       <div className="pr-text">
         <p className="pr-title">{pr.title}</p>
-        <p className="pr-sub">PR opened by {pr.author}</p>
+        <p className="pr-sub">Detected in {pr.author}</p>
       </div>
       <StatusPill status={pr.status} />
       <button
         type="button"
         className="btn-details press"
         aria-pressed={selected}
-        aria-label={`Details for PR #${pr.number}`}
+        aria-label={`Details for incident #${pr.number}`}
         onClick={() => onOpen(pr.number)}
       >
         Details
