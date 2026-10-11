@@ -89,9 +89,15 @@ def build_code_graph(files: dict[str, str], repo_name: str = "root") -> CodeGrap
     def service_of(path: str) -> str:
         return svc_name[_owner(path, roots)]
 
+    workspace_version = {
+        str(meta["name"]): str(meta["version"])
+        for meta in roots.values()
+        if meta.get("name") and meta.get("version")
+    }
     for d, meta in roots.items():
         deps = parse_manifest("package.json", json.dumps(meta))
-        cg.service_deps[svc_name[d]] = deps
+        # internal packages carry the version actually in the tree, not the declared range
+        cg.service_deps[svc_name[d]] = {n: workspace_version.get(n, v) for n, v in deps.items()}
 
     by_ext = {e: a for a in ANALYZERS for e in a.extensions}
     for path, text in files.items():

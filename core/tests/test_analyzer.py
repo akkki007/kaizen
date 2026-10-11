@@ -99,3 +99,9 @@ def test_write_code_graph_is_idempotent(store: GraphStore, cg) -> None:  # type:
         "MATCH (f:Function {id: $id})-[:depends_on]->(d:Dependency) RETURN d.id", {"id": V}
     )
     assert rows == [["money-utils@2.0.0"]]
+
+
+def test_internal_package_versions_come_from_the_tree(cg) -> None:  # type: ignore[no-untyped-def]
+    # payments declares "^2.0.0" but the workspace package itself is 2.0.0 in the fixture
+    assert cg.service_deps["payments"]["money-utils"] == "2.0.0"
+    assert cg.service_deps["orders"]["money-utils"] == "2.0.0"

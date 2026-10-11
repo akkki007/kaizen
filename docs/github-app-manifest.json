@@ -1,0 +1,20 @@
+{
+  "name": "causaldeploy-shoplite-demo",
+  "url": "https://shoplite-demo.duckdns.org",
+  "hook_attributes": { "url": "https://shoplite-demo.duckdns.org/webhooks/github", "active": true },
+  "redirect_url": "http://localhost:8765/callback",
+  "callback_urls": [
+    "https://shoplite-demo.duckdns.org/auth/callback",
+    "http://localhost:8000/auth/callback"
+  ],
+  "public": false,
+  "default_events": ["push", "pull_request", "deployment", "deployment_status", "workflow_run", "check_run"],
+  "default_permissions": {
+    "contents": "read",
+    "pull_requests": "write",
+    "deployments": "read",
+    "actions": "write",
+    "checks": "write",
+    "metadata": "read"
+  }
+}

@@ -49,6 +49,21 @@ def _overlap(lo: int, hi: int, f: FunctionDef) -> int:
     return max(0, min(hi, f.end) - max(lo, f.start) + 1)
 
 
+def _innermost_counts(lo: int, hi: int, defs: list[FunctionDef]) -> dict[FunctionDef, int]:
+    """Attribute each changed line to the innermost function containing it.
+
+    Handlers are usually nested inside a factory (`createApp`); blaming the factory for every
+    edit inside a handler would make every nested edit look like a change to the outer function.
+    """
+    counts: dict[FunctionDef, int] = {}
+    for line in range(lo, hi + 1):
+        owners = [f for f in defs if f.start <= line <= f.end]
+        if owners:
+            inner = min(owners, key=lambda f: f.end - f.start)
+            counts[inner] = counts.get(inner, 0) + 1
+    return counts
+
+
 def _analyze(path: str, text: str | None) -> FileAnalysis | None:
     if text is None or not path.endswith(_analyzer.extensions):
         return None
@@ -92,23 +107,21 @@ def map_commit(
         uncovered: dict[int, Hunk] = {i: h for i, h in enumerate(fc.hunks)}
         for i, h in enumerate(fc.hunks):
             if h.added:
-                for f in post_defs.values():
-                    n = _overlap(h.start, h.end, f)
-                    if n:
-                        change(fn_id(post_svc, fc.path, f.qname)).added += n
-                        uncovered.pop(i, None)
+                for f, n in _innermost_counts(h.start, h.end, list(post_defs.values())).items():
+                    change(fn_id(post_svc, fc.path, f.qname)).added += n
+                    uncovered.pop(i, None)
             if h.removed:
-                for f in pre_defs.values():
-                    n = _overlap(h.old_start, h.old_end, f)
-                    if n:
-                        target = post_defs.get(f.qname)
-                        fid = (
-                            fn_id(post_svc, fc.path, f.qname)
-                            if target
-                            else fn_id(pre_svc, old_path, f.qname)
-                        )
-                        change(fid).removed += n
-                        uncovered.pop(i, None)
+                for f, n in _innermost_counts(
+                    h.old_start, h.old_end, list(pre_defs.values())
+                ).items():
+                    target = post_defs.get(f.qname)
+                    fid = (
+                        fn_id(post_svc, fc.path, f.qname)
+                        if target
+                        else fn_id(pre_svc, old_path, f.qname)
+                    )
+                    change(fid).removed += n
+                    uncovered.pop(i, None)
         for h in uncovered.values():
             fallbacks.append(FileFallback(fc.path, "outside-function", h.added, h.removed))
 

@@ -37,3 +37,14 @@ def diff_manifests(
         for name in sorted(pre.keys() | post.keys())
         if pre.get(name) != post.get(name)
     ]
+
+
+def package_identity(text: str) -> tuple[str, str] | None:
+    """(name, version) of the package a package.json describes, if both are present."""
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(data, dict) and data.get("name") and data.get("version"):
+        return str(data["name"]), str(data["version"])
+    return None

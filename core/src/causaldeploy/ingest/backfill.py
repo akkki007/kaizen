@@ -9,7 +9,7 @@ from causaldeploy.graph.store import Edge, GraphStore
 from causaldeploy.ingest.code_graph import build_code_graph, make_service_of, write_code_graph
 from causaldeploy.ingest.events import apply_commit
 from causaldeploy.ingest.git import iter_commits, list_tree, read_blob
-from causaldeploy.ingest.manifests import diff_manifests, parse_manifest
+from causaldeploy.ingest.manifests import diff_manifests, package_identity, parse_manifest
 from causaldeploy.ingest.mapping import map_commit
 
 ANALYZABLE = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx")
@@ -31,6 +31,10 @@ def backfill_repo(
         pkg_dirs = {posixpath.dirname(p) for p in tree if posixpath.basename(p) == "package.json"}
         service_of = make_service_of(pkg_dirs, short)
         apply_commit(store, ev.model_copy(update={"repo": repo_name}), service_of)
+        if len(ev.parents) > 1:
+            # a merge only combines changes already attributed to its branch commits
+            stats["commits"] += 1
+            continue
 
         parent = ev.parents[0] if ev.parents else None
         code = [
@@ -70,18 +74,23 @@ def backfill_repo(
         for f in ev.files:
             if posixpath.basename(f.path) != "package.json":
                 continue
-            before = parse_manifest(
-                f.path, (read_blob(repo_dir, parent, f.old_path or f.path) or "") if parent else ""
-            )
-            after = parse_manifest(f.path, read_blob(repo_dir, ev.sha, f.path) or "")
-            for name, _old, new in diff_manifests(before, after):
-                if new:
-                    store.upsert_nodes(
-                        "Dependency", [{"id": f"{name}@{new}", "name": name, "version": new}]
-                    )
-                    edges.append(
-                        Edge("Commit", ev.sha, "changes_dep", "Dependency", f"{name}@{new}")
-                    )
+            old_text = (read_blob(repo_dir, parent, f.old_path or f.path) or "") if parent else ""
+            new_text = read_blob(repo_dir, ev.sha, f.path) or ""
+            changed = [
+                (name, new_v)
+                for name, _old, new_v in diff_manifests(
+                    parse_manifest(f.path, old_text), parse_manifest(f.path, new_text)
+                )
+                if new_v
+            ]
+            # a workspace package releasing a new version is itself a dependency change
+            before_id, after_id = package_identity(old_text), package_identity(new_text)
+            if after_id and after_id != before_id:
+                changed.append(after_id)
+            for name, version in changed:
+                dep = f"{name}@{version}"
+                store.upsert_nodes("Dependency", [{"id": dep, "name": name, "version": version}])
+                edges.append(Edge("Commit", ev.sha, "changes_dep", "Dependency", dep))
         store.upsert_edges(edges)
         stats["commits"] += 1
         stats["function_edges"] += len(mapping.functions)

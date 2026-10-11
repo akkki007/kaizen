@@ -95,8 +95,15 @@ Resources:
                   - !Ref WebhookSecret
                   - !Ref PostgresPassword
                   - !Ref ExternalSecrets
+              # Written once by the GitHub App manifest conversion step run on the host
+              # (docs/github-app.md), so the generated credentials never pass through a person.
               - Effect: Allow
-                Action: kms:Decrypt
+                Action: secretsmanager:PutSecretValue
+                Resource:
+                  - !Ref WebhookSecret
+                  - !Ref ExternalSecrets
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:GenerateDataKey]
                 Resource: !GetAtt SecretsKey.Arn
 
   HostProfile:

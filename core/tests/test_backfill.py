@@ -82,3 +82,51 @@ def test_backfill_builds_graph_and_is_idempotent(store: GraphStore, repo: Path) 
     )
     assert dep == [["money-utils@2.0.0"]]
     assert store.read("MATCH (:Commit)-[p:parent]->(:Commit) RETURN count(p)") == [[3]]
+
+
+def test_workspace_version_bump_is_a_dependency_change(store: GraphStore, tmp_path: Path) -> None:
+    d = tmp_path / "ws"
+    (d / "lib").mkdir(parents=True)
+    (d / "app").mkdir()
+    git(d, "init", "-q", "-b", "main")
+    (d / "lib/package.json").write_text('{"name": "util", "version": "1.0.0"}')
+    (d / "lib/index.js").write_text("function f() {\n  return 1;\n}\nmodule.exports = { f };\n")
+    (d / "app/package.json").write_text('{"name": "app", "dependencies": {"util": "^1.0.0"}}')
+    (d / "app/main.js").write_text(
+        'const { f } = require("util");\nfunction run() {\n  return f();\n}\n'
+    )
+    git(d, "add", "-A")
+    git(d, "commit", "-qm", "init")
+    (d / "lib/package.json").write_text('{"name": "util", "version": "1.1.0"}')
+    git(d, "commit", "-qam", "release util 1.1.0")
+    backfill_repo(store, d, "acme/ws")
+    assert store.read(
+        "MATCH (:Commit {message: 'release util 1.1.0'})-[:changes_dep]->(d) RETURN d.id"
+    ) == [["util@1.1.0"]]
+    # functions and services depend on the version that is actually in the tree
+    assert (
+        store.read(
+            "MATCH (f:Function)-[:depends_on]->(d:Dependency {id: 'util@1.1.0'}) RETURN f.id"
+        )
+        != []
+    )
+
+
+def test_merge_commits_do_not_duplicate_change_attribution(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    d = tmp_path / "m"
+    (d / "src").mkdir(parents=True)
+    git(d, "init", "-q", "-b", "main")
+    (d / "package.json").write_text('{"name": "m"}')
+    (d / "src/a.js").write_text("function a() {\n  return 1;\n}\n")
+    git(d, "add", "-A")
+    git(d, "commit", "-qm", "init")
+    git(d, "checkout", "-qb", "feature")
+    (d / "src/a.js").write_text("function a() {\n  return 2;\n}\n")
+    git(d, "commit", "-qam", "change a")
+    git(d, "checkout", "-q", "main")
+    git(d, "merge", "--no-ff", "-qm", "merge feature", "feature")
+    backfill_repo(store, d, "acme/m")
+    rows = store.read("MATCH (c:Commit)-[:modifies_fn]->(f) RETURN c.message")
+    assert rows == [["change a"]]

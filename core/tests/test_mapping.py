@@ -90,3 +90,23 @@ def test_non_code_file_is_a_file_level_change() -> None:
     fc = FileChange(path="README.md", status="modified", hunks=[Hunk(start=1, end=1, added=1)])
     m = map_commit([fc], {}, {}, svc)
     assert m.functions == [] and m.fallbacks[0].reason == "unparsed"
+
+
+def test_nested_function_edits_blame_only_the_innermost() -> None:
+    src = (
+        "function createApp() {\n"
+        "  const a = 1;\n"
+        "  function handler(req) {\n"
+        "    return req.body;\n"
+        "  }\n"
+        "  return handler;\n"
+        "}\n"
+    )
+    post = src.replace("req.body", "req.body.id")
+    fc = FileChange(
+        path="a.js",
+        status="modified",
+        hunks=[Hunk(start=4, end=4, old_start=4, old_end=4, added=1, removed=1)],
+    )
+    m = map_commit([fc], {"a.js": src}, {"a.js": post}, svc)
+    assert [c.function_id for c in m.functions] == ["svc:a.js:createApp.handler"]
