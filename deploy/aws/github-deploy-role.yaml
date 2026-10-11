@@ -6,8 +6,10 @@ Parameters:
     Type: String
   Subjects:
     Type: CommaDelimitedList
-    Default: "repo:akkki007/deploy-agent:ref:refs/heads/main,repo:yashchandnani07/shoplite:ref:refs/heads/main"
-    Description: OIDC `sub` claims allowed to assume the role (repo and branch).
+    Default: "repo:akkki007@115125778/deploy-agent@1412973044:ref:refs/heads/main,repo:yashchandnani07@187174516/shoplite@1413904960:ref:refs/heads/main"
+    Description: >-
+      OIDC `sub` claims allowed to assume the role. GitHub embeds immutable owner/repo ids
+      (`repo:<owner>@<id>/<repo>@<id>:ref:...`); print yours with a workflow step if it differs.
   CreateOidcProvider:
     Type: String
     AllowedValues: ["true", "false"]
