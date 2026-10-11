@@ -449,3 +449,35 @@ async def test_replay_reapplies_stored_deliveries_without_double_effects(
     assert await jobs_count() == 2
     assert await replay(None) == 1
     assert await jobs_count() == 2  # replaying again does not multiply jobs
+
+
+async def test_installation_event_records_repos_and_requests_initial_backfill(
+    client: httpx.AsyncClient,
+) -> None:
+    from causaldeploy.db.models import Installation, Repository
+
+    payload = {
+        "action": "created",
+        "installation": {"id": 4242, "account": {"login": "yashchandnani07"}},
+        "repositories": [{"full_name": "yashchandnani07/shoplite"}],
+    }
+    body = json.dumps(payload).encode()
+    h = {
+        "x-github-event": "installation",
+        "x-github-delivery": "inst-1",
+        "x-hub-signature-256": sign(body),
+    }
+    r = await client.post("/webhooks/github", content=body, headers=h)
+    assert r.status_code == 202 and len(r.json()["jobs"]) == 1
+    async with session_scope() as s:
+        inst = (await s.execute(select(Installation))).scalar_one()
+        repo = (await s.execute(select(Repository))).scalar_one()
+        job = (await s.execute(select(JobRecord))).scalar_one()
+    assert (inst.id, inst.account) == (4242, "yashchandnani07")
+    assert (repo.full_name, repo.installation_id) == ("yashchandnani07/shoplite", 4242)
+    assert job.kind == "backfill_repo" and job.payload["installation_id"] == 4242
+
+    # removal events import nothing
+    gone = json.dumps({**payload, "action": "deleted"}).encode()
+    h2 = {**h, "x-github-delivery": "inst-2", "x-hub-signature-256": sign(gone)}
+    assert (await client.post("/webhooks/github", content=gone, headers=h2)).json()["jobs"] == []

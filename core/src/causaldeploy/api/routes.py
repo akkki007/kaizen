@@ -23,6 +23,7 @@ from causaldeploy.db.models import (
     Repository,
 )
 from causaldeploy.db.session import session_scope
+from causaldeploy.github.installations import INSTALL_EVENTS, record_installation
 from causaldeploy.github.webhooks import normalize, verify_signature
 from causaldeploy.graph.evidence import EvidenceGraph, evidence_graph
 from causaldeploy.graph.store import GraphStore
@@ -313,6 +314,15 @@ async def github_webhook(request: Request) -> dict[str, Any]:
 async def dispatch_github(delivery: str, event_type: str, payload: dict[str, Any]) -> list[str]:
     """Normalize a stored delivery and enqueue its effects (shared with the replay tool)."""
     ids: list[str] = []
+    if event_type in INSTALL_EVENTS and payload.get("installation"):
+        inst_id, repos = await record_installation(payload)
+        for name in repos:  # initial import when the App is installed
+            jid, _ = await enqueue(
+                "backfill_repo",
+                BackfillPayload(repo=name, installation_id=inst_id),
+                f"install:{name}:{inst_id}",
+            )
+            ids.append(jid)
     repo = (payload.get("repository") or {}).get("full_name")
     if event_type == "push" and repo:
         inst = (payload.get("installation") or {}).get("id")
