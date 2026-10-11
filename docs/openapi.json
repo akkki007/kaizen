@@ -132,6 +132,83 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "IncidentPage": {
+        "description": "Pagination convention: `limit`/`offset` in, `items` + `total` out.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "IncidentPage",
+        "type": "object"
+      },
+      "IncidentSummary": {
+        "properties": {
+          "detected_at": {
+            "format": "date-time",
+            "title": "Detected At",
+            "type": "string"
+          },
+          "env": {
+            "title": "Env",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "onset_ts": {
+            "format": "date-time",
+            "title": "Onset Ts",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "repo",
+          "service",
+          "env",
+          "status",
+          "onset_ts",
+          "detected_at"
+        ],
+        "title": "IncidentSummary",
+        "type": "object"
+      },
       "LlmCost": {
         "properties": {
           "calls": {
@@ -186,36 +263,6 @@
           "key"
         ],
         "title": "NewKey",
-        "type": "object"
-      },
-      "Page": {
-        "description": "Pagination convention: `limit`/`offset` in, `items` + `total` out.",
-        "properties": {
-          "items": {
-            "items": {},
-            "title": "Items",
-            "type": "array"
-          },
-          "limit": {
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "title": "Offset",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
-        "title": "Page",
         "type": "object"
       },
       "User": {
@@ -402,7 +449,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page"
+                  "$ref": "#/components/schemas/IncidentPage"
                 }
               }
             },

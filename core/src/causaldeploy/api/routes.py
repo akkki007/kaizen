@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import secrets
+from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -35,10 +36,20 @@ webhooks = APIRouter(prefix="/webhooks")
 _events = TypeAdapter(list[Event])
 
 
-class Page(BaseModel):
+class IncidentSummary(BaseModel):
+    id: str
+    repo: str
+    service: str
+    env: str
+    status: str
+    onset_ts: datetime
+    detected_at: datetime
+
+
+class IncidentPage(BaseModel):
     """Pagination convention: `limit`/`offset` in, `items` + `total` out."""
 
-    items: list[Any]
+    items: list[IncidentSummary]
     total: int
     limit: int
     offset: int
@@ -91,12 +102,12 @@ async def get_job(job_id: str, user: CurrentUser) -> dict[str, Any]:
     }
 
 
-@v1.get("/incidents", response_model=Page)
+@v1.get("/incidents", response_model=IncidentPage)
 async def list_incidents(
     user: CurrentUser,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
-) -> Page:
+) -> IncidentPage:
     from sqlalchemy import func
 
     scope = IncidentRow.repo.in_(list(user.repos))
@@ -118,18 +129,18 @@ async def list_incidents(
             .all()
         )
     items = [
-        {
-            "id": r.id,
-            "repo": r.repo,
-            "service": r.service,
-            "env": r.env,
-            "status": r.status,
-            "onset_ts": r.onset_ts,
-            "detected_at": r.detected_at,
-        }
+        IncidentSummary(
+            id=r.id,
+            repo=r.repo,
+            service=r.service,
+            env=r.env,
+            status=r.status,
+            onset_ts=r.onset_ts,
+            detected_at=r.detected_at,
+        )
         for r in rows
     ]
-    return Page(items=items, total=total, limit=limit, offset=offset)
+    return IncidentPage(items=items, total=total, limit=limit, offset=offset)
 
 
 async def _incident_for(user: CurrentUser, incident_id: str) -> IncidentRow:
