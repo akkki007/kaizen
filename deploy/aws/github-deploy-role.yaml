@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Lets GitHub Actions (OIDC, no stored keys) run deploy commands on the CausalDeploy host via SSM.
+
+Parameters:
+  InstanceId:
+    Type: String
+  Subjects:
+    Type: CommaDelimitedList
+    Default: "repo:akkki007@115125778/deploy-agent@1412973044:ref:refs/heads/main,repo:yashchandnani07@187174516/shoplite@1413904960:ref:refs/heads/main"
+    Description: >-
+      OIDC `sub` claims allowed to assume the role. GitHub embeds immutable owner/repo ids
+      (`repo:<owner>@<id>/<repo>@<id>:ref:...`); print yours with a workflow step if it differs.
+  CreateOidcProvider:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: Set false if the account already has token.actions.githubusercontent.com.
+
+Conditions:
+  MakeProvider: !Equals [!Ref CreateOidcProvider, "true"]
+
+Resources:
+  GithubOidc:
+    Type: AWS::IAM::OIDCProvider
+    Condition: MakeProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      ThumbprintList: [6938fd4d98bab03faadb97b34396831e3780aea1]
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: causaldeploy-github-deploy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - MakeProvider
+                - !Ref GithubOidc
+                - !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": sts.amazonaws.com
+              StringLike:
+                "token.actions.githubusercontent.com:sub": !Ref Subjects
+      Policies:
+        - PolicyName: run-commands-on-host
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${InstanceId}"
+                  - !Sub "arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript"
+              - Effect: Allow
+                Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations]
+                Resource: "*"
+
+Outputs:
+  RoleArn:
+    Value: !GetAtt DeployRole.Arn

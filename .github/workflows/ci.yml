@@ -7,13 +7,44 @@ jobs:
   core:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: core } }
+    services:
+      falkordb:
+        image: falkordb/falkordb:6.0.2
+        ports: ["6380:6379"]
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: causaldeploy, POSTGRES_PASSWORD: causaldeploy, POSTGRES_DB: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U causaldeploy" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync
+        with: { enable-cache: true }
+      - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run mypy src
+      # includes: migration up/down + drift, contract/OpenAPI freshness, auth, jobs, graph, ingest
       - run: uv run pytest
+      - name: Contract change requires a version bump
+        if: github.event_name == 'pull_request'
+        run: uv run python -m causaldeploy.cli check-contract-version --base origin/${{ github.base_ref }}
+
+  restore-drill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/test-restore.sh
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t causaldeploy-core:ci core
 
   ui:
     runs-on: ubuntu-latest
@@ -23,5 +54,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm install
+      - name: Generated API client is current (no manual edits)
+        run: npm run gen:api && git diff --exit-code lib/api
       - run: npm run lint
       - run: npm run build

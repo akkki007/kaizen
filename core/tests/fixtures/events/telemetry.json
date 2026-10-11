@@ -1,0 +1,17 @@
+{
+  "type": "telemetry",
+  "repo": "acme/shoplite",
+  "service": "payments",
+  "env": "prod",
+  "ts": "2026-10-09T10:20:00Z",
+  "kind": "error",
+  "request_id": "req-1",
+  "endpoint": "POST /payments",
+  "status_code": 500,
+  "message": "Cannot read properties of undefined (reading 'currency')",
+  "error_type": "TypeError",
+  "stack": [
+    "validatePayment (payments/src/payment/validation.js:18:12)",
+    "handlePayment (payments/src/routes.js:30:5)"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "health",
+  "repo": "acme/shoplite",
+  "service": "payments",
+  "env": "prod",
+  "ts": "2026-10-09T10:21:00Z",
+  "ok": false,
+  "latency_ms": 1200.5,
+  "status_code": 503
+}

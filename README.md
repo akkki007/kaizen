@@ -26,4 +26,9 @@ make api         # API with reload   |   make ui   # UI on :3000
 
 Health: `curl localhost:8000/healthz` · `curl localhost:8000/readyz`
 
+Core tests need the compose services (`docker compose up -d falkordb postgres redis`).
+Ingest API: `uv run python -m causaldeploy.cli create-api-key owner/repo`, then `POST /api/v1/events`
+with `X-API-Key`. Worker: `make worker`. Contracts: `docs/schemas/` (regenerate with `make schemas`).
+More: [`docs/graph.md`](docs/graph.md), [`docs/github-app.md`](docs/github-app.md).
+
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for workflow.

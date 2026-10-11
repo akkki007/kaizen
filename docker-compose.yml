@@ -1,8 +1,17 @@
+# Local development stack. `make bootstrap` brings this up and prepares the database.
 services:
   falkordb:
-    image: falkordb/falkordb:latest
+    image: falkordb/falkordb:6.0.2   # pinned: tests and prod run this exact version
     ports: ["6380:6379", "3001:3000"]   # graph (host 6380) + FalkorDB Browser (3001)
+    environment:
+      # persistence + bounded memory (same flags as prod, smaller limit)
+      REDIS_ARGS: "--appendonly yes --appendfsync everysec --save 300 10 --maxmemory 512mb --maxmemory-policy noeviction"
+      FALKORDB_ARGS: "TIMEOUT 5000 MAX_QUEUED_QUERIES 25 RESULTSET_SIZE 10000"
     volumes: ["falkordb-data:/var/lib/falkordb/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
 
   postgres:
     image: postgres:16
@@ -12,10 +21,18 @@ services:
       POSTGRES_DB: causaldeploy
     ports: ["5432:5432"]
     volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U causaldeploy"]
+      interval: 3s
+      retries: 20
 
   redis:
     image: redis:7
     ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
 
   api:
     build: ./core
@@ -25,8 +42,22 @@ services:
       CD_FALKORDB_PORT: "6379"
       CD_POSTGRES_DSN: postgresql://causaldeploy:causaldeploy@postgres:5432/causaldeploy
       CD_REDIS_URL: redis://redis:6379/0
-    ports: ["8000:8000"]
-    depends_on: [falkordb, postgres, redis]
+    ports: ["${CD_API_PORT:-8000}:8000"]
+    depends_on:
+      falkordb: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    build: ./core
+    command: ["arq", "causaldeploy.jobs.worker.WorkerSettings"]
+    env_file: [.env]
+    environment:
+      CD_FALKORDB_HOST: falkordb
+      CD_FALKORDB_PORT: "6379"
+      CD_POSTGRES_DSN: postgresql://causaldeploy:causaldeploy@postgres:5432/causaldeploy
+      CD_REDIS_URL: redis://redis:6379/0
+    depends_on: [api]
 
 volumes:
   falkordb-data:

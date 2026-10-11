@@ -1,0 +1,88 @@
+# Production stack (runs on the VM in /opt/causaldeploy). Secrets come from /opt/causaldeploy/.env,
+# written at deploy time from AWS Secrets Manager by `cd-fetch-env`. Never commit that file.
+name: causaldeploy
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      CD_PUBLIC_DOMAIN: ${CD_PUBLIC_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    networks: [default, edge]
+    depends_on: [api]
+
+  api:
+    image: ${CD_IMAGE:?set CD_IMAGE}
+    restart: unless-stopped
+    env_file: [.env]
+    environment: &runtime
+      CD_ENV: prod
+      CD_ALLOWED_REPOS: ${CD_ALLOWED_REPOS:-yashchandnani07/shoplite}
+      CD_FALKORDB_HOST: falkordb
+      CD_FALKORDB_PORT: "6379"
+      CD_POSTGRES_DSN: postgresql://causaldeploy:${POSTGRES_PASSWORD}@postgres:5432/causaldeploy
+      CD_REDIS_URL: redis://redis:6379/0
+    command: ["sh", "-c", "alembic upgrade head && uvicorn causaldeploy.api.main:app --host 0.0.0.0 --port 8000 --proxy-headers"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      falkordb: { condition: service_healthy }
+    networks: [default, edge]
+
+  worker:
+    image: ${CD_IMAGE}
+    restart: unless-stopped
+    env_file: [.env]
+    environment: *runtime
+    command: ["arq", "causaldeploy.jobs.worker.WorkerSettings"]
+    depends_on: [api]
+
+  falkordb:
+    image: falkordb/falkordb:6.0.2
+    restart: unless-stopped
+    environment:
+      # AOF + periodic RDB, bounded memory, query timeout (see docs/operations.md)
+      REDIS_ARGS: "--appendonly yes --appendfsync everysec --save 300 10 --maxmemory ${FALKORDB_MAXMEMORY:-768mb} --maxmemory-policy noeviction"
+      FALKORDB_ARGS: "TIMEOUT 5000 MAX_QUEUED_QUERIES 25 RESULTSET_SIZE 10000"
+    volumes: [falkordb-data:/var/lib/falkordb/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: causaldeploy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: causaldeploy
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U causaldeploy"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+networks:
+  edge:
+    external: true   # created by the host's cloud-init: shared with the ShopLite stack
+    name: edge
+
+volumes:
+  caddy-data:
+  falkordb-data:
+  postgres-data:
+  redis-data:

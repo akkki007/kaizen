@@ -1,0 +1,12 @@
+{
+  "type": "verification_result",
+  "repo": "acme/shoplite",
+  "remediation_id": "rem-1",
+  "incident_id": "inc-1",
+  "passed": true,
+  "tests_passed": true,
+  "error_rate_before": 0.42,
+  "error_rate_after": 0.004,
+  "baseline_error_rate": 0.005,
+  "ts": "2026-10-09T11:00:00Z"
+}

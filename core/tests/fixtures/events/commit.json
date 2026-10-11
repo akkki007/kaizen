@@ -1,0 +1,28 @@
+{
+  "type": "commit",
+  "repo": "acme/shoplite",
+  "sha": "8f31c2a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7",
+  "parents": [
+    "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+  ],
+  "author": "dev-alice",
+  "ts": "2026-10-09T10:00:00Z",
+  "message": "Refactor payment validation",
+  "branch": "main",
+  "files": [
+    {
+      "path": "payments/src/payment/validation.js",
+      "status": "modified",
+      "hunks": [
+        {
+          "start": 10,
+          "end": 24,
+          "old_start": 10,
+          "old_end": 18,
+          "added": 9,
+          "removed": 3
+        }
+      ]
+    }
+  ]
+}
