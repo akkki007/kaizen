@@ -38,7 +38,7 @@ jobs:
             done
             echo 'chmod +x deploy.sh'
             echo "echo '$GHCR_TOKEN' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
-            echo "./deploy.sh '$IMAGE_LC'"
+            echo "./deploy.sh '$IMAGE_LC' 2>&1 | tail -n 60"
           } > remote.sh
           ./deploy/ssm-run.sh "${{ vars.DEPLOY_INSTANCE_ID }}" remote.sh
       - name: Smoke test
