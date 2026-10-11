@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     github_api_url: str = "https://api.github.com"
     github_web_url: str = "https://github.com"
 
+    # Repositories CausalDeploy may act on (comma separated owner/name). Events for any other
+    # repository are stored raw but never imported. Empty = all (dev only; prod requires a list).
+    allowed_repos: str = ""
+
     # Web login (GitHub App user-to-server OAuth) and sessions
     public_base_url: str = "http://localhost:8000"
     github_oauth_client_id: str = ""
@@ -68,9 +72,18 @@ class Settings(BaseSettings):
                 missing.append("CD_GITHUB_OAUTH_CLIENT_SECRET")
             if not self.github_webhook_secret.get_secret_value():
                 missing.append("CD_GITHUB_WEBHOOK_SECRET")
+            if not self.allowed_repos.strip():
+                missing.append("CD_ALLOWED_REPOS (comma separated owner/name)")
             if missing:
                 raise ValueError("production requires: " + ", ".join(missing))
         return self
+
+    def is_allowed(self, repo: str | None) -> bool:
+        """Whether CausalDeploy may import or act on this repository."""
+        if not repo:
+            return False
+        allowed = {r.strip().lower() for r in self.allowed_repos.split(",") if r.strip()}
+        return not allowed or repo.lower() in allowed
 
     def secret_values(self) -> list[str]:
         return [

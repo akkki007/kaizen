@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert
 
+from causaldeploy.config import get_settings
 from causaldeploy.db.models import Installation, Repository
 from causaldeploy.db.session import session_scope
 
@@ -15,7 +16,8 @@ def repositories_in(payload: dict[str, Any]) -> list[str]:
     if payload.get("action") not in {"created", "added", "unsuspend", "new_permissions_accepted"}:
         return []
     repos = payload.get("repositories") or payload.get("repositories_added") or []
-    return [r["full_name"] for r in repos if r.get("full_name")]
+    allowed = get_settings().is_allowed
+    return [r["full_name"] for r in repos if r.get("full_name") and allowed(r["full_name"])]
 
 
 async def record_installation(payload: dict[str, Any]) -> tuple[int, list[str]]:

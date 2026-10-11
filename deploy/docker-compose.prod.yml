@@ -20,6 +20,7 @@ services:
     env_file: [.env]
     environment: &runtime
       CD_ENV: prod
+      CD_ALLOWED_REPOS: ${CD_ALLOWED_REPOS:-yashchandnani07/shoplite}
       CD_FALKORDB_HOST: falkordb
       CD_FALKORDB_PORT: "6379"
       CD_POSTGRES_DSN: postgresql://causaldeploy:${POSTGRES_PASSWORD}@postgres:5432/causaldeploy

@@ -481,3 +481,70 @@ async def test_installation_event_records_repos_and_requests_initial_backfill(
     gone = json.dumps({**payload, "action": "deleted"}).encode()
     h2 = {**h, "x-github-delivery": "inst-2", "x-hub-signature-256": sign(gone)}
     assert (await client.post("/webhooks/github", content=gone, headers=h2)).json()["jobs"] == []
+
+
+async def test_repositories_outside_the_allowlist_are_never_acted_on(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from causaldeploy.config import get_settings
+    from causaldeploy.db.models import Repository
+
+    monkeypatch.setenv("CD_ALLOWED_REPOS", "acme/shoplite")
+    get_settings.cache_clear()
+    try:
+        # installation lists two repos: only the allowed one is recorded and imported
+        install = {
+            "action": "created",
+            "installation": {"id": 9, "account": {"login": "acme"}},
+            "repositories": [{"full_name": "acme/shoplite"}, {"full_name": "acme/private-notes"}],
+        }
+        body = json.dumps(install).encode()
+        h = {
+            "x-github-event": "installation",
+            "x-github-delivery": "al-1",
+            "x-hub-signature-256": sign(body),
+        }
+        r = await client.post("/webhooks/github", content=body, headers=h)
+        assert len(r.json()["jobs"]) == 1
+        async with session_scope() as s:
+            names = [x.full_name for x in (await s.execute(select(Repository))).scalars()]
+        assert names == ["acme/shoplite"]
+
+        # a push from a non-allowed repo is recorded raw and ignored
+        push = json.dumps(
+            {
+                "repository": {"full_name": "acme/private-notes"},
+                "after": "abc",
+                "installation": {"id": 9},
+            }
+        ).encode()
+        h2 = {
+            "x-github-event": "push",
+            "x-github-delivery": "al-2",
+            "x-hub-signature-256": sign(push),
+        }
+        assert (await client.post("/webhooks/github", content=push, headers=h2)).json()[
+            "jobs"
+        ] == []
+        assert await raw_count() == 2 and await jobs_count() == 1
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_jobs_queued_for_other_repositories_do_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from causaldeploy.config import get_settings
+    from causaldeploy.jobs import handlers
+
+    monkeypatch.setenv("CD_ALLOWED_REPOS", "acme/shoplite")
+    get_settings.cache_clear()
+    called = AsyncMock()
+    monkeypatch.setattr("causaldeploy.github.backfill_job.run_backfill", called)
+    try:
+        await handlers.backfill_repo({"repo": "acme/private-notes", "installation_id": 1})
+        called.assert_not_awaited()
+        await handlers.backfill_repo({"repo": "acme/shoplite", "installation_id": 1})
+        called.assert_awaited_once()
+    finally:
+        get_settings.cache_clear()
