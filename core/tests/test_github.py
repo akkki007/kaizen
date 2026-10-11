@@ -133,3 +133,19 @@ def test_normalize_deployment_status_workflow_and_ignored() -> None:
     )
     assert (b.type, b.status) == ("build", "success")  # type: ignore[union-attr]
     assert normalize("issues", {"repository": repo}) == []
+
+
+@respx.mock
+async def test_repo_installation_lookup(keypair: tuple[str, str]) -> None:
+    c = GitHubClient(Settings(github_app_id="1", github_app_private_key=keypair[0]))  # type: ignore[arg-type]
+    route = respx.get("https://api.github.com/repos/acme/shop/installation").mock(
+        return_value=httpx.Response(200, json={"id": 4242})
+    )
+    assert await c.repo_installation_id("acme/shop") == 4242
+    assert route.calls[0].request.headers["authorization"].startswith("Bearer ey")  # App JWT
+    respx.get("https://api.github.com/repos/acme/other/installation").mock(
+        return_value=httpx.Response(404)
+    )
+    with pytest.raises(RuntimeError, match="not installed"):
+        await c.repo_installation_id("acme/other")
+    await c.aclose()

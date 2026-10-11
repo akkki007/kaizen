@@ -1,5 +1,11 @@
-.PHONY: bootstrap deps up down install lint test migrate schemas api worker ui eval seed \
+.PHONY: env backfill bootstrap deps up down install lint test migrate schemas api worker ui eval seed \
         backup restore drill
+
+env:         ## .env from the team GitHub App in AWS Secrets Manager (needs AWS credentials)
+	./scripts/pull-env.sh
+
+backfill:    ## import the team repo into the local graph: make backfill [REPO=owner/name]
+	cd core && uv run python -m causaldeploy.cli backfill $(or $(REPO),yashchandnani07/shoplite)
 
 bootstrap:   ## first-time setup on a fresh clone: .env, services, deps, database schema
 	@test -f .env || cp .env.example .env
