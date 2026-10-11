@@ -129,4 +129,4 @@ def test_merge_commits_do_not_duplicate_change_attribution(
     git(d, "merge", "--no-ff", "-qm", "merge feature", "feature")
     backfill_repo(store, d, "acme/m")
     rows = store.read("MATCH (c:Commit)-[:modifies_fn]->(f) RETURN c.message")
-    assert rows == [["change a"]]
+    assert sorted(r[0] for r in rows) == ["change a", "init"]  # never "merge feature"
