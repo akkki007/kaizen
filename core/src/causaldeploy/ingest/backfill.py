@@ -7,7 +7,7 @@ from typing import Any
 
 from causaldeploy.graph.store import Edge, GraphStore
 from causaldeploy.ingest.code_graph import build_code_graph, make_service_of, write_code_graph
-from causaldeploy.ingest.events import apply_commit
+from causaldeploy.ingest.events import apply_commit, refresh_deployments
 from causaldeploy.ingest.git import iter_commits, list_tree, read_blob
 from causaldeploy.ingest.manifests import diff_manifests, package_identity, parse_manifest
 from causaldeploy.ingest.mapping import map_commit
@@ -105,6 +105,7 @@ def backfill_repo(
         and (t := read_blob(repo_dir, head, p)) is not None
     }
     write_code_graph(store, build_code_graph(files, short), head)
+    refresh_deployments(store)  # deployments announced before their commits existed
     return stats
 
 

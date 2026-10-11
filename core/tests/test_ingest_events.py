@@ -90,3 +90,36 @@ def test_events_replay_is_noop_and_fixtures_apply(store: GraphStore) -> None:
         "MATCH (c:Commit {sha: $s})-[:modifies]->(f:File) RETURN f.path",
         {"s": "8f31c2a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7"},
     ) == [["payments/src/payment/validation.js"]]
+
+
+def test_backfill_completes_a_deployment_that_arrived_first(store: GraphStore, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import subprocess
+
+    from causaldeploy.ingest.backfill import backfill_repo
+
+    d = tmp_path / "r"
+    d.mkdir()
+
+    def git(*a: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(d), "-c", "user.name=a", "-c", "user.email=a@b.c", *a],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-q", "-b", "main")
+    (d / "a.js").write_text("function a() {\n  return 1;\n}\n")
+    git("add", "-A")
+    git("commit", "-qm", "one")
+    (d / "a.js").write_text("function a() {\n  return 2;\n}\n")
+    git("commit", "-qam", "two")
+    head = git("rev-parse", "HEAD")
+
+    # the deployment announcement beats the import: nothing to include yet
+    assert apply_deployment(store, dep("early", head, 10)) == []
+    backfill_repo(store, d, "acme/r")
+    rows = store.read(
+        "MATCH (:Deployment {id: 'early'})-[:includes]->(c:Commit) RETURN c.message ORDER BY c.ts"
+    )
+    assert sorted(r[0] for r in rows) == ["one", "two"]

@@ -115,6 +115,21 @@ def apply_deployment(store: GraphStore, e: DeploymentEvent) -> list[str]:
     return commits
 
 
+def refresh_deployments(store: GraphStore) -> int:
+    """Recompute every stored deployment's commit range.
+
+    Deployment events can arrive before the commits they contain are imported (a deploy right
+    after a push, before the backfill finished). Run after each backfill; it is idempotent.
+    """
+    rows = store.read("MATCH (d:Deployment) RETURN d.id, d.status, d.sha_from, d.sha_to")
+    for dep_id, status, sha_from, sha_to in rows:
+        if status == "rollback" or not sha_to:
+            continue
+        commits = commits_between(store, sha_from, sha_to)
+        store.upsert_edges([Edge("Deployment", dep_id, "includes", "Commit", c) for c in commits])
+    return len(rows)
+
+
 def apply_event(
     store: GraphStore, event: Event, service_of: Callable[[str], str] | None = None
 ) -> None:
