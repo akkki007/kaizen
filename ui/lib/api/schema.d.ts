@@ -327,6 +327,43 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * IncidentPage
+         * @description Pagination convention: `limit`/`offset` in, `items` + `total` out.
+         */
+        IncidentPage: {
+            /** Items */
+            items: components["schemas"]["IncidentSummary"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /** IncidentSummary */
+        IncidentSummary: {
+            /**
+             * Detected At
+             * Format: date-time
+             */
+            detected_at: string;
+            /** Env */
+            env: string;
+            /** Id */
+            id: string;
+            /**
+             * Onset Ts
+             * Format: date-time
+             */
+            onset_ts: string;
+            /** Repo */
+            repo: string;
+            /** Service */
+            service: string;
+            /** Status */
+            status: string;
+        };
         /** LlmCost */
         LlmCost: {
             /** Calls */
@@ -348,20 +385,6 @@ export interface components {
             id: number;
             /** Key */
             key: string;
-        };
-        /**
-         * Page
-         * @description Pagination convention: `limit`/`offset` in, `items` + `total` out.
-         */
-        Page: {
-            /** Items */
-            items: unknown[];
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-            /** Total */
-            total: number;
         };
         /** User */
         User: {
@@ -451,7 +474,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page"];
+                    "application/json": components["schemas"]["IncidentPage"];
                 };
             };
             /** @description Validation Error */

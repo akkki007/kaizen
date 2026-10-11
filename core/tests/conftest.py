@@ -16,6 +16,17 @@ os.environ["CD_POSTGRES_DSN"] = ADMIN_DSN.rsplit("/", 1)[0] + "/" + TEST_DB
 os.environ.setdefault("CD_REDIS_URL", "redis://localhost:6379/15")
 os.environ["CD_GITHUB_WEBHOOK_SECRET"] = "whsec-test"
 os.environ["CD_INGEST_RATE_LIMIT_PER_MIN"] = "1000"
+# A developer's real .env (team App credentials, allowlist) must not leak into the tests
+for _name in (
+    "CD_ALLOWED_REPOS",
+    "CD_GITHUB_APP_ID",
+    "CD_GITHUB_APP_PRIVATE_KEY",
+    "CD_GITHUB_OAUTH_CLIENT_ID",
+    "CD_GITHUB_OAUTH_CLIENT_SECRET",
+    "CD_PUBLIC_BASE_URL",
+):
+    os.environ[_name] = ""
+os.environ["CD_PUBLIC_BASE_URL"] = "http://localhost:8000"
 
 from causaldeploy.graph.builder import GraphBuilder  # noqa: E402
 from causaldeploy.graph.store import GraphStore  # noqa: E402

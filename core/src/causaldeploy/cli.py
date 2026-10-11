@@ -86,6 +86,25 @@ async def replay(limit: int | None) -> int:
     return len(rows)
 
 
+async def backfill(repo: str) -> dict[str, str]:
+    """Import `repo` into the local graph directly (no webhook needed): clone with the App's
+    installation token, map commits to functions, write the graph."""
+    from causaldeploy.config import get_settings
+    from causaldeploy.github.backfill_job import run_backfill
+    from causaldeploy.github.client import GitHubClient
+    from causaldeploy.jobs.queue import BackfillPayload
+
+    if not get_settings().is_allowed(repo):
+        raise SystemExit(f"{repo} is not in CD_ALLOWED_REPOS")
+    client = GitHubClient()
+    try:
+        installation = await client.repo_installation_id(repo)
+    finally:
+        await client.aclose()
+    await run_backfill(BackfillPayload(repo=repo, installation_id=installation))
+    return {"repo": repo, "installation_id": str(installation)}
+
+
 async def create_key(repo: str, label: str) -> str:
     from causaldeploy.api.routes import create_api_key
 
@@ -102,6 +121,10 @@ def main() -> None:
         "check-contract-version", help="fail if schemas changed without a version bump"
     )
     c.add_argument("--base", default="origin/main")
+    b = sub.add_parser(
+        "backfill", help="import a repository into the local graph via the GitHub App"
+    )
+    b.add_argument("repo", help="owner/name")
     k = sub.add_parser("create-api-key", help="print a new ingest API key for a repository")
     k.add_argument("repo")
     k.add_argument("--label", default="")
@@ -114,6 +137,8 @@ def main() -> None:
         for problem in problems:
             print(problem)
         raise SystemExit(1 if problems else 0)
+    elif a.cmd == "backfill":
+        print(json.dumps(asyncio.run(backfill(a.repo))))
     elif a.cmd == "replay":
         print(f"replayed {asyncio.run(replay(a.limit))} deliveries")
     else:

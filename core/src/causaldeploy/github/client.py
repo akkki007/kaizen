@@ -53,6 +53,25 @@ class GitHubClient:
         self._tokens[installation_id] = (body["token"], expires)
         return str(body["token"])
 
+    async def repo_installation_id(self, repo: str) -> int:
+        """The installation id of this App on `repo` (authenticated as the App itself)."""
+        key = self._s.github_app_private_key.get_secret_value()
+        if not self._s.github_app_id or not key:
+            raise RuntimeError(
+                "GitHub App is not configured (CD_GITHUB_APP_ID / CD_GITHUB_APP_PRIVATE_KEY)"
+            )
+        r = await self._http.get(
+            f"/repos/{repo}/installation",
+            headers={
+                "Authorization": f"Bearer {app_jwt(self._s.github_app_id, key)}",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        if r.status_code == 404:
+            raise RuntimeError(f"the GitHub App is not installed on {repo}")
+        r.raise_for_status()
+        return int(r.json()["id"])
+
     async def request(
         self, installation_id: int, method: str, path: str, **kw: Any
     ) -> httpx.Response:
