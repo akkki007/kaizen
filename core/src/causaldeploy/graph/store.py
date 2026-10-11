@@ -20,7 +20,7 @@ from causaldeploy.graph.schema import (
     SCHEMA_VERSION,
     UNIQUE_KEYS,
 )
-from causaldeploy.observability import GRAPH_SLOW_QUERIES
+from causaldeploy.observability import GRAPH_SLOW_QUERIES, span
 
 QUERY_TIMEOUT_MS = 2000
 SLOW_QUERY_MS = 500
@@ -126,7 +126,8 @@ class GraphStore:
     def read(self, cypher: str, params: dict[str, Any] | None = None) -> list[list[Any]]:
         started = time.perf_counter()
         try:
-            res = self.graph.ro_query(cypher, params or {}, timeout=QUERY_TIMEOUT_MS)
+            with span("graph.read", graph=self.name):
+                res = self.graph.ro_query(cypher, params or {}, timeout=QUERY_TIMEOUT_MS)
         except ResponseError as e:
             if "empty key" in str(e):  # graph not created yet == empty graph
                 return []

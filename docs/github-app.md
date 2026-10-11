@@ -30,3 +30,17 @@ smee -u https://smee.io/<channel> -t http://localhost:8000/webhooks/github   # o
 
 Set the App's webhook URL to the tunnel URL. Re-run stored deliveries with
 `uv run python -m causaldeploy.cli replay` (graph writes are idempotent).
+
+## Registering the App (manifest flow, as done for production)
+
+```bash
+python3 scripts/github_app_manifest.py /tmp/ghapp.code   # then open http://localhost:8765 and confirm on GitHub
+```
+
+GitHub redirects back with a one-time `code`. Exchange it **on the host**, so the generated private key,
+client secret and webhook secret go straight into Secrets Manager and never through a person
+(see the SSM command in `docs/operations.md`): `POST /app-manifests/<code>/conversions`, then
+`put-secret-value` for `causaldeploy/prod/external` and `causaldeploy/prod/webhook`.
+Finally install the App on the repositories to monitor (Settings -> Applications -> Install).
+
+Webhook URL: `https://shoplite-demo.duckdns.org/webhooks/github` (set by the manifest).

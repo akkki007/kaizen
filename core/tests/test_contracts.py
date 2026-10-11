@@ -50,3 +50,37 @@ def test_published_schemas_match_models() -> None:
         assert json.loads(path.read_text()) == json.loads(json.dumps(doc)), (
             f"{path.name} is stale; run export-schemas (and bump SCHEMA_VERSION if breaking)"
         )
+
+
+def test_contract_change_requires_a_version_bump(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    from causaldeploy import cli
+    from causaldeploy.contracts import SCHEMA_VERSION
+
+    schema_file = "docs/schemas/events.v1.json"
+    real_run = subprocess.run
+
+    def fake_run(cmd: list[str], **kw: object) -> subprocess.CompletedProcess[str]:
+        if cmd[:2] == ["git", "show"]:
+            ref_path = cmd[2].split(":", 1)[1]
+            if ref_path == schema_file:  # base had a different schema
+                return subprocess.CompletedProcess(cmd, 0, stdout='{"changed": true}', stderr="")
+            if ref_path.endswith("events.py"):
+                return subprocess.CompletedProcess(
+                    cmd, 0, stdout=f'SCHEMA_VERSION = "{SCHEMA_VERSION}"', stderr=""
+                )
+            return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
+        return real_run(cmd, **kw)  # type: ignore[call-overload,no-any-return]
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    problems = cli.contract_version_problems("origin/main")
+    assert any("SCHEMA_VERSION is still" in p for p in problems)
+
+    def bumped(cmd: list[str], **kw: object) -> subprocess.CompletedProcess[str]:
+        if cmd[:2] == ["git", "show"] and cmd[2].endswith("events.py"):
+            return subprocess.CompletedProcess(cmd, 0, stdout='SCHEMA_VERSION = "0.9.0"', stderr="")
+        return fake_run(cmd, **kw)
+
+    monkeypatch.setattr(subprocess, "run", bumped)
+    assert cli.contract_version_problems("origin/main") == []

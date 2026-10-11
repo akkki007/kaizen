@@ -79,3 +79,62 @@ async def test_ingest_handler_writes_graph(db: None, store) -> None:  # type: ig
     ev = {**EVENT, "repo": store.repo}
     await handlers.ingest_event({"event": ev})
     assert GraphStore(store.repo).read("MATCH (c:Commit) RETURN c.sha") == [["abcdef123"]]
+
+
+async def test_sigkilled_worker_job_is_retried_exactly_once(db: None, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Kill -9 a worker mid-job: another worker finishes it; the effect completes once."""
+    import asyncio
+    import os
+    import signal
+    import subprocess
+    import sys
+    import time
+
+    from arq import create_pool
+
+    from causaldeploy.jobs.queue import redis_settings
+
+    probe = tmp_path / "probe.log"
+    env = {**os.environ, "PROBE_FILE": str(probe), "PYTHONPATH": "."}
+    cmd = [sys.executable, "-m", "arq", "tests.kill_worker_settings.WorkerSettings"]
+
+    pool = await create_pool(redis_settings())
+    await pool.flushdb()
+    job_id, _ = await enqueue("ingest_event", IngestEventPayload(event=EVENT), "kill-1", pool)
+
+    first = subprocess.Popen(
+        cmd, env={**env, "PROBE_SLEEP": "60"}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+    try:
+        deadline = time.time() + 20
+        while time.time() < deadline and not (probe.exists() and "start" in probe.read_text()):
+            await asyncio.sleep(0.2)
+        assert probe.exists(), "first worker never started the job"
+        first.send_signal(signal.SIGKILL)  # no graceful shutdown, no cleanup
+        first.wait()
+    finally:
+        if first.poll() is None:
+            first.kill()
+
+    second = subprocess.Popen(
+        cmd, env={**env, "PROBE_SLEEP": "0"}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+    try:
+        deadline = time.time() + 60
+        state = ("", 0)
+        while time.time() < deadline:
+            state = await status(job_id)
+            if state[0] == "succeeded":
+                break
+            await asyncio.sleep(1)
+    finally:
+        second.terminate()
+        second.wait(timeout=15)
+        await pool.flushdb()
+        await pool.aclose()
+    assert state == ("succeeded", 2), state
+    assert probe.read_text().split() == [
+        "start",
+        "start",
+        "done",
+    ]  # one completion, no duplicate effect

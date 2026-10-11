@@ -40,6 +40,36 @@ def export_schemas() -> list[Path]:
     return out
 
 
+def contract_version_problems(base_ref: str) -> list[str]:
+    """Schemas that differ from `base_ref` must come with a SCHEMA_VERSION bump."""
+    import re
+    import subprocess
+
+    root = DOCS.parent
+
+    def git_show(path: str) -> str | None:
+        r = subprocess.run(
+            ["git", "show", f"{base_ref}:{path}"], cwd=root, capture_output=True, text=True
+        )
+        return r.stdout if r.returncode == 0 else None
+
+    def version(text: str) -> str:
+        m = re.search(r'SCHEMA_VERSION = "([^"]+)"', text)
+        return m.group(1) if m else ""
+
+    events_py = "core/src/causaldeploy/contracts/events.py"
+    base_version = version(git_show(events_py) or "")
+    head_version = version((root / events_py).read_text())
+    problems = []
+    for path in DOCS.glob("schemas/*.json"):
+        rel = str(path.relative_to(root))
+        before = git_show(rel)
+        if before is not None and json.loads(before) != json.loads(path.read_text()):
+            if base_version == head_version:
+                problems.append(f"{rel} changed but SCHEMA_VERSION is still {head_version}")
+    return problems
+
+
 async def replay(limit: int | None) -> int:
     """Re-run stored webhook deliveries through normalization (graph writes are idempotent)."""
     from sqlalchemy import select
@@ -68,6 +98,10 @@ def main() -> None:
     sub.add_parser("export-schemas", help="write docs/schemas/*.json and docs/openapi.json")
     r = sub.add_parser("replay", help="replay stored raw webhook deliveries")
     r.add_argument("--limit", type=int)
+    c = sub.add_parser(
+        "check-contract-version", help="fail if schemas changed without a version bump"
+    )
+    c.add_argument("--base", default="origin/main")
     k = sub.add_parser("create-api-key", help="print a new ingest API key for a repository")
     k.add_argument("repo")
     k.add_argument("--label", default="")
@@ -75,6 +109,11 @@ def main() -> None:
     if a.cmd == "export-schemas":
         for p in export_schemas():
             print(p)
+    elif a.cmd == "check-contract-version":
+        problems = contract_version_problems(a.base)
+        for problem in problems:
+            print(problem)
+        raise SystemExit(1 if problems else 0)
     elif a.cmd == "replay":
         print(f"replayed {asyncio.run(replay(a.limit))} deliveries")
     else:

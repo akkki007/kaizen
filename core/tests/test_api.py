@@ -399,3 +399,53 @@ async def test_trace_context_flows_from_enqueue_to_job(
     job = spans["job.ingest_event"]
     assert job.context.trace_id == trace_id
     assert job.parent is not None and job.parent.span_id == spans["api.request"].context.span_id
+
+
+async def test_webhook_acknowledges_within_a_second(client: httpx.AsyncClient) -> None:
+    import time
+
+    payload = {
+        "repository": {"full_name": "acme/shoplite"},
+        "after": "abc",
+        "installation": {"id": 1},
+    }
+    body = json.dumps(payload).encode()
+    h = {
+        "x-github-event": "push",
+        "x-github-delivery": "speed-1",
+        "x-hub-signature-256": sign(body),
+    }
+    started = time.perf_counter()
+    r = await client.post("/webhooks/github", content=body, headers=h)
+    assert r.status_code == 202 and time.perf_counter() - started < 1.0
+
+
+async def test_replay_reapplies_stored_deliveries_without_double_effects(
+    client: httpx.AsyncClient,
+) -> None:
+    from causaldeploy.cli import replay
+
+    payload = {
+        "repository": {"full_name": "acme/shoplite"},
+        "deployment": {
+            "id": 7,
+            "sha": "8f31c2a1b2c3d4e5",
+            "environment": "prod",
+            "created_at": "2026-10-09T10:10:00Z",
+        },
+        "deployment_status": {"state": "success", "created_at": "2026-10-09T10:12:00Z"},
+    }
+    body = json.dumps(payload).encode()
+    h = {
+        "x-github-event": "deployment_status",
+        "x-github-delivery": "replay-1",
+        "x-hub-signature-256": sign(body),
+    }
+    assert (await client.post("/webhooks/github", content=body, headers=h)).status_code == 202
+    assert await jobs_count() == 1
+    assert (
+        await replay(None) == 1
+    )  # re-enqueued under a replay key: a new job, same idempotent effect
+    assert await jobs_count() == 2
+    assert await replay(None) == 1
+    assert await jobs_count() == 2  # replaying again does not multiply jobs

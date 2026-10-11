@@ -22,6 +22,7 @@ jobs:
         ports: ["6379:6379"]
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: astral-sh/setup-uv@v5
         with: { enable-cache: true }
       - run: uv sync --locked
@@ -29,6 +30,9 @@ jobs:
       - run: uv run mypy src
       # includes: migration up/down + drift, contract/OpenAPI freshness, auth, jobs, graph, ingest
       - run: uv run pytest
+      - name: Contract change requires a version bump
+        if: github.event_name == 'pull_request'
+        run: uv run python -m causaldeploy.cli check-contract-version --base origin/${{ github.base_ref }}
 
   restore-drill:
     runs-on: ubuntu-latest
@@ -50,5 +54,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm install
+      - name: Generated API client is current (no manual edits)
+        run: npm run gen:api && git diff --exit-code lib/api
       - run: npm run lint
       - run: npm run build

@@ -4,11 +4,12 @@ import logging
 import time
 from typing import Any
 
-from arq import Retry
+from arq import Retry, cron
 from sqlalchemy import select
 
 from causaldeploy.config import get_settings
 from causaldeploy.db.models import JobRecord
+from causaldeploy.db.retention import purge_job
 from causaldeploy.db.session import session_scope
 from causaldeploy.jobs.handlers import HANDLERS
 from causaldeploy.jobs.queue import MAX_ATTEMPTS, redis_settings
@@ -64,6 +65,7 @@ async def startup(ctx: dict[str, Any]) -> None:
 
 class WorkerSettings:
     functions = [run_job]
+    cron_jobs = [cron(purge_job, hour={3}, minute={15})]  # telemetry retention
     on_startup = startup
     redis_settings = redis_settings()
     max_jobs = 10  # concurrency limit
