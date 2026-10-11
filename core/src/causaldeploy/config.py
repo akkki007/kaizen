@@ -9,7 +9,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Validated, fail-fast configuration. Secrets are SecretStr so they never print."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="CD_", extra="ignore")
+    # The repository-root `.env` is shared by compose and local runs (`make api` starts in
+    # core/); a core/.env, if present, wins.
+    model_config = SettingsConfigDict(
+        env_file=("../.env", ".env"), env_prefix="CD_", extra="ignore"
+    )
 
     env: Literal["dev", "test", "prod"] = "dev"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
