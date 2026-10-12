@@ -1,4 +1,4 @@
-.PHONY: env backfill bootstrap deps up down install lint test migrate schemas api worker ui eval seed \
+.PHONY: env backfill bootstrap dev deps up down install lint test migrate schemas api worker ui eval seed \
         backup restore drill
 
 env:         ## .env from the team GitHub App in AWS Secrets Manager (needs AWS credentials)
@@ -13,6 +13,9 @@ bootstrap:   ## first-time setup on a fresh clone: .env, services, deps, databas
 	cd core && uv sync && uv run alembic upgrade head
 	cd ui && npm install
 	@echo "ready: make test | make api | make worker | make ui"
+
+dev:         ## everything local: data services, API :8000, worker, UI :3000 on demo data (MOCK=0: real API)
+	MOCK=$(MOCK) ./scripts/dev.sh
 
 deps:        ## start only the data services (what tests need)
 	docker compose up -d --wait falkordb postgres redis

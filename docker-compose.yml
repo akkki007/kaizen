@@ -2,7 +2,7 @@
 services:
   falkordb:
     image: falkordb/falkordb:6.0.2   # pinned: tests and prod run this exact version
-    ports: ["6380:6379", "3001:3000"]   # graph (host 6380) + FalkorDB Browser (3001)
+    ports: ["${CD_FALKORDB_PORT:-6380}:6379", "${CD_FALKORDB_BROWSER_PORT:-3001}:3000"]   # graph (host 6380) + FalkorDB Browser (3001)
     environment:
       # persistence + bounded memory (same flags as prod, smaller limit)
       REDIS_ARGS: "--appendonly yes --appendfsync everysec --save 300 10 --maxmemory 512mb --maxmemory-policy noeviction"
@@ -19,7 +19,7 @@ services:
       POSTGRES_USER: causaldeploy
       POSTGRES_PASSWORD: causaldeploy
       POSTGRES_DB: causaldeploy
-    ports: ["5432:5432"]
+    ports: ["${CD_POSTGRES_PORT:-5432}:5432"]
     volumes: ["postgres-data:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U causaldeploy"]
@@ -28,7 +28,7 @@ services:
 
   redis:
     image: redis:7
-    ports: ["6379:6379"]
+    ports: ["${CD_REDIS_PORT:-6379}:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
