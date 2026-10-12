@@ -1,9 +1,11 @@
 "use client";
 
+import { Maximize2, Minimize2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { useDashboard } from "./context";
 import type { AnalyticsPullRequest } from "./data";
-import { ArrowUpIcon, ClaudeIcon, DraftIcon, ImageIcon, PanelIcon, PullRequestIcon, TriangleIcon } from "./icons";
+import { ArrowRightIcon, ArrowUpIcon, ClaudeIcon, DraftIcon, ImageIcon, PanelIcon, PullRequestIcon, TriangleIcon } from "./icons";
 import { PersonAvatar } from "./ui";
 
 export type Phase = "in" | "out" | "pre";
@@ -20,11 +22,16 @@ type Props = {
   panelRef: RefObject<HTMLElement | null>;
   hideRef: RefObject<HTMLButtonElement | null>;
   onHide: () => void;
+  /** Panel fills everything right of the rail. */
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  /** Shown beside the conversation while expanded. */
+  aside?: ReactNode;
 };
 
 const STATUS_ICON = { merged: PullRequestIcon, review: DraftIcon, open: PullRequestIcon } as const;
 
-export function PrDetails({ pr, phase, open, visible, panelRef, hideRef, onHide }: Props) {
+export function PrDetails({ pr, phase, open, visible, panelRef, hideRef, onHide, expanded, onToggleExpanded, aside }: Props) {
   const { uid, assistantName, answer } = useDashboard();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [threads, setThreads] = useState<Record<number, Message[]>>({});
@@ -93,85 +100,113 @@ export function PrDetails({ pr, phase, open, visible, panelRef, hideRef, onHide 
   const titleId = `${uid}-details-title`;
 
   return (
-    <aside ref={panelRef} id={panelId} className="details" data-open={open} inert={!visible} aria-labelledby={titleId}>
-      <header className="details-bar enter" style={{ "--i": 1 } as CSSProperties}>
-        <button
-          ref={hideRef}
-          type="button"
-          className="icon-btn press has-tip tip-below details-hide"
-          data-tip="Hide incident details"
-          aria-label="Hide incident details"
-          aria-expanded={visible}
-          aria-controls={panelId}
-          onClick={onHide}
-        >
-          <PanelIcon side="right" open size={15} />
-        </button>
-        <span id={titleId} className="details-bar-title">
-          <span key={pr.number} className="swap-in">
-            Incident #{pr.number}
+    <aside
+      ref={panelRef}
+      id={panelId}
+      className="details"
+      data-open={open}
+      data-expanded={expanded}
+      inert={!visible}
+      aria-labelledby={titleId}
+    >
+      <div className="details-col">
+        <header className="details-bar enter" style={{ "--i": 1 } as CSSProperties}>
+          <button
+            ref={hideRef}
+            type="button"
+            className="icon-btn press has-tip tip-below details-hide"
+            data-tip="Hide incident details"
+            aria-label="Hide incident details"
+            aria-expanded={visible}
+            aria-controls={panelId}
+            onClick={onHide}
+          >
+            <PanelIcon side="right" open size={15} />
+          </button>
+          <span id={titleId} className="details-bar-title">
+            <span key={pr.number} className="swap-in">
+              Incident #{pr.number}
+            </span>
           </span>
-        </span>
-      </header>
+          <button
+            type="button"
+            className="icon-btn press has-tip tip-below tip-end"
+            data-tip={expanded ? "Exit full view" : "Full view"}
+            aria-label={expanded ? "Exit full view" : "Expand incident to full view"}
+            aria-pressed={expanded}
+            onClick={onToggleExpanded}
+          >
+            {expanded ? <Minimize2 size={14} strokeWidth={1.8} /> : <Maximize2 size={14} strokeWidth={1.8} />}
+          </button>
+        </header>
 
-      <div className="details-scroll" ref={scrollRef} onScroll={onScroll}>
-        <div className="details-body enter" style={{ "--i": 2 } as CSSProperties}>
-          <div className="details-swap" data-phase={phase}>
-            <p className="status" data-kind={pr.status.kind}>
-              <StatusIcon size={15} />
-              {pr.status.label}
-            </p>
-            <h2 className="details-title">{pr.title}</h2>
+        <div className="details-scroll" ref={scrollRef} onScroll={onScroll}>
+          <div className="details-body enter" style={{ "--i": 2 } as CSSProperties}>
+            <div className="details-swap" data-phase={phase}>
+              <p className="status" data-kind={pr.status.kind}>
+                <StatusIcon size={15} />
+                {pr.status.label}
+              </p>
+              <h2 className="details-title">{pr.title}</h2>
 
-            <dl className="kv">
-              <div>
-                <dt>Service</dt>
-                <dd>
-                  <PersonAvatar handle={pr.author} size={22} />
-                  {pr.author}
-                </dd>
-              </div>
-              <div>
-                <dt>Repository</dt>
-                <dd>{pr.repository}</dd>
-              </div>
-              <div>
-                <dt>Detected</dt>
-                <dd>{pr.opened}</dd>
-              </div>
-            </dl>
+              <dl className="kv">
+                <div>
+                  <dt>Service</dt>
+                  <dd>
+                    <PersonAvatar handle={pr.author} size={22} />
+                    {pr.author}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Repository</dt>
+                  <dd>{pr.repository}</dd>
+                </div>
+                <div>
+                  <dt>Detected</dt>
+                  <dd>{pr.opened}</dd>
+                </div>
+              </dl>
 
-            <Disclosure key={`p-${pr.number}`} title="What happened">
-              {pr.problem.map((p, i) => (
-                <p key={i}>
-                  <RichText text={p} />
-                </p>
-              ))}
-            </Disclosure>
-            <Disclosure key={`a-${pr.number}`} title="Investigation">
-              {pr.approach.map((p, i) => (
-                <p key={i}>
-                  <RichText text={p} />
-                </p>
-              ))}
-            </Disclosure>
+              {pr.href && (
+                <Link href={pr.href} className="details-link press">
+                  Evidence graph
+                  <ArrowRightIcon size={13} strokeWidth={2} />
+                </Link>
+              )}
 
-            {messages.length > 0 && (
-              <ol className="thread" aria-label="Conversation" aria-live="polite">
-                {messages.map((m) => (
-                  <li key={m.id} className={`msg msg-${m.role}`}>
-                    {m.pending ? <span className="shimmer">{assistantName} is thinking…</span> : m.text}
-                  </li>
+              <Disclosure key={`p-${pr.number}`} title="What happened">
+                {pr.problem.map((p, i) => (
+                  <p key={i}>
+                    <RichText text={p} />
+                  </p>
                 ))}
-              </ol>
-            )}
+              </Disclosure>
+              <Disclosure key={`a-${pr.number}`} title="Investigation">
+                {pr.approach.map((p, i) => (
+                  <p key={i}>
+                    <RichText text={p} />
+                  </p>
+                ))}
+              </Disclosure>
+
+              {messages.length > 0 && (
+                <ol className="thread" aria-label="Conversation" aria-live="polite">
+                  {messages.map((m) => (
+                    <li key={m.id} className={`msg msg-${m.role}`}>
+                      {m.pending ? <span className="shimmer">{assistantName} is thinking…</span> : m.text}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="enter composer-slot" style={{ "--i": 3 } as CSSProperties}>
-        <Composer onSubmit={ask} />
+        <div className="enter composer-slot" style={{ "--i": 3 } as CSSProperties}>
+          <Composer onSubmit={ask} />
+        </div>
       </div>
+      {expanded && aside && <div className="details-aside">{aside}</div>}
     </aside>
   );
 }

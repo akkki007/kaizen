@@ -5,6 +5,13 @@ import type { NextConfig } from "next";
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
 
 const config: NextConfig = {
+  // Old routes from before every page moved into the dashboard.
+  async redirects() {
+    return [
+      { source: "/dashboard", destination: "/", permanent: false },
+      { source: "/repos", destination: "/repositories", permanent: false },
+    ];
+  },
   async rewrites() {
     return [
       { source: "/api/v1/:path*", destination: `${API_URL}/api/v1/:path*` },

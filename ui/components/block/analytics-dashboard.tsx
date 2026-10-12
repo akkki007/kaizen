@@ -21,7 +21,7 @@ import {
   type AnalyticsDashboardUser,
   type AnswerHandler,
 } from "@/components/analytics-dashboard/context";
-import type { AnalyticsDashboardData } from "@/components/analytics-dashboard/data";
+import type { AnalyticsDashboardData, AnalyticsPullRequest } from "@/components/analytics-dashboard/data";
 import { PrDetails, type Phase } from "@/components/analytics-dashboard/details";
 import { CodeIcon, HomeIcon, LayersIcon, PanelIcon, SettingsIcon } from "@/components/analytics-dashboard/icons";
 import { OverviewPage, RepositoriesPage, ReviewsPage, SettingsPage } from "@/components/analytics-dashboard/pages";
@@ -81,6 +81,14 @@ export interface AnalyticsDashboardProps {
   onAsk?: AnswerHandler;
   /** Plain color behind the window. */
   background?: string;
+  /** Routed page content; replaces the built-in page for `page` when given. */
+  children?: ReactNode;
+  /** Identity of the routed content, so a route change replays the page entrance. */
+  pageKey?: string;
+  /** Main bar title; defaults to the active nav label. */
+  title?: string;
+  /** Shown beside the conversation when the incident panel is expanded. */
+  renderIncidentAside?: (pr: AnalyticsPullRequest) => ReactNode;
   className?: string;
   style?: CSSProperties;
 }
@@ -111,6 +119,10 @@ export function AnalyticsDashboard({
   assistantName = "CausalDeploy",
   onAsk,
   background,
+  children,
+  pageKey,
+  title: titleProp,
+  renderIncidentAside,
   className,
   style,
 }: AnalyticsDashboardProps) {
@@ -125,6 +137,7 @@ export function AnalyticsDashboard({
   const [panelOpen, setPanelOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [accent, setAccentState] = useState<AnalyticsDashboardAccent>(defaultAccent);
   const [booted, setBooted] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -159,6 +172,7 @@ export function AnalyticsDashboard({
 
   const navigate = useCallback(
     (next: AnalyticsDashboardPage) => {
+      setExpanded(false);
       if (pageProp === undefined) setPageState(next);
       onPageChange?.(next);
       if (layout.current.compact) setNavOpen(false);
@@ -177,6 +191,7 @@ export function AnalyticsDashboard({
   const hideDetails = useCallback(() => {
     // Focus would otherwise fall to <body> once the panel turns inert.
     const hadFocus = panelRef.current?.contains(document.activeElement) ?? false;
+    setExpanded(false);
     if (layout.current.overlay) setPanelOpen(false);
     else setCollapsed(true);
     if (hadFocus) requestAnimationFrame(() => reopenRef.current?.focus({ preventScroll: true }));
@@ -190,7 +205,8 @@ export function AnalyticsDashboard({
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Escape" || event.defaultPrevented) return;
-    if (overlay && panelOpen) hideDetails();
+    if (expanded) setExpanded(false);
+    else if (overlay && panelOpen) hideDetails();
     else if (navFloating) setNavOpen(false);
     else return;
     // Marks Escape as handled, so a surrounding dialog or full-screen preview stays open.
@@ -233,7 +249,7 @@ export function AnalyticsDashboard({
   }, [data, people, user, assistantName, onAsk, uid, selected, shown, navigate, accent, setAccent]);
 
   const activeIndex = NAV.findIndex((item) => item.page === page);
-  const title = NAV[activeIndex]?.label ?? "";
+  const title = titleProp ?? NAV[activeIndex]?.label ?? "";
   const Page = PAGES[page] ?? OverviewPage;
   const shownPr = data.pullRequests.find((pr) => pr.number === shown) ?? data.pullRequests[0];
   const navId = `${uid}-nav`;
@@ -254,6 +270,7 @@ export function AnalyticsDashboard({
           data-collapsed={collapsed || !shownPr}
           data-nav-open={navOpen}
           data-scrim={(overlay && panelOpen) || navFloating}
+          data-expanded={expanded && detailsVisible}
           data-booted={booted}
         >
           <nav id={navId} className="rail" aria-label="Primary" data-expanded={navOpen}>
@@ -312,7 +329,7 @@ export function AnalyticsDashboard({
             </button>
           </nav>
 
-          <main className="main">
+          <main className="main" inert={expanded && detailsVisible}>
             <header className="main-bar enter" style={{ "--i": 0 } as CSSProperties}>
               <button
                 type="button"
@@ -349,14 +366,25 @@ export function AnalyticsDashboard({
             </header>
             <div className="main-scroll" ref={scrollRef}>
               {/* Keyed by page so every page swap replays its entrance stagger. */}
-              <div key={page} className="page">
-                <Page />
+              <div key={pageKey ?? page} className="page">
+                {children ?? <Page />}
               </div>
             </div>
           </main>
 
           {shownPr && (
-            <PrDetails pr={shownPr} phase={phase} open={panelOpen} visible={detailsVisible} panelRef={panelRef} hideRef={hideRef} onHide={hideDetails} />
+            <PrDetails
+              pr={shownPr}
+              phase={phase}
+              open={panelOpen}
+              visible={detailsVisible}
+              panelRef={panelRef}
+              hideRef={hideRef}
+              onHide={hideDetails}
+              expanded={expanded && detailsVisible}
+              onToggleExpanded={() => setExpanded((e) => !e)}
+              aside={renderIncidentAside?.(shownPr)}
+            />
           )}
           <button
             type="button"

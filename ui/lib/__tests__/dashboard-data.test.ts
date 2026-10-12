@@ -39,7 +39,7 @@ describe("toDashboardData", () => {
   });
 
   it("lists accessible repositories with their open incident counts", () => {
-    expect(data.repositories).toMatchObject([{ name: "shop", openPrs: 2 }]);
+    expect(data.repositories).toMatchObject([{ name: "acme/shop", openPrs: 2, href: "/repositories/acme/shop" }]);
   });
 
   it("is safe with no incidents", () => {

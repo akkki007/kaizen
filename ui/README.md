@@ -15,8 +15,17 @@ npm run lint        # tsc --noEmit
   mutations) and hooks in `lib/api/hooks.ts`. Never hand-write request/response types.
 * **The browser talks to its own origin**: `next.config.ts` rewrites `/api/v1/*` and `/auth/*` to
   `API_URL`, so the session cookie is first-party.
-* **Every data view handles loading, error and empty** with `components/states.tsx`.
-* **Protected routes** live under `app/(app)`; `AppShell` redirects to `/login` on 401.
+* **Every data view handles loading, error and empty** states.
+* **One shell**: every signed-in page lives under `app/(dash)` inside the analytics dashboard
+  (`components/block/analytics-dashboard.tsx`); the URL picks the page, `AuthGate` redirects to
+  `/login` on 401. Detail routes (`/incidents/[id]`, `/repositories/[owner]/[name]`) render in the
+  same shell with the dashboard's own classes.
 * **Role-aware**: the session lists `viewer`/`approver` per repository; the API enforces it, the UI
   only hides actions the user cannot perform.
-* **Theme**: light/dark via `next-themes`, tokens in `app/globals.css`.
+* **Theme**: light/dark via `next-themes` (Settings → Appearance); dashboard tokens live in
+  `components/block/analytics-dashboard.css`.
+
+## Credits
+* Analytics dashboard: [ObsidianUI](https://github.com/Atharvsinh-codez/ObsidianUI), MIT, Copyright (c) 2026 ObsidianUI.
+* Code block (`components/ui/code-block.tsx`): [Rare UI](https://rareui.com), MIT + Commons Clause +
+  Attribution, Copyright (c) 2026 Swami Malode.

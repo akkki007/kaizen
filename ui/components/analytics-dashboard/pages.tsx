@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useTheme } from "next-themes";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { ACCENTS, useDashboard, type AnalyticsDashboardAccent } from "./context";
 import type { AnalyticsActivity, AnalyticsKpi, AnalyticsKpiIcon, AnalyticsPerson, AnalyticsPrStatus, AnalyticsPullRequest, AnalyticsRepository } from "./data";
@@ -175,33 +177,48 @@ function Leaderboard({ data, people }: { data: AnalyticsActivity; people: Analyt
 
   return (
     <ol className="leaders">
-      {rows.map((r, i) => (
-        <li key={r.handle} className="leader" style={{ "--row": i, "--c": r.color } as CSSProperties}>
-          <Avatar src={r.avatar} size={32} />
-          <div className="leader-main">
-            <div className="leader-line">
-              <span className="leader-name">{r.handle}</span>
-              <span className="leader-count">
-                <Digits value={r.commits} delay={560 + i * 80} /> incidents
-              </span>
+      {rows.map((r, i) => {
+        const { added: resolved, removed: open } = r.lines;
+        return (
+          <li key={r.handle} className="leader" style={{ "--row": i, "--c": r.color } as CSSProperties}>
+            <Avatar src={r.avatar} size={32} />
+            <div className="leader-main">
+              <div className="leader-line">
+                <span className="leader-name">{r.handle}</span>
+                <span className="leader-count">
+                  <Digits value={r.commits} delay={560 + i * 80} /> {r.commits === 1 ? "incident" : "incidents"}
+                  <span className="leader-pct">
+                    {" · "}
+                    <Digits value={Math.round((r.commits / total) * 100)} delay={700 + i * 80} />%
+                  </span>
+                </span>
+              </div>
+              {/* One bar per service, sized against the busiest: open first, then resolved. */}
+              <div
+                className="share share-split"
+                role="img"
+                aria-label={`${r.handle}: ${open} open, ${resolved} resolved`}
+                style={{ "--share": r.commits / top } as CSSProperties}
+              >
+                <span className="share-fill">
+                  <span className="share-open" style={{ flexGrow: open }} />
+                  <span className="share-resolved" style={{ flexGrow: resolved }} />
+                </span>
+              </div>
+              <div className="leader-meta" aria-hidden="true">
+                <span className="leader-stat" data-kind="open">
+                  <i />
+                  {formatCount(open)} open
+                </span>
+                <span className="leader-stat" data-kind="resolved">
+                  <i />
+                  {formatCount(resolved)} resolved
+                </span>
+              </div>
             </div>
-            <div className="share" aria-hidden="true">
-              <span className="share-fill" style={{ "--share": r.commits / top } as CSSProperties} />
-            </div>
-            <div className="leader-meta">
-              <span className="badge badge-add">
-                <Digits value={formatCount(r.lines.added)} delay={620 + i * 80} /> resolved
-              </span>
-              <span className="badge badge-del">
-                <Digits value={formatCount(r.lines.removed)} delay={660 + i * 80} /> open
-              </span>
-              <span className="leader-pct">
-                <Digits value={Math.round((r.commits / total) * 100)} delay={700 + i * 80} />% of incidents
-              </span>
-            </div>
-          </div>
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -291,8 +308,17 @@ function RepoCard({ repo, index }: { repo: AnalyticsRepository; index: number })
       <div className="repo-head">
         <VisIcon size={15} strokeWidth={1.8} className="repo-vis-icon" />
         <h2 className="repo-name">
-          {org && <span className="repo-org">{org}</span>}
-          {name}
+          {repo.href ? (
+            <Link href={repo.href} className="repo-link">
+              {org && <span className="repo-org">{org}</span>}
+              {name}
+            </Link>
+          ) : (
+            <>
+              {org && <span className="repo-org">{org}</span>}
+              {name}
+            </>
+          )}
         </h2>
         <span className="tag">{repo.visibility}</span>
       </div>
@@ -438,6 +464,21 @@ const NOTIFICATIONS: { id: NotifyId; title: string; detail: string }[] = [
   { id: "merged", title: "Fix approvals", detail: "When a remediation you approved is merged." },
   { id: "digest", title: "Weekly digest", detail: "A Friday summary of incidents, time to detect and fixes verified." },
 ];
+
+const THEMES = [
+  { id: "system", label: "System" },
+  { id: "light", label: "Light" },
+  { id: "dark", label: "Dark" },
+] as const;
+
+function ThemeSetting() {
+  const { theme, setTheme } = useTheme();
+  // next-themes only knows the stored theme after mount; render the default until then.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const value = mounted ? ((theme as (typeof THEMES)[number]["id"]) ?? "system") : "system";
+  return <Segmented label="Theme" options={THEMES} value={value} onChange={setTheme} />;
+}
 
 const STYLES = [
   { id: "concise", label: "Concise" },
@@ -591,6 +632,13 @@ export function SettingsPage() {
           <h2 id={`${id}-look`} className="card-title">
             Appearance
           </h2>
+          <div className="setting-row">
+            <div>
+              <p className="setting-title">Theme</p>
+              <p className="setting-detail">Light, dark, or follow your system. Applies right away.</p>
+            </div>
+            <ThemeSetting />
+          </div>
           <div className="setting-row">
             <div>
               <p id={`${id}-accent`} className="setting-title">

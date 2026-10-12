@@ -2807,3 +2807,477 @@
     flex-wrap: wrap;
   }
 }
+
+/* ═════════ CausalDeploy additions ═════════ */
+
+/* ───────── Incident panel: full view ─────────
+   Expanded, the panel takes everything right of the rail: conversation on the left,
+   the incident's evidence graph on the right. */
+
+.obsidian-analytics-dashboard .details-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.obsidian-analytics-dashboard .window[data-expanded="true"] {
+  grid-template-columns: var(--rail-w) 0px minmax(0, 1fr);
+}
+
+.obsidian-analytics-dashboard .window[data-expanded="true"] .main {
+  opacity: 0;
+  pointer-events: none;
+  margin-inline: 0;
+}
+
+.obsidian-analytics-dashboard .details[data-expanded="true"] {
+  width: auto;
+  flex-direction: row;
+  gap: 7px;
+  padding-right: 7px;
+}
+
+.obsidian-analytics-dashboard .details[data-expanded="true"] .details-col {
+  flex: 0 0 min(460px, 40%);
+}
+
+.obsidian-analytics-dashboard .details-aside {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 7px 0;
+  padding: 16px 18px 18px;
+  border-radius: 15px;
+  background: var(--ad-main);
+  box-shadow:
+    0 0 0 1px rgb(var(--ad-ink) / 0.055),
+    0 10px 30px -12px rgb(0 0 0 / calc(0.55 * var(--ad-shadow)));
+  overflow: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .obsidian-analytics-dashboard .details-aside {
+    animation: obsidian-ad-aside-in 350ms var(--ease-smooth-out) both;
+  }
+}
+
+@keyframes obsidian-ad-aside-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@container analytics-dashboard (max-width: 1180px) {
+  .obsidian-analytics-dashboard .details[data-expanded="true"],
+  .obsidian-analytics-dashboard .window[data-collapsed="true"] .details[data-expanded="true"] {
+    left: calc(var(--rail-w) + 7px);
+    width: auto;
+    padding-right: 0;
+  }
+
+  .obsidian-analytics-dashboard .details[data-expanded="true"] .details-aside {
+    margin: 7px 7px 7px 0;
+  }
+}
+
+@container analytics-dashboard (max-width: 760px) {
+  .obsidian-analytics-dashboard .details[data-expanded="true"] {
+    flex-direction: column;
+  }
+
+  .obsidian-analytics-dashboard .details[data-expanded="true"] .details-col {
+    flex: 1 1 55%;
+  }
+
+  .obsidian-analytics-dashboard .details[data-expanded="true"] .details-aside {
+    flex: 1 1 45%;
+    margin: 0 7px 7px;
+  }
+}
+
+.obsidian-analytics-dashboard .details-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 16px 0 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.obsidian-analytics-dashboard .details-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ───────── Most affected services ───────── */
+
+.obsidian-analytics-dashboard .leader-count .leader-pct {
+  margin-left: 0;
+}
+
+.obsidian-analytics-dashboard .share-split .share-fill {
+  display: flex;
+  gap: 2px;
+  background: none;
+}
+
+.obsidian-analytics-dashboard .share-open,
+.obsidian-analytics-dashboard .share-resolved {
+  flex-basis: 0;
+  min-width: 0;
+  border-radius: 999px;
+}
+
+.obsidian-analytics-dashboard .share-open {
+  background: var(--del-fg);
+}
+
+.obsidian-analytics-dashboard .share-resolved {
+  background: var(--add-fg);
+}
+
+.obsidian-analytics-dashboard .leader-meta {
+  gap: 14px;
+}
+
+.obsidian-analytics-dashboard .leader-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.obsidian-analytics-dashboard .leader-stat i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+
+.obsidian-analytics-dashboard .leader-stat[data-kind="open"] i {
+  background: var(--del-fg);
+}
+
+.obsidian-analytics-dashboard .leader-stat[data-kind="resolved"] i {
+  background: var(--add-fg);
+}
+
+/* ───────── Repository cards link to their page ───────── */
+
+.obsidian-analytics-dashboard .repo {
+  position: relative;
+}
+
+.obsidian-analytics-dashboard .repo-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.obsidian-analytics-dashboard .repo-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.obsidian-analytics-dashboard .repo-link:focus-visible {
+  outline: none;
+}
+
+.obsidian-analytics-dashboard .repo:has(.repo-link:focus-visible) {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ───────── Detail pages ───────── */
+
+.obsidian-analytics-dashboard .card-pad {
+  padding: 16px 18px 18px;
+}
+
+.obsidian-analytics-dashboard .incident-page,
+.obsidian-analytics-dashboard .repo-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.obsidian-analytics-dashboard .incident-page .page-head,
+.obsidian-analytics-dashboard .repo-page .page-head {
+  margin-bottom: 4px;
+}
+
+.obsidian-analytics-dashboard .back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--text-3);
+  text-decoration: none;
+}
+
+.obsidian-analytics-dashboard .back-link:hover {
+  color: var(--text);
+}
+
+.obsidian-analytics-dashboard .page-title code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+}
+
+.obsidian-analytics-dashboard .usage {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.obsidian-analytics-dashboard .usage dt {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.obsidian-analytics-dashboard .usage dd {
+  margin-top: 4px;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+@container page (max-width: 640px) {
+  .obsidian-analytics-dashboard .usage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ───────── Evidence graph ───────── */
+
+.obsidian-analytics-dashboard .ev {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 12px;
+}
+
+.obsidian-analytics-dashboard .ev[data-stacked="true"] {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(320px, 1fr) auto;
+}
+
+@container page (max-width: 760px) {
+  .obsidian-analytics-dashboard .ev {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.obsidian-analytics-dashboard .ev-canvas {
+  width: 100%;
+  height: 460px;
+  border-radius: 12px;
+  background: rgb(var(--ad-ink) / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(var(--ad-ink) / 0.06);
+}
+
+.obsidian-analytics-dashboard .ev[data-stacked="true"] .ev-canvas {
+  height: 100%;
+  min-height: 320px;
+}
+
+.obsidian-analytics-dashboard .ev-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgb(var(--ad-ink) / 0.03);
+  font-size: 13px;
+}
+
+.obsidian-analytics-dashboard .ev-hint {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--text-3);
+}
+
+.obsidian-analytics-dashboard .ev-path {
+  color: var(--del-fg);
+}
+
+.obsidian-analytics-dashboard .ev-node-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.obsidian-analytics-dashboard .ev-node-id {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--text-2);
+  word-break: break-all;
+}
+
+.obsidian-analytics-dashboard .ev-props dd {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.obsidian-analytics-dashboard .ev-edges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(var(--ad-ink) / 0.07);
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
+.obsidian-analytics-dashboard .ev-edges li[data-path="true"] {
+  color: var(--del-fg);
+}
+
+.obsidian-analytics-dashboard .ev-inspector .btn {
+  align-self: flex-start;
+  gap: 6px;
+  height: 30px;
+  font-size: 13px;
+}
+
+.obsidian-analytics-dashboard .ev-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 40px 16px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--text-3);
+}
+
+.obsidian-analytics-dashboard .ev-state-title {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.obsidian-analytics-dashboard .ev-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.obsidian-analytics-dashboard .ev-legend i {
+  width: 14px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--del-fg);
+}
+
+.obsidian-analytics-dashboard .aside-title {
+  flex: none;
+}
+
+/* ───────── Repository: API keys ───────── */
+
+.obsidian-analytics-dashboard .key-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.obsidian-analytics-dashboard .key-form .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.obsidian-analytics-dashboard .form-error {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--del-fg);
+}
+
+.obsidian-analytics-dashboard .key-fresh {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--add-fg);
+  background: var(--add-bg);
+}
+
+.obsidian-analytics-dashboard .key-list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.obsidian-analytics-dashboard .key-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto 84px;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  border-top: 1px solid rgb(var(--ad-ink) / 0.06);
+}
+
+.obsidian-analytics-dashboard .key-row:first-child {
+  border-top: 0;
+}
+
+.obsidian-analytics-dashboard .key-row[data-revoked="true"] .key-label {
+  color: var(--text-3);
+}
+
+.obsidian-analytics-dashboard .key-label {
+  font-size: 14px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-analytics-dashboard .key-meta {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.obsidian-analytics-dashboard .key-row .btn {
+  height: 30px;
+  font-size: 13px;
+}
+
+.obsidian-analytics-dashboard .badge[data-kind="active"] {
+  color: var(--add-fg);
+  background: var(--add-bg);
+}
+
+.obsidian-analytics-dashboard .badge[data-kind="revoked"] {
+  color: var(--text-3);
+  background: var(--fill-2);
+}
+
+@container page (max-width: 560px) {
+  .obsidian-analytics-dashboard .key-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 8px 0;
+  }
+
+  .obsidian-analytics-dashboard .key-meta {
+    display: none;
+  }
+}

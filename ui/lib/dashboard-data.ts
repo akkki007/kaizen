@@ -27,7 +27,7 @@ function relative(ms: number): string {
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-const STATUS = {
+export const STATUS = {
   open: { kind: "open", label: "Open" },
   investigating: { kind: "review", label: "Investigating" },
   resolved: { kind: "merged", label: "Resolved" },
@@ -141,6 +141,7 @@ export function toDashboardData(
             ? "Resolved: the cause was identified and the fix verified."
             : "CausalDeploy is mapping this incident to the deployment and commits that preceded the failure.",
         ],
+        href: `/incidents/${encodeURIComponent(i.id)}`,
       };
     });
 
@@ -148,7 +149,7 @@ export function toDashboardData(
     const mine = incidents.filter((i) => i.repo === name);
     const last = mine.map((i) => new Date(i.detected_at).getTime()).sort((a, b) => b - a)[0];
     return {
-      name: name.split("/").pop() ?? name,
+      name,
       description: `${name} · ${role}`,
       language: "JavaScript",
       languageColor: "#f1e05a",
@@ -160,6 +161,7 @@ export function toDashboardData(
       activity: Array.from({ length: 14 }, (_, d) =>
         mine.filter((i) => inWindow(i.detected_at, now - (14 - d) * 24 * HOUR, now - (13 - d) * 24 * HOUR)).length,
       ),
+      href: `/repositories/${name}`,
     };
   });
 

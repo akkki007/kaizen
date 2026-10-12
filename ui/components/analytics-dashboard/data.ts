@@ -45,6 +45,8 @@ export type AnalyticsRepository = {
   updatedMinutes: number;
   /** Commits per day, oldest first. */
   activity: number[];
+  /** Repository page (API keys). */
+  href?: string;
 };
 
 export type AnalyticsPrStatus = { kind: "merged" | "review" | "open"; label: string };
@@ -67,6 +69,8 @@ export type AnalyticsPullRequest = {
   /** Paragraphs; text wrapped in backticks renders as inline code. */
   problem: string[];
   approach: string[];
+  /** Full page for this incident (evidence graph). */
+  href?: string;
 };
 
 export type AnalyticsDashboardData = {
