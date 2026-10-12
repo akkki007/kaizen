@@ -361,7 +361,7 @@ def test_prod_refuses_to_start_without_real_secrets(monkeypatch: pytest.MonkeyPa
     from causaldeploy.config import Settings
 
     with pytest.raises(ValidationError, match="CD_SESSION_SECRET.*CD_GITHUB_OAUTH_CLIENT_ID"):
-        Settings(env="prod")  # type: ignore[arg-type]
+        Settings(_env_file=None, env="prod")  # type: ignore[arg-type,call-arg]
 
 
 async def test_metrics_endpoint(client: httpx.AsyncClient) -> None:
