@@ -109,22 +109,34 @@ def safe_next(next_url: str | None) -> str:
     return "/"
 
 
-def safe_origin(origin: str | None, settings: Settings) -> str:
-    """The origin the browser signed in from (hosts the OAuth callback).
+_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "[::1]"}
 
-    Local dev runs the UI on :3000 while the API is on :8000, so the callback URL depends on
-    where sign-in started. GitHub is the enforcement point: only origins registered as
-    callback URLs on the App are honored, anything else fails there.
+
+def safe_origin(origin: str | None, settings: Settings) -> str:
+    """The UI origin sign-in started from (hosts the OAuth callback and receives the browser back).
+
+    Only the configured public origin is honored in production. Outside production a loopback
+    origin is also accepted, because local dev runs the UI on :3000 and the API on :8000.
+    Anything else falls back to the public origin. GitHub additionally refuses redirect URIs
+    that are not registered on the App, but that only guards the code exchange: the redirects
+    back to the browser (including error redirects) are ours, so the allowlist is enforced here.
     """
+    public = settings.public_base_url
     if not origin:
-        return settings.public_base_url
+        return public
     try:
         parts = urlsplit(origin)
+        host = parts.hostname
     except ValueError:
-        return settings.public_base_url
-    if parts.scheme in ("http", "https") and parts.netloc and parts.path in ("", "/"):
-        return f"{parts.scheme}://{parts.netloc}"
-    return settings.public_base_url
+        return public
+    if parts.scheme not in ("http", "https") or not parts.netloc or parts.path not in ("", "/"):
+        return public
+    normalized = f"{parts.scheme}://{parts.netloc}"
+    if normalized == public.rstrip("/"):
+        return normalized
+    if settings.env != "prod" and host is not None and host.lower() in _LOOPBACK_HOSTS:
+        return normalized
+    return public
 
 
 def _login_redirect(origin: str, reason: str, clear: bool = True) -> RedirectResponse:

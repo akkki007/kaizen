@@ -681,6 +681,28 @@ async def test_login_passes_next_and_origin_through_to_the_callback(
         get_settings.cache_clear()
 
 
+def test_safe_origin_is_an_allowlist() -> None:
+    from causaldeploy.api.auth import safe_origin
+    from causaldeploy.config import Settings
+
+    # model_construct: prod settings refuse to validate without real credentials, which is not
+    # what is under test here (safe_origin reads only these two fields)
+    prod = Settings.model_construct(env="prod", public_base_url="https://app.example.org")
+    dev = Settings.model_construct(env="dev", public_base_url="http://localhost:8000")
+    # the public origin is always fine; anything else falls back to it
+    assert safe_origin("https://app.example.org", prod) == "https://app.example.org"
+    assert safe_origin("https://evil.example", prod) == "https://app.example.org"
+    assert safe_origin("http://app.example.org.evil.example", prod) == "https://app.example.org"
+    assert safe_origin("https://app.example.org/x", prod) == "https://app.example.org"
+    # loopback UIs are for development only
+    assert safe_origin("http://localhost:3000", prod) == "https://app.example.org"
+    assert safe_origin("http://localhost:3000", dev) == "http://localhost:3000"
+    assert safe_origin("http://127.0.0.1:3000", dev) == "http://127.0.0.1:3000"
+    assert safe_origin("http://localhost.evil.example", dev) == "http://localhost:8000"
+    assert safe_origin("javascript:alert(1)", dev) == "http://localhost:8000"
+    assert safe_origin(None, dev) == "http://localhost:8000"
+
+
 async def test_callback_without_installations_lands_on_the_no_repos_login(
     client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
