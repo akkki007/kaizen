@@ -53,7 +53,7 @@ make backfill
 # 4. Run (three terminals)
 make api       # http://localhost:8000   (docs: /docs)
 make worker
-make ui        # http://localhost:3000   sign in with GitHub, dashboard at /dashboard
+make ui        # http://localhost:3000   sign in with GitHub, dashboard at /
 ```
 
 No credentials? You can still develop the UI and run the test-suite:
@@ -82,11 +82,13 @@ make test                     # backend tests against real FalkorDB/Postgres/Red
 - `CD_SESSION_SECRET` is generated per file. Production uses a different one on purpose.
 - Rotating the App key means updating `causaldeploy/prod/external` in AWS Secrets Manager and
   re-issuing this file.
+- `CD_GITHUB_APP_SLUG` enables "Install the App" links (e.g. `causaldeploy-shoplite-demo`).
 
 ## One-time owner step
 
-"Sign in with GitHub" in the local UI needs `http://localhost:3000/auth/callback` in the
-GitHub App's **Callback URL** list (GitHub -> Developer settings -> GitHub Apps ->
+"Sign in with GitHub" in the local UI starts at `/auth/login?origin=http://localhost:3000`
+and redirects back to `http://localhost:3000/auth/callback`. Add it under the App's
+**Callback URL** list (GitHub -> Developer settings -> GitHub Apps ->
 `causaldeploy-shoplite-demo`). Until it is added, login fails; everything else works.
 
 ## Production

@@ -144,6 +144,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repos/{owner}/{name}/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Backfill Status */
+        get: operations["get_backfill_status_api_v1_repos__owner___name__backfill_get"];
+        put?: never;
+        /**
+         * Reimport Repo
+         * @description Approver-only re-import: clones the repository again and rebuilds its graph.
+         */
+        post: operations["reimport_repo_api_v1_repos__owner___name__backfill_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/callback": {
         parameters: {
             query?: never;
@@ -151,8 +172,34 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Callback */
+        /**
+         * Callback
+         * @description Exchanges the code for a session and lands the user back in the UI.
+         *
+         *     Every failure (denied, stale state, GitHub rejection) redirects to /login?error=… so the
+         *     login page can explain it; nothing here surfaces a bare JSON error.
+         */
         get: operations["callback_auth_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/install-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Install Url
+         * @description Where to install the GitHub App (shown on the login and repositories pages).
+         */
+        get: operations["install_url_auth_install_url_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -273,6 +320,40 @@ export interface components {
             accepted: number;
             /** Job Ids */
             job_ids: string[];
+        };
+        /** BackfillJobInfo */
+        BackfillJobInfo: {
+            /** Attempts */
+            attempts: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Id */
+            id: string;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * BackfillStatus
+         * @description Import state for one repository: the last backfill job and when it last completed.
+         */
+        BackfillStatus: {
+            /** Backfilled At */
+            backfilled_at: string | null;
+            /** Installed */
+            installed: boolean;
+            job: components["schemas"]["BackfillJobInfo"] | null;
+            /** Repo */
+            repo: string;
         };
         /** EvidenceEdge */
         EvidenceEdge: {
@@ -744,16 +825,92 @@ export interface operations {
             };
         };
     };
+    get_backfill_status_api_v1_repos__owner___name__backfill_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                owner: string;
+                name: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackfillStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reimport_repo_api_v1_repos__owner___name__backfill_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                owner: string;
+                name: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     callback_auth_callback_get: {
         parameters: {
-            query: {
-                code: string;
-                state: string;
+            query?: {
+                code?: string | null;
+                error?: string | null;
+                state?: string | null;
             };
             header?: never;
             path?: never;
             cookie?: {
                 cd_oauth_state?: string | null;
+                cd_oauth_next?: string | null;
+                cd_oauth_origin?: string | null;
             };
         };
         requestBody?: never;
@@ -778,7 +935,7 @@ export interface operations {
             };
         };
     };
-    login_auth_login_get: {
+    install_url_auth_install_url_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -793,7 +950,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": {
+                        [key: string]: string | null;
+                    };
+                };
+            };
+        };
+    };
+    login_auth_login_get: {
+        parameters: {
+            query?: {
+                next?: string | null;
+                origin?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

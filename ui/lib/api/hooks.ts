@@ -1,13 +1,33 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError, api, unwrap } from "./client";
+import { ApiError, MOCK, api, redirectToLogin, unwrap } from "./client";
 
 export function useMe() {
   return useQuery({
     queryKey: ["me"],
     queryFn: async () => unwrap(await api.GET("/auth/me")),
     retry: false,
+  });
+}
+
+export function useSignOut() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => unwrap(await api.POST("/auth/logout")),
+    onSettled: () => {
+      qc.clear();
+      // Mock mode has no real session; mock /auth/me always succeeds, so just walk to /login.
+      window.location.assign("/login");
+    },
+  });
+}
+
+export function useInstallUrl() {
+  return useQuery({
+    queryKey: ["install-url"],
+    queryFn: async () => unwrap(await api.GET("/auth/install-url")),
+    staleTime: Infinity,
   });
 }
 
@@ -71,5 +91,46 @@ export function useRevokeKey(repo: string) {
     mutationFn: async (keyId: number) =>
       unwrap(await api.DELETE("/api/v1/repos/{owner}/{name}/api-keys/{key_id}", { params: { path: { ...split(repo), key_id: keyId } } })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["api-keys", repo] }),
+  });
+}
+
+export type BackfillJob = {
+  id: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "dead" | string;
+  attempts: number;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BackfillStatus = {
+  repo: string;
+  installed: boolean;
+  backfilled_at: string | null;
+  job: BackfillJob | null;
+};
+
+/** Import state for a repository; polls while a backfill is in flight. */
+export function useBackfillStatus(repo: string) {
+  return useQuery({
+    queryKey: ["backfill", repo],
+    queryFn: async () =>
+      unwrap(await api.GET("/api/v1/repos/{owner}/{name}/backfill", { params: { path: split(repo) } })) as unknown as BackfillStatus,
+    refetchInterval: (query) =>
+      query.state.data?.job && ["queued", "running"].includes(query.state.data.job.status)
+        ? 3_000
+        : false,
+  });
+}
+
+export function useReimport(repo: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/api/v1/repos/{owner}/{name}/backfill", { params: { path: split(repo) } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["backfill", repo] }),
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 401) redirectToLogin();
+    },
   });
 }

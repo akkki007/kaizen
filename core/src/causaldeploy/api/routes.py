@@ -237,6 +237,24 @@ class NewKey(BaseModel):
     key: str  # shown once; only its hash is stored
 
 
+class BackfillJobInfo(BaseModel):
+    id: str
+    status: str  # queued|running|succeeded|failed|dead
+    attempts: int
+    error: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class BackfillStatus(BaseModel):
+    """Import state for one repository: the last backfill job and when it last completed."""
+
+    repo: str
+    installed: bool  # the App is installed and CausalDeploy knows the installation id
+    backfilled_at: datetime | None
+    job: BackfillJobInfo | None
+
+
 @v1.post(
     "/repos/{owner}/{name}/api-keys",
     response_model=NewKey,
@@ -290,6 +308,80 @@ async def revoke_repo_key(owner: str, name: str, key_id: int, user: CurrentUser)
             AuditLog(actor=user.login, action="api_key.revoke", target=repo, detail={"id": key_id})
         )
     return {"status": "revoked"}
+
+
+async def _repo_and_last_backfill(s: Any, repo: str) -> tuple[Repository | None, JobRecord | None]:
+    rep = (
+        await s.execute(select(Repository).where(Repository.full_name == repo))
+    ).scalar_one_or_none()
+    job = (
+        await s.execute(
+            select(JobRecord)
+            .where(
+                JobRecord.kind == "backfill_repo",
+                JobRecord.payload["repo"].as_string() == repo,
+            )
+            .order_by(JobRecord.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    return rep, job
+
+
+@v1.get("/repos/{owner}/{name}/backfill", response_model=BackfillStatus)
+async def get_backfill_status(owner: str, name: str, user: CurrentUser) -> BackfillStatus:
+    repo = f"{owner}/{name}"
+    require_role(user, repo, "viewer")
+    async with session_scope() as s:
+        rep, job = await _repo_and_last_backfill(s, repo)
+    return BackfillStatus(
+        repo=repo,
+        installed=rep is not None and rep.installation_id is not None,
+        backfilled_at=rep.backfilled_at if rep else None,
+        job=BackfillJobInfo(
+            id=job.id,
+            status=job.status,
+            attempts=job.attempts,
+            error=job.error,
+            created_at=job.created_at,
+            updated_at=job.updated_at,
+        )
+        if job
+        else None,
+    )
+
+
+@v1.post("/repos/{owner}/{name}/backfill", status_code=202, dependencies=[Depends(csrf_protect)])
+async def reimport_repo(owner: str, name: str, user: CurrentUser) -> dict[str, str]:
+    """Approver-only re-import: clones the repository again and rebuilds its graph."""
+    repo = f"{owner}/{name}"
+    require_role(user, repo, "approver")
+    async with session_scope() as s:
+        rep = (
+            await s.execute(select(Repository).where(Repository.full_name == repo))
+        ).scalar_one_or_none()
+        if rep is None or rep.installation_id is None:
+            raise HTTPException(409, "the GitHub App is not installed on this repository")
+        last = (
+            await s.execute(
+                select(JobRecord)
+                .where(
+                    JobRecord.kind == "backfill_repo",
+                    JobRecord.payload["repo"].as_string() == repo,
+                    JobRecord.status.in_(("queued", "running")),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if last is not None:
+            raise HTTPException(409, f"an import is already {last.status} for this repository")
+        jid, _ = await enqueue(
+            "backfill_repo",
+            BackfillPayload(repo=repo, installation_id=rep.installation_id),
+            f"reimport:{repo}:{secrets.token_hex(8)}",
+        )
+        s.add(AuditLog(actor=user.login, action="repo.reimport", target=repo, detail={"job": jid}))
+    return {"job_id": jid, "status": "queued"}
 
 
 @webhooks.post("/github", status_code=202)

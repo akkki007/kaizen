@@ -8,10 +8,11 @@ the CausalDeploy App is installed and the user has access, with their role on ea
 import secrets
 import time
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit
 
 import httpx
 import jwt
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -20,6 +21,8 @@ from causaldeploy.config import Settings, get_settings
 SESSION_COOKIE = "cd_session"
 CSRF_COOKIE = "cd_csrf"
 STATE_COOKIE = "cd_oauth_state"
+NEXT_COOKIE = "cd_oauth_next"  # where to land after sign-in (root-relative path)
+ORIGIN_COOKIE = "cd_oauth_origin"  # UI origin the sign-in started from (hosts the callback)
 Role = Literal["viewer", "approver"]
 _RANK = {"viewer": 1, "approver": 2}
 
@@ -99,18 +102,59 @@ def _cookie_args(settings: Settings, http_only: bool = True) -> dict[str, Any]:
     }
 
 
+def safe_next(next_url: str | None) -> str:
+    """Root-relative redirect target only; anything else falls back to /."""
+    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+        return next_url
+    return "/"
+
+
+def safe_origin(origin: str | None, settings: Settings) -> str:
+    """The origin the browser signed in from (hosts the OAuth callback).
+
+    Local dev runs the UI on :3000 while the API is on :8000, so the callback URL depends on
+    where sign-in started. GitHub is the enforcement point: only origins registered as
+    callback URLs on the App are honored, anything else fails there.
+    """
+    if not origin:
+        return settings.public_base_url
+    try:
+        parts = urlsplit(origin)
+    except ValueError:
+        return settings.public_base_url
+    if parts.scheme in ("http", "https") and parts.netloc and parts.path in ("", "/"):
+        return f"{parts.scheme}://{parts.netloc}"
+    return settings.public_base_url
+
+
+def _login_redirect(origin: str, reason: str, clear: bool = True) -> RedirectResponse:
+    """Back to the login page with a reason it can show (denied, expired, github, no_repos)."""
+    resp = RedirectResponse(f"{origin}/login?error={reason}", status_code=302)
+    if clear:
+        resp.delete_cookie(STATE_COOKIE, path="/")
+        resp.delete_cookie(NEXT_COOKIE, path="/")
+        resp.delete_cookie(ORIGIN_COOKIE, path="/")
+    return resp
+
+
 @router.get("/login")
-async def login() -> RedirectResponse:
+async def login(
+    next_url: Annotated[str | None, Query(alias="next")] = None,
+    origin: str | None = None,
+) -> RedirectResponse:
     s = get_settings()
     if not s.github_oauth_client_id:
         raise HTTPException(503, "GitHub login is not configured")
+    start_origin = safe_origin(origin, s)
     state = secrets.token_urlsafe(24)
     url = (
         f"{s.github_web_url}/login/oauth/authorize?client_id={s.github_oauth_client_id}"
-        f"&redirect_uri={s.public_base_url}/auth/callback&state={state}"
+        f"&redirect_uri={start_origin}/auth/callback&state={state}"
     )
     resp = RedirectResponse(url, status_code=302)
     resp.set_cookie(STATE_COOKIE, state, **_cookie_args(s))
+    resp.set_cookie(NEXT_COOKIE, safe_next(next_url), **_cookie_args(s))
+    resp.set_cookie(ORIGIN_COOKIE, start_origin, **_cookie_args(s))
     return resp
 
 
@@ -142,11 +186,24 @@ async def fetch_repo_roles(token: str, settings: Settings) -> dict[str, Role]:
 
 @router.get("/callback")
 async def callback(
-    code: str, state: str, cd_oauth_state: Annotated[str | None, Cookie()] = None
+    code: str | None = None,
+    error: str | None = None,
+    state: str | None = None,
+    cd_oauth_state: Annotated[str | None, Cookie()] = None,
+    cd_oauth_next: Annotated[str | None, Cookie()] = None,
+    cd_oauth_origin: Annotated[str | None, Cookie()] = None,
 ) -> RedirectResponse:
+    """Exchanges the code for a session and lands the user back in the UI.
+
+    Every failure (denied, stale state, GitHub rejection) redirects to /login?error=… so the
+    login page can explain it; nothing here surfaces a bare JSON error.
+    """
     s = get_settings()
-    if not cd_oauth_state or not secrets.compare_digest(cd_oauth_state, state):
-        raise HTTPException(400, "invalid OAuth state")
+    origin = safe_origin(cd_oauth_origin, s)
+    if error or not code:
+        return _login_redirect(origin, "denied" if error == "access_denied" else "invalid")
+    if not cd_oauth_state or not state or not secrets.compare_digest(cd_oauth_state, state):
+        return _login_redirect(origin, "expired")
     async with httpx.AsyncClient(timeout=15) as c:
         tok = await c.post(
             f"{s.github_web_url}/login/oauth/access_token",
@@ -159,15 +216,23 @@ async def callback(
         )
     access = tok.json().get("access_token")
     if not access:
-        raise HTTPException(401, "GitHub rejected the login")
+        return _login_redirect(origin, "github")
     async with httpx.AsyncClient(base_url=s.github_api_url, timeout=15) as c:
         me = await c.get("/user", headers={"Authorization": f"Bearer {access}"})
     login = me.json()["login"]
     user = User(login=login, repos=await fetch_repo_roles(access, s))
-    resp = RedirectResponse(s.public_base_url + "/", status_code=302)
+    next_path = safe_next(cd_oauth_next)
+    if not user.repos:
+        # Signed in, but the App is not installed anywhere the user can see: the login page
+        # explains and links the installation. The session still works for the empty dashboard.
+        resp = _login_redirect(origin, "no_repos", clear=False)
+    else:
+        resp = RedirectResponse(origin + next_path, status_code=302)
     resp.set_cookie(SESSION_COOKIE, make_session(user, s), **_cookie_args(s))
     resp.set_cookie(CSRF_COOKIE, secrets.token_urlsafe(24), **_cookie_args(s, http_only=False))
     resp.delete_cookie(STATE_COOKIE, path="/")
+    resp.delete_cookie(NEXT_COOKIE, path="/")
+    resp.delete_cookie(ORIGIN_COOKIE, path="/")
     return resp
 
 
@@ -181,3 +246,10 @@ async def logout(response: Response) -> dict[str, str]:
 @router.get("/me")
 async def me(user: CurrentUser) -> User:
     return user
+
+
+@router.get("/install-url")
+async def install_url() -> dict[str, str | None]:
+    """Where to install the GitHub App (shown on the login and repositories pages)."""
+    slug = get_settings().github_app_slug.strip()
+    return {"url": f"https://github.com/apps/{slug}/installations/new" if slug else None}

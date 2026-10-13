@@ -57,7 +57,22 @@ export const mockFetch: typeof fetch = async (input, init) => {
   const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
   await new Promise((r) => setTimeout(r, 250)); // exercise loading states
   if (url.pathname === "/auth/me") return json(mockUser);
+  if (url.pathname === "/auth/install-url") {
+    return json({ url: "https://github.com/apps/causaldeploy-shoplite-demo/installations/new" });
+  }
+  if (url.pathname === "/auth/logout") return json({ status: "logged_out" });
   if (url.pathname === "/api/v1/incidents") return json(mockIncidents);
+  if (url.pathname.endsWith("/backfill") && method === "POST") {
+    return json({ job_id: "job-bf-2", status: "queued" }, 202);
+  }
+  if (url.pathname.endsWith("/backfill")) {
+    return json({
+      repo: url.pathname.split("/").slice(4, 6).map(decodeURIComponent).join("/"),
+      installed: true,
+      backfilled_at: ago(120),
+      job: { id: "job-bf-1", status: "succeeded", attempts: 1, error: null, created_at: ago(125), updated_at: ago(120) },
+    });
+  }
   if (url.pathname.endsWith("/evidence-graph")) return json(mockGraph(url.pathname.split("/")[4]));
   if (url.pathname.endsWith("/llm-cost")) return json({ incident_id: "inc-3", calls: 4, input_tokens: 5120, output_tokens: 610, cost_usd: 0.0214, latency_ms_total: 6400 });
   if (url.pathname.endsWith("/api-keys") && method === "POST") {
