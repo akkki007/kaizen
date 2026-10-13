@@ -26,7 +26,7 @@ const ERRORS: Record<string, { title: string; detail: string }> = {
   no_repos: {
     title: "No repositories yet",
     detail:
-      "The CausalDeploy GitHub App is not installed on any repository you have access to. Install it on your repositories, then try again.",
+      "The Kaizen GitHub App is not installed on any repository you have access to. Install it on your repositories, then try again.",
   },
 };
 
@@ -42,21 +42,21 @@ function LoginInner() {
   function signIn() {
     if (MOCK) {
       // Full page navigation so AuthGate picks up the mock session immediately.
-      window.location.assign(next && next.startsWith("/") ? next : "/");
+      window.location.assign(next && next.startsWith("/") ? next : "/overview");
       return;
     }
     const qs = new URLSearchParams();
-    if (next) qs.set("next", next);
+    qs.set("next", next && next.startsWith("/") ? next : "/overview");
     qs.set("origin", window.location.origin);
     window.location.assign(`/auth/login?${qs.toString()}`);
   }
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center gap-6 p-6 text-center">
-      <h1 className="text-2xl font-semibold">CausalDeploy</h1>
+      <h1 className="text-2xl font-semibold">Kaizen</h1>
       <p className="text-sm text-muted-foreground">
         Connect production failures to the code changes behind them. You will see the repositories
-        where the CausalDeploy GitHub App is installed and you have access.
+        where the Kaizen GitHub App is installed and you have access.
       </p>
 
       {state && (

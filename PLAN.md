@@ -1,4 +1,4 @@
-# CausalDeploy — Refined Project Plan
+# Kaizen — Refined Project Plan
 
 Status: **planning (v2)** — rescoped for the Oct 18 deadline, team of 4, production-grade, real GitHub, OpenAI. No code written yet. Sources: `Idea.md` + architecture diagram.
 
@@ -116,7 +116,7 @@ Design rules:
 | UI | **Next.js (App Router) + TypeScript + Tailwind + shadcn/ui + TanStack Query + Cytoscape.js**, OpenAPI-generated client, Playwright | Graph evidence view is the signature screen |
 | Quality | ruff, mypy, pytest, pre-commit, CI on every PR | |
 | Self-observability | structured JSON logs, OpenTelemetry traces/metrics, LLM cost/latency logging | |
-| Deployment of CausalDeploy | docker compose on a VM behind Caddy/TLS, public webhook endpoint, backups | Hosting provider TBD (issue tracks it) |
+| Deployment of Kaizen | docker compose on a VM behind Caddy/TLS, public webhook endpoint, backups | Hosting provider TBD (issue tracks it) |
 
 ---
 
@@ -328,6 +328,6 @@ causaldeploy/
 Decided (see §0): Oct 18 deadline, team of 4, production-grade, Python harness, real GitHub, OpenAI, full UI.
 
 Still open (tracked inside the relevant issues, not blocking planning):
-1. Hosting provider/VM + domain for CausalDeploy and for ShopLite (needed by M1 for real webhooks).
+1. Hosting provider/VM + domain for Kaizen and for ShopLite (needed by M1 for real webhooks).
 2. Which OpenAI model(s) and a monthly/per-run budget cap.
 3. GitHub org/repo name for ShopLite and who owns the GitHub App registration.

@@ -7,7 +7,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
 
-export const metadata: Metadata = { title: "CausalDeploy", description: "Root-cause analysis and verified remediation" };
+export const metadata: Metadata = { title: "Kaizen", description: "Root-cause analysis and verified remediation" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

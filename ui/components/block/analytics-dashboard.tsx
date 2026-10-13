@@ -113,14 +113,14 @@ function useContainerWidth() {
 
 export function AnalyticsDashboard({
   data,
-  brand = { name: "CausalDeploy" },
+  brand = { name: "Kaizen" },
   user,
   page: pageProp,
   defaultPage = "overview",
   onPageChange,
   defaultAccent = "blue",
   onAccentChange,
-  assistantName = "CausalDeploy",
+  assistantName = "Kaizen",
   onAsk,
   onSignOut,
   signingOut,

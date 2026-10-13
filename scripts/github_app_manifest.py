@@ -41,7 +41,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send("<h2>GitHub App created.</h2><p>You can close this tab.</p>")
         manifest = html.escape(json.dumps(json.loads(MANIFEST.read_text())), quote=True)
         self._send(
-            "<h2>Register the CausalDeploy GitHub App</h2>"
+            "<h2>Register the Kaizen GitHub App</h2>"
             '<form method="post" action="https://github.com/settings/apps/new?state=cd">'
             f'<input type="hidden" name="manifest" value="{manifest}">'
             '<button type="submit" style="font-size:18px;padding:10px 18px">Continue to GitHub</button>'

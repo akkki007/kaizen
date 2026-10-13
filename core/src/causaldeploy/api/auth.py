@@ -1,7 +1,7 @@
 """GitHub login, signed sessions, CSRF and per-repository authorization.
 
 Users sign in with GitHub (App user-to-server OAuth). The session lists the repositories where
-the CausalDeploy App is installed and the user has access, with their role on each:
+the Kaizen App is installed and the user has access, with their role on each:
 `approver` (push/maintain/admin) or `viewer` (read).
 """
 

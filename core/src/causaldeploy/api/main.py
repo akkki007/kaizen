@@ -67,7 +67,7 @@ def create_app() -> FastAPI:
         yield
         await get_engine().dispose()
 
-    app = FastAPI(title="CausalDeploy", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="Kaizen", version=__version__, lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

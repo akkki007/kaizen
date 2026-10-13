@@ -1,4 +1,4 @@
-# CausalDeploy UI
+# Kaizen UI
 
 Next.js 15 (App Router) + TypeScript + Tailwind v4 + shadcn/ui-style components + TanStack Query.
 

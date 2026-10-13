@@ -24,7 +24,7 @@ How each acceptance item was checked. "Prod" = https://shoplite-demo.duckdns.org
 | Item | Evidence |
 |---|---|
 | App (3 services + money-utils) | 27 tests incl. gateway->orders->payments with one request id in all three logs; `docker compose up` run |
-| CI/CD, Deployments | Prod deploy: test, build, GHCR push, SSM deploy, GitHub Deployment `success`, event announced to CausalDeploy and present as a `Deployment` node |
+| CI/CD, Deployments | Prod deploy: test, build, GHCR push, SSM deploy, GitHub Deployment `success`, event announced to Kaizen and present as a `Deployment` node |
 | Health check | `health-check.yml` run on schedule/dispatch, event accepted by prod |
 | Seeded history | 75+ commits, 13 merged PRs (merge commits), 3 incidents with ground truth (`docs/history.md`) |
 | Load generator | deterministic planner, weighted mix, edge cases, traffic-shift option, record/replay format |

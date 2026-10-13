@@ -61,7 +61,7 @@ const inWindow = (iso: string, from: number, to: number) => {
 };
 
 /**
- * Maps CausalDeploy incidents onto the Analytics Dashboard's data model:
+ * Maps Kaizen incidents onto the Analytics Dashboard's data model:
  * services are the "people", incidents the "pull requests" (status open / investigating /
  * resolved), repositories the repositories the user can access.
  */
@@ -139,7 +139,7 @@ export function toDashboardData(
         approach: [
           i.status === "resolved"
             ? "Resolved: the cause was identified and the fix verified."
-            : "CausalDeploy is mapping this incident to the deployment and commits that preceded the failure.",
+            : "Kaizen is mapping this incident to the deployment and commits that preceded the failure.",
         ],
         href: `/incidents/${encodeURIComponent(i.id)}`,
       };

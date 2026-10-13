@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     github_api_url: str = "https://api.github.com"
     github_web_url: str = "https://github.com"
 
-    # Repositories CausalDeploy may act on (comma separated owner/name). Events for any other
+    # Repositories Kaizen may act on (comma separated owner/name). Events for any other
     # repository are stored raw but never imported. Empty = all (dev only; prod requires a list).
     allowed_repos: str = ""
 
@@ -85,7 +85,7 @@ class Settings(BaseSettings):
         return self
 
     def is_allowed(self, repo: str | None) -> bool:
-        """Whether CausalDeploy may import or act on this repository."""
+        """Whether Kaizen may import or act on this repository."""
         if not repo:
             return False
         allowed = {r.strip().lower() for r in self.allowed_repos.split(",") if r.strip()}
