@@ -79,6 +79,10 @@ export interface AnalyticsDashboardProps {
   assistantName?: string;
   /** Answers questions asked in the incident panel. Without it, the panel replies with a short summary. */
   onAsk?: AnswerHandler;
+  /** Signs the user out from the rail account menu (POST /auth/logout); hides the item when absent. */
+  onSignOut?: () => void;
+  /** Disables the sign-out item while the request is in flight. */
+  signingOut?: boolean;
   /** Plain color behind the window. */
   background?: string;
   /** Routed page content; replaces the built-in page for `page` when given. */
@@ -118,6 +122,8 @@ export function AnalyticsDashboard({
   onAccentChange,
   assistantName = "CausalDeploy",
   onAsk,
+  onSignOut,
+  signingOut,
   background,
   children,
   pageKey,
@@ -140,6 +146,8 @@ export function AnalyticsDashboard({
   const [expanded, setExpanded] = useState(false);
   const [accent, setAccentState] = useState<AnalyticsDashboardAccent>(defaultAccent);
   const [booted, setBooted] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
   const timer = useRef<number | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -170,9 +178,20 @@ export function AnalyticsDashboard({
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
+  // The account menu closes on any click outside of it.
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!accountRef.current?.contains(e.target as Node)) setAccountOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [accountOpen]);
+
   const navigate = useCallback(
     (next: AnalyticsDashboardPage) => {
       setExpanded(false);
+      setAccountOpen(false);
       if (pageProp === undefined) setPageState(next);
       onPageChange?.(next);
       if (layout.current.compact) setNavOpen(false);
@@ -206,6 +225,7 @@ export function AnalyticsDashboard({
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Escape" || event.defaultPrevented) return;
     if (expanded) setExpanded(false);
+    else if (accountOpen) setAccountOpen(false);
     else if (overlay && panelOpen) hideDetails();
     else if (navFloating) setNavOpen(false);
     else return;
@@ -254,6 +274,7 @@ export function AnalyticsDashboard({
   const shownPr = data.pullRequests.find((pr) => pr.number === shown) ?? data.pullRequests[0];
   const navId = `${uid}-nav`;
   const detailsId = `${uid}-details`;
+  const accountId = `${uid}-account`;
 
   return (
     <DashboardContext value={ctx}>
@@ -314,19 +335,55 @@ export function AnalyticsDashboard({
               </ul>
             </div>
 
-            <button
-              type="button"
-              className="rail-account press has-tip tip-right"
-              data-tip={`${user.name} · Settings`}
-              aria-label={`${user.name}, account settings`}
-              onClick={() => navigate("settings")}
-            >
-              <Avatar src={user.avatar} size={22} className="rail-icon" />
-              <span className="rail-label rail-account-text" aria-hidden="true">
-                <span className="rail-account-name">{user.name}</span>
-                <span className="rail-account-mail">{user.email}</span>
-              </span>
-            </button>
+            <div ref={accountRef} className="rail-account-block">
+              <button
+                type="button"
+                className="rail-account press has-tip tip-right"
+                data-tip={`${user.name} · Account`}
+                aria-label={`${user.name}, account menu`}
+                aria-haspopup="menu"
+                aria-expanded={accountOpen}
+                aria-controls={accountId}
+                onClick={() => setAccountOpen((o) => !o)}
+              >
+                <Avatar src={user.avatar} size={22} className="rail-icon" />
+                <span className="rail-label rail-account-text" aria-hidden="true">
+                  <span className="rail-account-name">{user.name}</span>
+                  <span className="rail-account-mail">{user.email}</span>
+                </span>
+              </button>
+              {accountOpen && (
+                <div id={accountId} role="menu" aria-label="Account" className="rail-account-menu">
+                  <div className="rail-account-menu-head">
+                    <p className="rail-account-menu-name">{user.name}</p>
+                    <p className="rail-account-menu-mail">{user.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rail-account-menu-item press"
+                    onClick={() => {
+                      setAccountOpen(false);
+                      navigate("settings");
+                    }}
+                  >
+                    Settings
+                  </button>
+                  {onSignOut && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="rail-account-menu-item press"
+                      data-danger
+                      disabled={signingOut}
+                      onClick={onSignOut}
+                    >
+                      {signingOut ? "Signing out…" : "Sign out"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </nav>
 
           <main className="main" inert={expanded && detailsVisible}>

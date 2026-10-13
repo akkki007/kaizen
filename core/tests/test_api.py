@@ -309,7 +309,12 @@ async def test_oauth_login_flow_sets_session_and_roles(
         state = client.cookies.get("cd_oauth_state")
         assert state
 
-        assert (await client.get("/auth/callback?code=c&state=wrong")).status_code == 400
+        wrong = await client.get("/auth/callback?code=c&state=wrong", follow_redirects=False)
+        assert wrong.status_code == 302 and wrong.headers["location"].endswith("/login?error=expired")
+        # a failed attempt consumed the OAuth state: sign in again
+        await client.get("/auth/login", follow_redirects=False)
+        state = client.cookies.get("cd_oauth_state")
+        assert state
 
         with respx.mock(assert_all_called=False) as m:
             m.post("https://github.com/login/oauth/access_token").mock(
@@ -546,5 +551,208 @@ async def test_jobs_queued_for_other_repositories_do_nothing(
         called.assert_not_awaited()
         await handlers.backfill_repo({"repo": "acme/shoplite", "installation_id": 1})
         called.assert_awaited_once()
+    finally:
+        get_settings.cache_clear()
+
+
+async def _add_repo(full_name: str, installation_id: int | None) -> None:
+    from sqlalchemy.dialects.postgresql import insert
+
+    from causaldeploy.db.models import Installation, Repository
+
+    async with session_scope() as s:
+        if installation_id is not None:
+            await s.execute(
+                insert(Installation)
+                .values(id=installation_id, account="acme")
+                .on_conflict_do_nothing(index_elements=["id"])
+            )
+        await s.execute(
+            insert(Repository)
+            .values(full_name=full_name, installation_id=installation_id)
+            .on_conflict_do_nothing(index_elements=["full_name"])
+        )
+
+
+async def test_backfill_status_needs_access_and_never_leaks_repos(
+    client: httpx.AsyncClient,
+) -> None:
+    assert (await client.get("/api/v1/repos/a/b/backfill")).status_code == 401
+    login_as(client, "al", {"a/b": "viewer"})
+    r = await client.get("/api/v1/repos/secret/private/backfill")
+    assert r.status_code == 403 and r.json()["error"]["code"] == "forbidden"
+
+
+async def test_backfill_status_shows_job_and_reimport_enqueues(
+    client: httpx.AsyncClient,
+) -> None:
+    from causaldeploy.db.models import JobRecord
+
+    await _add_repo("acme/shop", installation_id=9)
+    login_as(client, "al", {"acme/shop": "viewer"})
+    body = (await client.get("/api/v1/repos/acme/shop/backfill")).json()
+    assert body == {
+        "repo": "acme/shop",
+        "installed": True,
+        "backfilled_at": None,
+        "job": None,
+    }
+
+    h = {"x-csrf-token": "csrf-token"}
+    # viewers never see the trigger, and the trigger needs the CSRF header
+    assert (await client.post("/api/v1/repos/acme/shop/backfill", headers=h)).status_code == 403
+    login_as(client, "al", {"acme/shop": "approver"})
+    assert (await client.post("/api/v1/repos/acme/shop/backfill")).status_code == 403
+
+    r = await client.post("/api/v1/repos/acme/shop/backfill", headers=h)
+    assert r.status_code == 202 and r.json()["status"] == "queued"
+    async with session_scope() as s:
+        job = (
+            await s.execute(select(JobRecord).where(JobRecord.kind == "backfill_repo"))
+        ).scalar_one()
+    assert job.payload["repo"] == "acme/shop" and job.payload["installation_id"] == 9
+    assert job.idempotency_key.startswith("reimport:acme/shop:")
+    assert (await client.get("/api/v1/jobs/" + job.id)).status_code == 200
+
+    # a second import while the first is queued is refused
+    again = await client.post("/api/v1/repos/acme/shop/backfill", headers=h)
+    assert again.status_code == 409 and "already" in again.json()["error"]["message"]
+
+    body = (await client.get("/api/v1/repos/acme/shop/backfill")).json()
+    assert body["job"] is not None and body["job"]["status"] == "queued"
+
+
+async def test_reimport_requires_the_installed_app(client: httpx.AsyncClient) -> None:
+    await _add_repo("acme/orphan", installation_id=None)
+    login_as(client, "al", {"acme/orphan": "approver"})
+    r = await client.post(
+        "/api/v1/repos/acme/orphan/backfill", headers={"x-csrf-token": "csrf-token"}
+    )
+    assert r.status_code == 409 and "not installed" in r.json()["error"]["message"]
+
+
+async def test_login_passes_next_and_origin_through_to_the_callback(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import respx
+
+    monkeypatch.setenv("CD_GITHUB_OAUTH_CLIENT_ID", "cid")
+    monkeypatch.setenv("CD_GITHUB_OAUTH_CLIENT_SECRET", "csecret")
+    from causaldeploy.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        # unsafe `next` and origins fall back to sane defaults
+        await client.get("/auth/login?next=https://evil.example", follow_redirects=False)
+        assert client.cookies.get("cd_oauth_next", "").strip('"') == "/"
+        await client.get("/auth/login?origin=javascript:alert(1)", follow_redirects=False)
+        assert client.cookies.get("cd_oauth_origin", "").strip('"') == "http://localhost:8000"
+
+        r = await client.get(
+            "/auth/login?next=/repositories/acme/shop&origin=http://localhost:3000",
+            follow_redirects=False,
+        )
+        assert "redirect_uri=http://localhost:3000/auth/callback" in r.headers["location"]
+        assert client.cookies.get("cd_oauth_next", "").strip('"') == "/repositories/acme/shop"
+
+        with respx.mock(assert_all_called=False) as m:
+            m.post("https://github.com/login/oauth/access_token").mock(
+                return_value=httpx.Response(200, json={"access_token": "gho_user"})
+            )
+            m.get("https://api.github.com/user").mock(
+                return_value=httpx.Response(200, json={"login": "yash"})
+            )
+            m.get("https://api.github.com/user/installations").mock(
+                return_value=httpx.Response(200, json={"installations": [{"id": 9}]})
+            )
+            m.get("https://api.github.com/user/installations/9/repositories").mock(
+                return_value=httpx.Response(
+                    200,
+                    json={"repositories": [{"full_name": "acme/shop", "permissions": {"push": True}}]},
+                )
+            )
+            state = client.cookies.get("cd_oauth_state")
+            r = await client.get(f"/auth/callback?code=c&state={state}", follow_redirects=False)
+        assert r.status_code == 302
+        assert r.headers["location"] == "http://localhost:3000/repositories/acme/shop"
+        # the one-time OAuth cookies are consumed
+        assert not client.cookies.get("cd_oauth_state")
+    finally:
+        get_settings.cache_clear()
+
+
+def test_safe_origin_is_an_allowlist() -> None:
+    from causaldeploy.api.auth import safe_origin
+    from causaldeploy.config import Settings
+
+    # model_construct: prod settings refuse to validate without real credentials, which is not
+    # what is under test here (safe_origin reads only these two fields)
+    prod = Settings.model_construct(env="prod", public_base_url="https://app.example.org")
+    dev = Settings.model_construct(env="dev", public_base_url="http://localhost:8000")
+    # the public origin is always fine; anything else falls back to it
+    assert safe_origin("https://app.example.org", prod) == "https://app.example.org"
+    assert safe_origin("https://evil.example", prod) == "https://app.example.org"
+    assert safe_origin("http://app.example.org.evil.example", prod) == "https://app.example.org"
+    assert safe_origin("https://app.example.org/x", prod) == "https://app.example.org"
+    # loopback UIs are for development only
+    assert safe_origin("http://localhost:3000", prod) == "https://app.example.org"
+    assert safe_origin("http://localhost:3000", dev) == "http://localhost:3000"
+    assert safe_origin("http://127.0.0.1:3000", dev) == "http://127.0.0.1:3000"
+    assert safe_origin("http://localhost.evil.example", dev) == "http://localhost:8000"
+    assert safe_origin("javascript:alert(1)", dev) == "http://localhost:8000"
+    assert safe_origin(None, dev) == "http://localhost:8000"
+
+
+async def test_callback_without_installations_lands_on_the_no_repos_login(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import respx
+
+    monkeypatch.setenv("CD_GITHUB_OAUTH_CLIENT_ID", "cid")
+    monkeypatch.setenv("CD_GITHUB_OAUTH_CLIENT_SECRET", "csecret")
+    from causaldeploy.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        await client.get("/auth/login", follow_redirects=False)
+        with respx.mock(assert_all_called=False) as m:
+            m.post("https://github.com/login/oauth/access_token").mock(
+                return_value=httpx.Response(200, json={"access_token": "gho_user"})
+            )
+            m.get("https://api.github.com/user").mock(
+                return_value=httpx.Response(200, json={"login": "yash"})
+            )
+            m.get("https://api.github.com/user/installations").mock(
+                return_value=httpx.Response(200, json={"installations": []})
+            )
+            state = client.cookies.get("cd_oauth_state")
+            r = await client.get(f"/auth/callback?code=c&state={state}", follow_redirects=False)
+        assert r.status_code == 302 and r.headers["location"].endswith("/login?error=no_repos")
+        # the user is signed in, just with nothing to see yet
+        assert (await client.get("/auth/me")).json() == {"login": "yash", "repos": {}}
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_callback_denied_or_rejected_redirects_to_login(
+    client: httpx.AsyncClient,
+) -> None:
+    r = await client.get("/auth/callback?error=access_denied&state=x", follow_redirects=False)
+    assert r.headers["location"].endswith("/login?error=denied")
+    r = await client.get("/auth/callback?state=x", follow_redirects=False)
+    assert r.headers["location"].endswith("/login?error=invalid")
+
+
+async def test_install_url(client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from causaldeploy.config import get_settings
+
+    assert (await client.get("/auth/install-url")).json() == {"url": None}
+    monkeypatch.setenv("CD_GITHUB_APP_SLUG", "causaldeploy-shoplite-demo")
+    get_settings.cache_clear()
+    try:
+        body = (await client.get("/auth/install-url")).json()
+        assert body["url"] == (
+            "https://github.com/apps/causaldeploy-shoplite-demo/installations/new"
+        )
     finally:
         get_settings.cache_clear()

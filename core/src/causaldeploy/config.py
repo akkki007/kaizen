@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     github_oauth_client_secret: SecretStr = SecretStr("")
     session_secret: SecretStr = SecretStr("dev-only-session-secret-change-me-0123456789")
     session_ttl_minutes: int = Field(480, ge=5)
+    # App slug for installation links (github.com/apps/<slug>/installations/new); empty hides them
+    github_app_slug: str = ""
 
     otlp_endpoint: str = ""  # e.g. http://otel-collector:4318; tracing exports only when set
 

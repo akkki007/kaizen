@@ -59,3 +59,9 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright tests
+        run: npx playwright test
+        env:
+          NEXT_PUBLIC_API_MOCK: "1"

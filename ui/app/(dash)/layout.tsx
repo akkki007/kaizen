@@ -6,7 +6,7 @@ import { AuthGate } from "@/components/auth-gate";
 import { AnalyticsDashboard, type AnalyticsDashboardPage } from "@/components/block/analytics-dashboard";
 import { IncidentEvidence } from "@/components/incident-evidence";
 import { ErrorState, LoadingState } from "@/components/states";
-import { useIncidents } from "@/lib/api/hooks";
+import { useIncidents, useSignOut } from "@/lib/api/hooks";
 import type { components } from "@/lib/api/schema";
 import { toDashboardData } from "@/lib/dashboard-data";
 
@@ -38,6 +38,7 @@ function Shell({ me, children }: { me: components["schemas"]["User"]; children: 
   const path = usePathname();
   const router = useRouter();
   const q = useIncidents();
+  const signOut = useSignOut();
   const data = useMemo(() => toDashboardData(q.data?.items ?? [], me.repos), [q.data, me.repos]);
   if (q.isLoading) return <div className="p-8"><LoadingState /></div>;
   if (q.error) return <div className="p-8"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div>;
@@ -52,6 +53,8 @@ function Shell({ me, children }: { me: components["schemas"]["User"]; children: 
         onPageChange={(page) => router.push(PATHS[page])}
         pageKey={path}
         title={titleFor(path)}
+        onSignOut={() => signOut.mutate()}
+        signingOut={signOut.isPending}
         renderIncidentAside={(pr) =>
           pr.href ? (
             <>

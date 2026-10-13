@@ -19,6 +19,7 @@ make ui         # terminal 3  (http://localhost:3000, sign in with GitHub)
 * Local `CD_SESSION_SECRET` is generated per machine and is not production's.
 
 ## One-time App setting (owner)
-GitHub login from the UI uses `http://localhost:3000/auth/callback`. Add it under the App's
-**Callback URL** list (Settings -> Developer settings -> GitHub Apps -> causaldeploy-shoplite-demo).
+GitHub login from the UI starts at `/auth/login?origin=http://localhost:3000` and redirects back to
+`http://localhost:3000/auth/callback`. Add it under the App's **Callback URL** list
+(Settings -> Developer settings -> GitHub Apps -> causaldeploy-shoplite-demo).
 `http://localhost:8000/auth/callback` and the production URL are already registered.

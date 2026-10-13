@@ -40,12 +40,25 @@ export class ApiError extends Error {
   }
 }
 
+/** Session expired mid-use: to /login, and back to this page after sign-in. */
+export function redirectToLogin(next?: string) {
+  if (typeof window === "undefined") return;
+  const target = next ?? window.location.pathname + window.location.search;
+  window.location.assign(`/login?next=${encodeURIComponent(target)}`);
+}
+
 /** Unwraps an openapi-fetch result: data on success, a typed ApiError otherwise. */
 export function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): T {
   if (result.data !== undefined) return result.data;
   const body = result.error as { error?: { message?: string; request_id?: string } } | undefined;
+  const status = result.response.status;
+  // The AuthGate owns the /auth/me 401 (it knows the route); every other 401 is a session
+  // that expired mid-use and lands on /login carrying the page to return to.
+  if (status === 401 && !new URL(result.response.url).pathname.startsWith("/auth/")) {
+    redirectToLogin();
+  }
   throw new ApiError(
-    result.response.status,
+    status,
     body?.error?.message ?? result.response.statusText ?? "request failed",
     body?.error?.request_id,
   );

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { use, useState, type CSSProperties, type FormEvent } from "react";
 import { ArrowRightIcon } from "@/components/analytics-dashboard/icons";
 import { CodeBlock } from "@/components/ui/code-block";
-import { useApiKeys, useCreateKey, useMe, useRevokeKey } from "@/lib/api/hooks";
+import { useApiKeys, useBackfillStatus, useCreateKey, useInstallUrl, useMe, useReimport, useRevokeKey } from "@/lib/api/hooks";
 import { relativeTime } from "@/lib/time";
 
 function eventSnippet(repo: string, key: string, origin: string) {
@@ -47,7 +47,10 @@ export default function RepositoryPage({ params }: { params: Promise<{ owner: st
       </header>
 
       {role ? (
-        <Keys repo={repo} canManage={role === "approver"} />
+        <>
+          <Import repo={repo} canManage={role === "approver"} />
+          <Keys repo={repo} canManage={role === "approver"} />
+        </>
       ) : (
         me.data && (
           <section className="card card-pad ev-state enter" style={{ "--i": 2 } as CSSProperties}>
@@ -57,6 +60,88 @@ export default function RepositoryPage({ params }: { params: Promise<{ owner: st
         )
       )}
     </div>
+  );
+}
+
+const JOB_BADGE: Record<string, { kind: string; label: string }> = {
+  queued: { kind: "running", label: "Queued" },
+  running: { kind: "running", label: "Importing…" },
+  succeeded: { kind: "active", label: "Up to date" },
+  failed: { kind: "failed", label: "Failed" },
+  dead: { kind: "failed", label: "Failed" },
+};
+
+/** Import state for the repository: the App installation, the last import and its live progress. */
+function Import({ repo, canManage }: { repo: string; canManage: boolean }) {
+  const status = useBackfillStatus(repo);
+  const reimport = useReimport(repo);
+  const install = useInstallUrl();
+  const s = status.data;
+  const job = s?.job;
+  const badge = job ? (JOB_BADGE[job.status] ?? { kind: "revoked", label: job.status }) : null;
+  const busy = job ? ["queued", "running"].includes(job.status) : false;
+
+  return (
+    <section className="card card-pad enter" style={{ "--i": 2 } as CSSProperties} aria-labelledby="import-title">
+      <div className="card-head">
+        <h2 id="import-title" className="card-title">
+          Import
+        </h2>
+        {badge && <span className="badge" data-kind={badge.kind}>{badge.label}</span>}
+      </div>
+
+      {status.isLoading && <p className="ev-hint shimmer">Loading import status…</p>}
+      {status.error && (
+        <p role="alert" className="form-error">
+          {status.error.message}{" "}
+          <button type="button" className="btn press" onClick={() => status.refetch()}>
+            Try again
+          </button>
+        </p>
+      )}
+
+      {s && (
+        <div className="import-row">
+          <span className="import-meta">
+            {job
+              ? busy
+                ? `Import started ${relativeTime(job.created_at)} ago`
+                : `Last import ${relativeTime(job.updated_at)} ago`
+              : s.backfilled_at
+                ? `Last import ${relativeTime(s.backfilled_at)} ago`
+                : "Never imported"}
+          </span>
+          {!s.installed && <span className="import-meta">· GitHub App not installed</span>}
+          {canManage && s.installed && !busy && (
+            <button
+              type="button"
+              className="btn btn-primary press"
+              disabled={reimport.isPending}
+              onClick={() => reimport.mutate()}
+            >
+              {reimport.isPending ? "Starting…" : "Re-import"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {!s?.installed && install.data?.url && (
+        <p className="import-meta" style={{ marginTop: 10 }}>
+          Install the GitHub App on this repository to import its history.{" "}
+          <a href={install.data.url} target="_blank" rel="noreferrer" className="back-link" style={{ display: "inline" }}>
+            Connect {repo}
+          </a>
+        </p>
+      )}
+
+      {reimport.error && (
+        <p role="alert" className="form-error">
+          {reimport.error.message}
+        </p>
+      )}
+
+      {job?.error && <pre className="import-error">{job.error}</pre>}
+    </section>
   );
 }
 
