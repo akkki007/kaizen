@@ -14,3 +14,7 @@ dist/
 *.pem
 .DS_Store
 *.tsbuildinfo
+
+# Playwright output
+ui/playwright-report/
+ui/test-results/
