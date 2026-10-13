@@ -8,7 +8,7 @@ The goal is:
 
 "This deployment introduced a change to validatePayment(). That function is on the failing payment API path, the error began immediately after this deployment, and the same dependency pattern appeared in a previous incident. This change is therefore the strongest root-cause candidate."
 
-4. How CausalDeploy Works
+4. How Kaizen Works
 Step 1 — Detect
 
 A scheduled GitHub job or deployment webhook checks whether the application is healthy.
@@ -74,7 +74,7 @@ Step 5 — Rank Root Causes
 
 Multiple commits or code changes may be possible candidates.
 
-CausalDeploy ranks them using evidence such as:
+Kaizen ranks them using evidence such as:
 
 Temporal correlation
 Code-path relevance
@@ -122,7 +122,7 @@ Test
 Verify
 Step 8 — Remember
 
-After an incident is resolved, CausalDeploy stores the incident and its outcome in the graph.
+After an incident is resolved, Kaizen stores the incident and its outcome in the graph.
 
 Future incidents can then use previous failures as precedents.
 
@@ -144,7 +144,7 @@ A conventional monitoring system may tell the team:
 Payment API Error Rate: HIGH
 Status: CRITICAL
 
-CausalDeploy investigates the connected evidence.
+Kaizen investigates the connected evidence.
 
 Investigation
 Incident
@@ -269,15 +269,15 @@ Which other services could be affected?
 Has this dependency pattern caused an incident before?
 What fix worked previously?
 What is the potential blast radius of this change?
-8. What Makes CausalDeploy Different
+8. What Makes Kaizen Different
 
-CausalDeploy is not intended to be another generic monitoring dashboard.
+Kaizen is not intended to be another generic monitoring dashboard.
 
 Its key differentiation is the connection between runtime behavior and source-code causality.
 
 Traditional monitoring
 Something is broken.
-CausalDeploy
+Kaizen
 Something is broken
         ↓
 This deployment introduced a change
@@ -304,7 +304,7 @@ Detection → Investigation → Explanation → Remediation → Verification →
 
 The same graph can be used before a deployment happens.
 
-When a pull request is created, CausalDeploy could analyze:
+When a pull request is created, Kaizen could analyze:
 
 New Code Change
       ↓
@@ -330,7 +330,7 @@ Manual review
 Specific monitoring
 Higher-risk deployment strategy
 
-This turns CausalDeploy from a post-incident investigator into a deployment intelligence system.
+This turns Kaizen from a post-incident investigator into a deployment intelligence system.
 
 10. Long-Term Vision
 
@@ -436,7 +436,7 @@ This provides evidence that FalkorDB is materially improving the system.
 
 13. Key Product Statement
 
-CausalDeploy connects production failures to the code changes behind them, reconstructs the most likely causal path through a software graph, and verifies the safest remediation.
+Kaizen connects production failures to the code changes behind them, reconstructs the most likely causal path through a software graph, and verifies the safest remediation.
 
 14. Vision Statement
 
@@ -444,7 +444,7 @@ We don't just detect that production is broken — we reconstruct why it broke, 
 
 15. Summary
 
-CausalDeploy is built around one powerful idea:
+Kaizen is built around one powerful idea:
 
 Production incidents should be investigated as connected graphs, not isolated alerts.
 

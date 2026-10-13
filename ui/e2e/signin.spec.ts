@@ -13,7 +13,7 @@ test.describe("GitHub sign-in flow (mock)", () => {
   test("shows the sign-in button and redirects to dashboard on click", async ({ page }) => {
     await expect(page.getByRole("button", { name: /Sign in with GitHub/i })).toBeVisible();
     await page.getByRole("button", { name: /Sign in with GitHub/i }).click();
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/overview");
     await expect(page.locator("nav.rail")).toBeVisible();
   });
 
@@ -21,7 +21,7 @@ test.describe("GitHub sign-in flow (mock)", () => {
     // Sign in first
     await page.goto("/login");
     await page.getByRole("button", { name: /Sign in with GitHub/i }).click();
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/overview");
     await expect(page.locator("nav.rail")).toBeVisible();
 
     // The account button exists with proper aria
@@ -38,7 +38,7 @@ test.describe("GitHub sign-in flow (mock)", () => {
     // Sign in first
     await page.goto("/login");
     await page.getByRole("button", { name: /Sign in with GitHub/i }).click();
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/overview");
 
     // Go to the approver repo - create key visible
     await page.goto("/repositories/yashchandnani07/shoplite");

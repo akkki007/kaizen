@@ -7,7 +7,7 @@
   /* Plain color behind the window. The `background` prop overrides it. */
   --obsidian-analytics-dashboard-background: var(--ad-stage);
   --obsidian-analytics-dashboard-window: var(--ad-window);
-  --obsidian-analytics-dashboard-inset: 0px; /* CausalDeploy: full-bleed, the app fills the screen */
+  --obsidian-analytics-dashboard-inset: 0px; /* Kaizen: full-bleed, the app fills the screen */
   --obsidian-analytics-dashboard-font-sans: var(--font-inter, "Inter"), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --obsidian-analytics-dashboard-font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, "SF Mono", Menlo, monospace;
   container: analytics-dashboard / inline-size;
@@ -2889,7 +2889,7 @@
   }
 }
 
-/* ═════════ CausalDeploy additions ═════════ */
+/* ═════════ Kaizen additions ═════════ */
 
 /* ───────── Incident panel: full view ─────────
    Expanded, the panel takes everything right of the rail: conversation on the left,

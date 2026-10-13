@@ -8,7 +8,7 @@ const config: NextConfig = {
   // Old routes from before every page moved into the dashboard.
   async redirects() {
     return [
-      { source: "/dashboard", destination: "/", permanent: false },
+      { source: "/dashboard", destination: "/overview", permanent: false },
       { source: "/repos", destination: "/repositories", permanent: false },
     ];
   },

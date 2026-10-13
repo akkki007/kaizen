@@ -5,7 +5,7 @@
 | | Dev (everyone) | Prod |
 |---|---|---|
 | Stack | `docker-compose.yml` | `deploy/docker-compose.prod.yml` on one VM (AWS EC2) behind Caddy |
-| URL | `http://localhost:8000` | `https://shoplite-demo.duckdns.org` (CausalDeploy under `/api/v1`, `/webhooks`, `/auth`; ShopLite everywhere else) |
+| URL | `http://localhost:8000` | `https://shoplite-demo.duckdns.org` (Kaizen under `/api/v1`, `/webhooks`, `/auth`; ShopLite everywhere else) |
 | Secrets | `.env` (gitignored) | AWS Secrets Manager -> `/opt/causaldeploy/.env` by `cd-fetch-env` at deploy time |
 | Infra as code | | `deploy/aws/causaldeploy.yaml` (CloudFormation) |
 

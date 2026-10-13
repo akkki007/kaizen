@@ -1,4 +1,4 @@
-# CausalDeploy
+# Kaizen
 
 AI agent that connects production failures to the code changes behind them using a FalkorDB
 knowledge graph, ranks root causes with explainable evidence, proposes fixes, and verifies them

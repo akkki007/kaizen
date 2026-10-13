@@ -14,13 +14,13 @@ export default function Page() {
         <header className="page-head enter" style={{ "--i": 1 } as CSSProperties}>
           <div className="page-head-text">
             <h1 className="page-title">Repositories</h1>
-            <p className="page-sub">Repositories come from the CausalDeploy GitHub App installation.</p>
+            <p className="page-sub">Repositories come from the Kaizen GitHub App installation.</p>
           </div>
         </header>
         <section className="card card-pad ev-state enter" style={{ "--i": 2 } as CSSProperties}>
           <p className="ev-state-title">No repositories connected</p>
           <p>
-            Install the CausalDeploy GitHub App on a repository you can administer. CausalDeploy
+            Install the Kaizen GitHub App on a repository you can administer. Kaizen
             imports its history and starts tracking incidents as soon as the App is installed.
           </p>
           {install.data?.url && (

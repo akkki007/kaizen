@@ -250,7 +250,7 @@ class BackfillStatus(BaseModel):
     """Import state for one repository: the last backfill job and when it last completed."""
 
     repo: str
-    installed: bool  # the App is installed and CausalDeploy knows the installation id
+    installed: bool  # the App is installed and Kaizen knows the installation id
     backfilled_at: datetime | None
     job: BackfillJobInfo | None
 

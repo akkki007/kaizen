@@ -11,7 +11,7 @@ import type { components } from "@/lib/api/schema";
 import { toDashboardData } from "@/lib/dashboard-data";
 
 const PATHS: Record<AnalyticsDashboardPage, string> = {
-  overview: "/",
+  overview: "/overview",
   repositories: "/repositories",
   reviews: "/incidents",
   settings: "/settings",
@@ -46,9 +46,9 @@ function Shell({ me, children }: { me: components["schemas"]["User"]; children: 
     <div className="h-dvh">
       <AnalyticsDashboard
         data={data}
-        brand={{ name: "CausalDeploy" }}
+        brand={{ name: "Kaizen" }}
         user={{ name: me.login, email: `${me.login}@users.noreply.github.com`, avatar: data.people[0]?.avatar ?? "", role: "Signed in with GitHub" }}
-        assistantName="CausalDeploy"
+        assistantName="Kaizen"
         page={pageFor(path)}
         onPageChange={(page) => router.push(PATHS[page])}
         pageKey={path}

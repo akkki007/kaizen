@@ -41,7 +41,7 @@ export default function RepositoryPage({ params }: { params: Promise<{ owner: st
             <span className="repo-org">{owner}/</span>
             {name}
           </h1>
-          <p className="page-sub">API keys authenticate the runtime events CausalDeploy uses to detect incidents in this repository.</p>
+          <p className="page-sub">API keys authenticate the runtime events Kaizen uses to detect incidents in this repository.</p>
         </div>
         {role && <span className="tag">{role}</span>}
       </header>

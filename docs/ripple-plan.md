@@ -4,7 +4,7 @@ Status: **plan only (pre-event)**. Graph Hacks rule 8 allows ideas, notes, graph
 
 **One line:** paste a pull request from a public repo, and a team of agents walks a FalkorDB graph of code, history and people to explain what the change can break, what broke there before, and who should review it. Every claim cites a graph path.
 
-**Origin:** evolved from our CausalDeploy design (`kaizen`). It keeps the same graph core (commit → function → calls) and moves from "after a deploy broke" to "before merge". The README will say so openly.
+**Origin:** evolved from our Kaizen design. It keeps the same graph core (commit → function → calls) and moves from "after a deploy broke" to "before merge". The README will say so openly.
 
 **Hackathon:** Graph Hacks: Context for AI Agents (WeMakeDevs × FalkorDB), Oct 15–18, 2026. Tracks: 01 (primary), 02, 03.
 
@@ -210,7 +210,7 @@ ripple/
 ## 11. Submission checklist (Rule 10)
 
 - [ ] Public repo, created after Oct 15 12:01 AM IST
-- [ ] README: setup, graph data model, the Cypher queries and algorithms used, AI-assistant disclosure, "evolved from CausalDeploy" note
+- [ ] README: setup, graph data model, the Cypher queries and algorithms used, AI-assistant disclosure, "evolved from Kaizen" note
 - [ ] Demo video of the working product
 - [ ] Live deployment (or full local setup instructions)
 - [ ] Tracks named: 01, 02, 03
