@@ -75,6 +75,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/incidents/{incident_id}/rank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rank Incident
+         * @description Ranked suspect commits with the per-feature breakdown and the Cypher behind each value.
+         *
+         *     `method=b0|b1` returns the baselines (no graph traversal) for the "graph off" comparison;
+         *     only the graph ranking is persisted.
+         */
+        post: operations["rank_incident_api_v1_incidents__incident_id__rank_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -403,6 +426,30 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** EvidencePair */
+        EvidencePair: {
+            /** Changed Function */
+            changed_function: string;
+            /** Error */
+            error: string;
+            /** Thrown Function */
+            thrown_function: string;
+        };
+        /** FeatureValue */
+        FeatureValue: {
+            /** Contribution */
+            contribution: number;
+            /** Cypher */
+            cypher: string;
+            /** Name */
+            name: string;
+            /** Query */
+            query: string;
+            /** Value */
+            value: number;
+            /** Weight */
+            weight: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -468,6 +515,46 @@ export interface components {
             id: number;
             /** Key */
             key: string;
+        };
+        /** RankResult */
+        RankResult: {
+            /** Candidates */
+            candidates: components["schemas"]["RankedCandidate"][];
+            /** Incident Id */
+            incident_id: string;
+            /** Margin */
+            margin: number;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "graph" | "b0" | "b1";
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "confident" | "ambiguous" | "no_code_evidence" | "no_candidates";
+        };
+        /** RankedCandidate */
+        RankedCandidate: {
+            /** Author */
+            author: string | null;
+            /** Confidence */
+            confidence: number;
+            /** Deployment */
+            deployment: string | null;
+            /** Evidence */
+            evidence: components["schemas"]["EvidencePair"][];
+            /** Features */
+            features: components["schemas"]["FeatureValue"][];
+            /** Message */
+            message: string;
+            /** Rank */
+            rank: number;
+            /** Score */
+            score: number;
+            /** Sha */
+            sha: string;
         };
         /** User */
         User: {
@@ -626,6 +713,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LlmCost"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rank_incident_api_v1_incidents__incident_id__rank_post: {
+        parameters: {
+            query?: {
+                method?: "graph" | "b0" | "b1";
+            };
+            header?: never;
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RankResult"];
                 };
             };
             /** @description Validation Error */

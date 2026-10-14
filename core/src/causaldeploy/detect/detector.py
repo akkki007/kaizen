@@ -182,6 +182,13 @@ async def open_incident(
             )
         )
     await _write_graph(store or GraphStore(repo), inc_id, a, detected_at)
+    from causaldeploy.jobs.queue import InvestigatePayload, enqueue
+
+    await enqueue(
+        "investigate_incident",
+        InvestigatePayload(repo=repo, incident_id=inc_id),
+        f"investigate:{inc_id}",
+    )
     log.info(
         "incident opened",
         extra={

@@ -28,6 +28,7 @@ from causaldeploy.github.installations import INSTALL_EVENTS, record_installatio
 from causaldeploy.github.webhooks import normalize, verify_signature
 from causaldeploy.graph.evidence import EvidenceGraph, evidence_graph
 from causaldeploy.graph.store import GraphStore
+from causaldeploy.investigate.scorer import Method, RankResult, persist, rank
 from causaldeploy.jobs.queue import BackfillPayload, IngestEventPayload, enqueue
 from causaldeploy.observability import EVENTS_INGESTED
 
@@ -164,6 +165,26 @@ async def get_evidence_graph(
     if graph is None:
         raise HTTPException(404, "incident has no evidence in the graph yet")
     return graph
+
+
+@v1.post("/incidents/{incident_id}/rank", response_model=RankResult)
+async def rank_incident(
+    incident_id: str, user: CurrentUser, method: Method = "graph"
+) -> RankResult:
+    """Ranked suspect commits with the per-feature breakdown and the Cypher behind each value.
+
+    `method=b0|b1` returns the baselines (no graph traversal) for the "graph off" comparison;
+    only the graph ranking is persisted.
+    """
+    row = await _incident_for(user, incident_id)
+    store = GraphStore(row.repo)
+
+    def run() -> RankResult:
+        result = rank(store, incident_id, method)
+        persist(store, result)
+        return result
+
+    return await asyncio.to_thread(run)
 
 
 class LlmCost(BaseModel):

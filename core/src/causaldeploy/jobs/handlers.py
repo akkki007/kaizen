@@ -7,7 +7,7 @@ from causaldeploy.contracts import HealthEvent, TelemetryEvent, parse_event
 from causaldeploy.detect.errors import link_error, store_telemetry
 from causaldeploy.graph.store import GraphStore
 from causaldeploy.ingest.events import apply_event
-from causaldeploy.jobs.queue import BackfillPayload, IngestEventPayload
+from causaldeploy.jobs.queue import BackfillPayload, IngestEventPayload, InvestigatePayload
 
 Handler = Callable[[dict[str, Any]], Awaitable[None]]
 
@@ -35,4 +35,17 @@ async def backfill_repo(payload: dict[str, Any]) -> None:
     await run_backfill(job)
 
 
-HANDLERS: dict[str, Handler] = {"ingest_event": ingest_event, "backfill_repo": backfill_repo}
+async def investigate_incident(payload: dict[str, Any]) -> None:
+    from causaldeploy.investigate.run import investigate
+
+    job = InvestigatePayload.model_validate(payload)
+    if not get_settings().is_allowed(job.repo):
+        return
+    await investigate(job.repo, job.incident_id)
+
+
+HANDLERS: dict[str, Handler] = {
+    "ingest_event": ingest_event,
+    "backfill_repo": backfill_repo,
+    "investigate_incident": investigate_incident,
+}

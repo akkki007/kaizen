@@ -209,6 +209,67 @@
         "title": "EvidenceNode",
         "type": "object"
       },
+      "EvidencePair": {
+        "properties": {
+          "changed_function": {
+            "title": "Changed Function",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "thrown_function": {
+            "title": "Thrown Function",
+            "type": "string"
+          }
+        },
+        "required": [
+          "changed_function",
+          "thrown_function",
+          "error"
+        ],
+        "title": "EvidencePair",
+        "type": "object"
+      },
+      "FeatureValue": {
+        "properties": {
+          "contribution": {
+            "title": "Contribution",
+            "type": "number"
+          },
+          "cypher": {
+            "title": "Cypher",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "weight",
+          "contribution",
+          "query",
+          "cypher"
+        ],
+        "title": "FeatureValue",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -358,6 +419,126 @@
           "key"
         ],
         "title": "NewKey",
+        "type": "object"
+      },
+      "RankResult": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/RankedCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "margin": {
+            "title": "Margin",
+            "type": "number"
+          },
+          "method": {
+            "enum": [
+              "graph",
+              "b0",
+              "b1"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "confident",
+              "ambiguous",
+              "no_code_evidence",
+              "no_candidates"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "method",
+          "verdict",
+          "margin",
+          "candidates"
+        ],
+        "title": "RankResult",
+        "type": "object"
+      },
+      "RankedCandidate": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "deployment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployment"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidencePair"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureValue"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha",
+          "message",
+          "author",
+          "deployment",
+          "rank",
+          "score",
+          "confidence",
+          "features",
+          "evidence"
+        ],
+        "title": "RankedCandidate",
         "type": "object"
       },
       "User": {
@@ -688,6 +869,77 @@
           }
         },
         "summary": "Incident Llm Cost"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/rank": {
+      "post": {
+        "description": "Ranked suspect commits with the per-feature breakdown and the Cypher behind each value.\n\n`method=b0|b1` returns the baselines (no graph traversal) for the \"graph off\" comparison;\nonly the graph ranking is persisted.",
+        "operationId": "rank_incident_api_v1_incidents__incident_id__rank_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "method",
+            "required": false,
+            "schema": {
+              "default": "graph",
+              "enum": [
+                "graph",
+                "b0",
+                "b1"
+              ],
+              "title": "Method",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rank Incident"
       }
     },
     "/api/v1/jobs/{job_id}": {
