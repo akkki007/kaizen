@@ -429,6 +429,8 @@ export interface components {
              * Format: date-time
              */
             detected_at: string;
+            /** Endpoint */
+            endpoint: string;
             /** Env */
             env: string;
             /** Id */

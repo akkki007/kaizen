@@ -3,7 +3,8 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from causaldeploy.config import get_settings
-from causaldeploy.contracts import parse_event
+from causaldeploy.contracts import HealthEvent, TelemetryEvent, parse_event
+from causaldeploy.detect.errors import link_error, store_telemetry
 from causaldeploy.graph.store import GraphStore
 from causaldeploy.ingest.events import apply_event
 from causaldeploy.jobs.queue import BackfillPayload, IngestEventPayload
@@ -17,6 +18,11 @@ async def ingest_event(payload: dict[str, Any]) -> None:
     if not get_settings().is_allowed(event.repo):
         return  # queued before the allowlist existed
     store = GraphStore(event.repo)
+    if isinstance(event, TelemetryEvent | HealthEvent):
+        fp = await store_telemetry(event)  # Postgres first: detection reads from there
+        if fp and isinstance(event, TelemetryEvent):
+            await asyncio.to_thread(link_error, store, event, fp)
+        return
     await asyncio.to_thread(apply_event, store, event)
 
 

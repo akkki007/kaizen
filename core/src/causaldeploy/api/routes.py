@@ -41,6 +41,7 @@ class IncidentSummary(BaseModel):
     repo: str
     service: str
     env: str
+    endpoint: str
     status: str
     onset_ts: datetime
     detected_at: datetime
@@ -134,6 +135,7 @@ async def list_incidents(
             repo=r.repo,
             service=r.service,
             env=r.env,
+            endpoint=r.endpoint,
             status=r.status,
             onset_ts=r.onset_ts,
             detected_at=r.detected_at,

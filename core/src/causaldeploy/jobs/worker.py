@@ -11,6 +11,7 @@ from causaldeploy.config import get_settings
 from causaldeploy.db.models import JobRecord
 from causaldeploy.db.retention import purge_job
 from causaldeploy.db.session import session_scope
+from causaldeploy.detect.detector import detect_all
 from causaldeploy.jobs.handlers import HANDLERS
 from causaldeploy.jobs.queue import MAX_ATTEMPTS, redis_settings
 from causaldeploy.logging import configure_logging, job_id_var
@@ -58,6 +59,10 @@ async def run_job(ctx: dict[str, Any], job_id: str) -> str:
         job_id_var.reset(token)
 
 
+async def detect_cron(ctx: dict[Any, Any], *args: Any, **kwargs: Any) -> list[str]:
+    return await detect_all()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     configure_logging(get_settings())
     init_tracing(get_settings())
@@ -65,7 +70,10 @@ async def startup(ctx: dict[str, Any]) -> None:
 
 class WorkerSettings:
     functions = [run_job]
-    cron_jobs = [cron(purge_job, hour={3}, minute={15})]  # telemetry retention
+    cron_jobs = [
+        cron(purge_job, hour={3}, minute={15}),  # telemetry retention
+        cron(detect_cron, second={0, 30}),  # incident detection every 30 s
+    ]
     on_startup = startup
     redis_settings = redis_settings()
     max_jobs = 10  # concurrency limit

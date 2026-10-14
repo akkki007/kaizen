@@ -19,9 +19,9 @@ export const mockIncidents: IncidentPage = {
   limit: 50,
   offset: 0,
   items: [
-    { id: "inc-3", repo: "yashchandnani07/shoplite", service: "orders", env: "production", status: "open", onset_ts: ago(14), detected_at: ago(11) },
-    { id: "inc-2", repo: "yashchandnani07/shoplite", service: "payments", env: "production", status: "investigating", onset_ts: ago(190), detected_at: ago(186) },
-    { id: "inc-1", repo: "yashchandnani07/shoplite", service: "payments", env: "production", status: "resolved", onset_ts: ago(2900), detected_at: ago(2896) },
+    { id: "inc-3", repo: "yashchandnani07/shoplite", service: "orders", env: "production", endpoint: "POST /orders", status: "open", onset_ts: ago(14), detected_at: ago(11) },
+    { id: "inc-2", repo: "yashchandnani07/shoplite", service: "payments", env: "production", endpoint: "POST /payments", status: "investigating", onset_ts: ago(190), detected_at: ago(186) },
+    { id: "inc-1", repo: "yashchandnani07/shoplite", service: "payments", env: "production", endpoint: "POST /payments", status: "resolved", onset_ts: ago(2900), detected_at: ago(2896) },
   ],
 };
 

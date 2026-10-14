@@ -261,6 +261,10 @@
             "title": "Detected At",
             "type": "string"
           },
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          },
           "env": {
             "title": "Env",
             "type": "string"
@@ -292,6 +296,7 @@
           "repo",
           "service",
           "env",
+          "endpoint",
           "status",
           "onset_ts",
           "detected_at"

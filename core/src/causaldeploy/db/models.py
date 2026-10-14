@@ -79,6 +79,7 @@ class IncidentRow(Base):
     repo: Mapped[str] = mapped_column(ForeignKey("repositories.full_name"))
     service: Mapped[str] = mapped_column(String(128))
     env: Mapped[str] = mapped_column(String(64))
+    endpoint: Mapped[str] = mapped_column(String(255), server_default="-")
     status: Mapped[str] = mapped_column(String(16))
     onset_ts: Mapped[datetime] = mapped_column(TZ)
     detected_at: Mapped[datetime] = mapped_column(TZ)
