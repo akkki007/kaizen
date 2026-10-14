@@ -20,6 +20,8 @@ NODE_KEYS: dict[str, str] = {
     "Trace": "id",
     "Fix": "id",
     "Test": "id",
+    "Investigation": "id",
+    "ToolCall": "id",
 }
 
 # relationship type -> allowed (source label, target label) pairs
@@ -55,9 +57,30 @@ RELATIONSHIPS: dict[str, frozenset[tuple[str, str]]] = {
     "fixed_by": frozenset({("Incident", "Fix")}),
     "reverts": frozenset({("Fix", "Commit")}),
     "verified_by": frozenset({("Fix", "Test")}),
+    "resolved": frozenset({("Developer", "Incident")}),
+    "investigated_by": frozenset({("Incident", "Investigation")}),
+    "step": frozenset({("Investigation", "ToolCall")}),
+    "cited": frozenset(
+        {
+            ("ToolCall", label)
+            for label in (
+                "Incident",
+                "Error",
+                "Function",
+                "Commit",
+                "Deployment",
+                "Endpoint",
+                "Service",
+                "Dependency",
+                "Developer",
+                "Fix",
+                "File",
+            )
+        }
+    ),
 }
 
 # Versioned schema steps: version -> (label, property) range indexes + unique constraints.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # v2: Investigation / ToolCall (agent trace)
 UNIQUE_KEYS = [(label, key) for label, key in NODE_KEYS.items()]
 RANGE_INDEXES = [("Commit", "ts"), ("Deployment", "started_at"), ("Incident", "status")]

@@ -1,4 +1,4 @@
-.PHONY: env backfill bootstrap dev deps up down install lint test migrate schemas api worker ui eval seed \
+.PHONY: mcp env backfill bootstrap dev deps up down install lint test migrate schemas api worker ui eval seed \
         backup restore drill
 
 env:         ## .env from the team GitHub App in AWS Secrets Manager (needs AWS credentials)
@@ -46,6 +46,9 @@ schemas:     ## regenerate docs/schemas and docs/openapi.json after a contract c
 
 api:         ## API locally with reload
 	cd core && uv run uvicorn causaldeploy.api.main:app --reload --port 8000
+
+mcp:         ## graph tools over MCP (stdio): make mcp [REPO=owner/name]
+	cd core && uv run python -m causaldeploy.mcp_server --repo $(or $(REPO),yashchandnani07/shoplite)
 
 worker:
 	cd core && uv run arq causaldeploy.jobs.worker.WorkerSettings

@@ -283,6 +283,26 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "IncidentDetail": {
+        "properties": {
+          "incident": {
+            "$ref": "#/components/schemas/IncidentSummary"
+          },
+          "investigation": {
+            "$ref": "#/components/schemas/InvestigationView"
+          },
+          "ranking": {
+            "$ref": "#/components/schemas/RankResult"
+          }
+        },
+        "required": [
+          "incident",
+          "ranking",
+          "investigation"
+        ],
+        "title": "IncidentDetail",
+        "type": "object"
+      },
       "IncidentPage": {
         "description": "Pagination convention: `limit`/`offset` in, `items` + `total` out.",
         "properties": {
@@ -363,6 +383,60 @@
           "detected_at"
         ],
         "title": "IncidentSummary",
+        "type": "object"
+      },
+      "InvestigationView": {
+        "properties": {
+          "explanation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/TraceStep"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "validation_errors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Validation Errors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "explanation",
+          "steps",
+          "validation_errors"
+        ],
+        "title": "InvestigationView",
         "type": "object"
       },
       "LlmCost": {
@@ -539,6 +613,48 @@
           "evidence"
         ],
         "title": "RankedCandidate",
+        "type": "object"
+      },
+      "TraceStep": {
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "title": "Args",
+            "type": "object"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "node_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Node Ids",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "n",
+          "name",
+          "summary",
+          "latency_ms",
+          "node_ids",
+          "args"
+        ],
+        "title": "TraceStep",
         "type": "object"
       },
       "User": {
@@ -743,6 +859,62 @@
           }
         },
         "summary": "List Incidents"
+      }
+    },
+    "/api/v1/incidents/{incident_id}": {
+      "get": {
+        "description": "Everything the incident page needs: suspects with feature queries, agent trace, status.",
+        "operationId": "get_incident_detail_api_v1_incidents__incident_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Incident Detail"
       }
     },
     "/api/v1/incidents/{incident_id}/evidence-graph": {

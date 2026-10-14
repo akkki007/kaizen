@@ -171,3 +171,59 @@ async def test_rank_api_returns_features_with_queries_and_methods(
         c.cookies.set("cd_session", make_session(User(login="eve", repos={"x/y": "approver"})))  # type: ignore[arg-type]
         assert (await c.post(f"/api/v1/incidents/{sc.incident_id}/rank")).status_code == 404
         del other
+
+
+async def test_incident_detail_bundles_ranking_and_trace(db: None, builder: GraphBuilder) -> None:
+    from datetime import UTC, datetime
+
+    import httpx
+
+    from causaldeploy.api.auth import User, make_session
+    from causaldeploy.api.main import create_app
+    from causaldeploy.db.models import IncidentRow, Investigation, Repository
+    from causaldeploy.db.session import session_scope
+
+    sc = builder.s1_payment_validation()
+    repo, now = builder.store.repo, datetime.now(UTC)
+    agent = {
+        "status": "explained",
+        "validation_errors": [],
+        "explanation": {"verdict": "confident", "claims": []},
+        "steps": [
+            {
+                "n": 1,
+                "name": "get_incident",
+                "args": {"incident_id": "inc-1"},
+                "summary": "get_incident: errors=1 item(s)",
+                "latency_ms": 12.0,
+                "node_ids": ["Incident:inc-1"],
+                "result": {},
+            }
+        ],
+    }
+    async with session_scope() as s:
+        s.add(Repository(full_name=repo))
+        await s.flush()
+        s.add(
+            IncidentRow(
+                id=sc.incident_id,
+                repo=repo,
+                service="payments",
+                env="prod",
+                endpoint="POST /payments",
+                status="investigating",
+                onset_ts=now,
+                detected_at=now,
+            )
+        )
+        await s.flush()
+        s.add(Investigation(incident_id=sc.incident_id, result={"agent": agent}))
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app()), base_url="http://t"
+    ) as c:
+        c.cookies.set("cd_session", make_session(User(login="al", repos={repo: "viewer"})))  # type: ignore[arg-type]
+        d = (await c.get(f"/api/v1/incidents/{sc.incident_id}")).json()
+    assert d["incident"]["endpoint"] == "POST /payments"
+    assert d["ranking"]["candidates"][0]["sha"] == sc.culprit_commit
+    assert d["investigation"]["status"] == "explained"
+    assert d["investigation"]["steps"][0]["name"] == "get_incident"

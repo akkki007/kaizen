@@ -17,6 +17,7 @@ from causaldeploy.db.models import (
     ApiKey,
     AuditLog,
     IncidentRow,
+    Investigation,
     JobRecord,
     LlmCall,
     RawEvent,
@@ -165,6 +166,76 @@ async def get_evidence_graph(
     if graph is None:
         raise HTTPException(404, "incident has no evidence in the graph yet")
     return graph
+
+
+class TraceStep(BaseModel):
+    n: int
+    name: str
+    summary: str
+    latency_ms: float
+    node_ids: list[str]
+    args: dict[str, Any]
+
+
+class InvestigationView(BaseModel):
+    id: int | None
+    status: str  # explained | explanation_invalid | not_run
+    explanation: dict[str, Any] | None
+    steps: list[TraceStep]
+    validation_errors: list[str]
+
+
+class IncidentDetail(BaseModel):
+    incident: IncidentSummary
+    ranking: RankResult  # deterministic, recomputed from the graph so it is always current
+    investigation: InvestigationView
+
+
+@v1.get("/incidents/{incident_id}", response_model=IncidentDetail)
+async def get_incident_detail(incident_id: str, user: CurrentUser) -> IncidentDetail:
+    """Everything the incident page needs: suspects with feature queries, agent trace, status."""
+    row = await _incident_for(user, incident_id)
+    store = GraphStore(row.repo)
+    ranking = await asyncio.to_thread(rank, store, incident_id, "graph")
+    async with session_scope() as s:
+        inv = (
+            await s.execute(
+                select(Investigation)
+                .where(Investigation.incident_id == incident_id)
+                .order_by(Investigation.id.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+    agent = (inv.result or {}).get("agent") if inv else None
+    steps = [
+        TraceStep(
+            n=st["n"],
+            name=st["name"],
+            summary=st["summary"],
+            latency_ms=st["latency_ms"],
+            node_ids=st["node_ids"],
+            args=st["args"],
+        )
+        for st in (agent or {}).get("steps", [])
+    ]
+    view = InvestigationView(
+        id=inv.id if inv else None,
+        status=(agent or {}).get("status", "not_run"),
+        explanation=(agent or {}).get("explanation"),
+        steps=steps,
+        validation_errors=(agent or {}).get("validation_errors", []),
+    )
+    summary = IncidentSummary(
+        id=row.id,
+        repo=row.repo,
+        service=row.service,
+        env=row.env,
+        endpoint=row.endpoint,
+        status=row.status,
+        onset_ts=row.onset_ts,
+        detected_at=row.detected_at,
+    )
+    return IncidentDetail(incident=summary, ranking=ranking, investigation=view)
 
 
 @v1.post("/incidents/{incident_id}/rank", response_model=RankResult)

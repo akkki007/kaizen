@@ -41,6 +41,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/incidents/{incident_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Incident Detail
+         * @description Everything the incident page needs: suspects with feature queries, agent trace, status.
+         */
+        get: operations["get_incident_detail_api_v1_incidents__incident_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/incidents/{incident_id}/evidence-graph": {
         parameters: {
             query?: never;
@@ -455,6 +475,12 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** IncidentDetail */
+        IncidentDetail: {
+            incident: components["schemas"]["IncidentSummary"];
+            investigation: components["schemas"]["InvestigationView"];
+            ranking: components["schemas"]["RankResult"];
+        };
         /**
          * IncidentPage
          * @description Pagination convention: `limit`/`offset` in, `items` + `total` out.
@@ -493,6 +519,21 @@ export interface components {
             service: string;
             /** Status */
             status: string;
+        };
+        /** InvestigationView */
+        InvestigationView: {
+            /** Explanation */
+            explanation: {
+                [key: string]: unknown;
+            } | null;
+            /** Id */
+            id: number | null;
+            /** Status */
+            status: string;
+            /** Steps */
+            steps: components["schemas"]["TraceStep"][];
+            /** Validation Errors */
+            validation_errors: string[];
         };
         /** LlmCost */
         LlmCost: {
@@ -555,6 +596,23 @@ export interface components {
             score: number;
             /** Sha */
             sha: string;
+        };
+        /** TraceStep */
+        TraceStep: {
+            /** Args */
+            args: {
+                [key: string]: unknown;
+            };
+            /** Latency Ms */
+            latency_ms: number;
+            /** N */
+            n: number;
+            /** Name */
+            name: string;
+            /** Node Ids */
+            node_ids: string[];
+            /** Summary */
+            summary: string;
         };
         /** User */
         User: {
@@ -645,6 +703,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IncidentPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_incident_detail_api_v1_incidents__incident_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentDetail"];
                 };
             };
             /** @description Validation Error */

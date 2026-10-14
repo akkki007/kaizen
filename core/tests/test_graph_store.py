@@ -55,3 +55,13 @@ def test_graphs_are_isolated_per_repo() -> None:
     finally:
         a.drop()
         b.drop()
+
+
+def test_schema_upgrades_in_place_from_the_previous_version(store: GraphStore) -> None:
+    store.ensure_schema()
+    store.graph.query("MATCH (m:SchemaMeta) SET m.version = 1")  # a graph created by v1 code
+    store.ensure_schema()  # existing indexes/constraints must not raise
+    assert store.schema_version() == SCHEMA_VERSION
+    store.upsert_nodes("Investigation", [{"id": "inv-1"}])
+    with pytest.raises(Exception, match="unique constraint"):
+        store.graph.query("CREATE (:Investigation {id: 'inv-1'})")

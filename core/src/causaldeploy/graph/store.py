@@ -63,17 +63,30 @@ class GraphStore:
         return int(rows[0][0]) if rows else 0
 
     def ensure_schema(self) -> None:
-        """Apply the versioned schema step (indexes + unique constraints). Idempotent."""
+        """Apply the versioned schema (indexes, unique constraints); safe to re-run, upgrades."""
         if self.schema_version() >= SCHEMA_VERSION:
             return
         for label, key in UNIQUE_KEYS:
-            self.graph.create_node_range_index(label, key)
+            self._once(lambda label=label, key=key: self.graph.create_node_range_index(label, key))
         for label, prop in RANGE_INDEXES:
-            self.graph.create_node_range_index(label, prop)
+            self._once(
+                lambda label=label, prop=prop: self.graph.create_node_range_index(label, prop)
+            )
         self._wait_indexes()
         for label, key in UNIQUE_KEYS:
-            self.graph.create_node_unique_constraint(label, key)
+            self._once(
+                lambda label=label, key=key: self.graph.create_node_unique_constraint(label, key)
+            )
         self.graph.query("MERGE (m:SchemaMeta) SET m.version = $v", {"v": SCHEMA_VERSION})
+
+    @staticmethod
+    def _once(fn: Any) -> None:
+        """Run a DDL statement; an index/constraint that already exists is not an error."""
+        try:
+            fn()
+        except ResponseError as e:
+            if not any(w in str(e).lower() for w in ("already", "exists")):
+                raise
 
     def _wait_indexes(self) -> None:
         import time
