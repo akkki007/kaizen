@@ -293,12 +293,23 @@
           },
           "ranking": {
             "$ref": "#/components/schemas/RankResult"
+          },
+          "remediation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RemediationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "incident",
           "ranking",
-          "investigation"
+          "investigation",
+          "remediation"
         ],
         "title": "IncidentDetail",
         "type": "object"
@@ -613,6 +624,90 @@
           "evidence"
         ],
         "title": "RankedCandidate",
+        "type": "object"
+      },
+      "RemediationView": {
+        "properties": {
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
+          "sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "sha",
+          "branch",
+          "pr_url",
+          "approved_by",
+          "verification"
+        ],
+        "title": "RemediationView",
         "type": "object"
       },
       "TraceStep": {
@@ -1112,6 +1207,98 @@
           }
         },
         "summary": "Rank Incident"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/remediations": {
+      "post": {
+        "description": "Approver-only: open a revert PR for the top-ranked commit and start verification.",
+        "operationId": "propose_remediation_api_v1_incidents__incident_id__remediations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Csrf"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Propose Remediation Api V1 Incidents  Incident Id  Remediations Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose Remediation"
       }
     },
     "/api/v1/jobs/{job_id}": {

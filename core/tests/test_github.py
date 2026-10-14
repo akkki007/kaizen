@@ -149,3 +149,14 @@ async def test_repo_installation_lookup(keypair: tuple[str, str]) -> None:
     with pytest.raises(RuntimeError, match="not installed"):
         await c.repo_installation_id("acme/other")
     await c.aclose()
+
+
+def test_malformed_webhook_payloads_are_ignored_not_fatal() -> None:
+    repo = {"full_name": "a/b"}
+    assert (
+        normalize(
+            "workflow_run", {"repository": repo, "action": "completed", "workflow_run": {"id": 1}}
+        )
+        == []
+    )
+    assert normalize("deployment_status", {"repository": repo}) == []

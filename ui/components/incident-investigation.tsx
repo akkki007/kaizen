@@ -4,7 +4,14 @@ import { Check, ChevronDown, X } from "lucide-react";
 import { useState } from "react";
 import { Segmented } from "@/components/analytics-dashboard/ui";
 import { ErrorState, LoadingState } from "@/components/states";
-import { useBaseline, useIncidentDetail, type RankMethod } from "@/lib/api/hooks";
+import {
+  useApproveFix,
+  useBaseline,
+  useIncidentDetail,
+  useMe,
+  useProposeFix,
+  type RankMethod,
+} from "@/lib/api/hooks";
 import type { components } from "@/lib/api/schema";
 
 type Candidate = components["schemas"]["RankedCandidate"];
@@ -96,10 +103,91 @@ function Suspect({ c, defaultOpen }: { c: Candidate; defaultOpen: boolean }) {
   );
 }
 
+type Remediation = components["schemas"]["RemediationView"];
+
+const REMEDIATION_COPY: Record<string, string> = {
+  proposing: "Preparing the revert branch…",
+  verifying: "Revert PR opened; verifying in staging…",
+  verified: "Fix tested in staging: passed",
+  failed: "Fix tested in staging: failed",
+  needs_manual: "The commit cannot be reverted cleanly; it needs a manual fix",
+  approved: "Approved; waiting for the pull request to be merged",
+  merged: "Merged: incident resolved",
+};
+
+function FixSection({
+  incidentId,
+  remediation,
+  canAct,
+  hasSuspect,
+}: {
+  incidentId: string;
+  remediation: Remediation | null;
+  canAct: boolean;
+  hasSuspect: boolean;
+}) {
+  const propose = useProposeFix(incidentId);
+  const approve = useApproveFix(incidentId);
+  const v = remediation?.verification as
+    | { passed: boolean; run_url?: string; error_rate_before?: number | null; error_rate_after?: number | null; baseline_error_rate?: number | null }
+    | null
+    | undefined;
+  const pct = (x?: number | null) => (x === null || x === undefined ? "n/a" : `${(x * 100).toFixed(1)}%`);
+
+  return (
+    <section className="card card-pad" aria-labelledby="fix-title">
+      <div className="card-head">
+        <h2 id="fix-title" className="card-title">Fix and verification</h2>
+      </div>
+      {!remediation && (
+        <>
+          <p className="muted">No fix has been proposed for this incident yet.</p>
+          {canAct && hasSuspect && (
+            <button type="button" className="btn press" disabled={propose.isPending} onClick={() => propose.mutate()}>
+              {propose.isPending ? "Requesting…" : "Open revert PR for the top suspect"}
+            </button>
+          )}
+          {propose.isSuccess && <p className="muted">Requested. The pull request will appear here shortly.</p>}
+          {propose.error && <p role="alert" className="verdict" data-verdict="wrong">{propose.error.message}</p>}
+        </>
+      )}
+      {remediation && (
+        <div className="fix">
+          <p className="verdict" data-verdict={remediation.status === "failed" || remediation.status === "needs_manual" ? "wrong" : remediation.status === "verified" || remediation.status === "merged" ? "confident" : "ambiguous"}>
+            {REMEDIATION_COPY[remediation.status] ?? remediation.status}
+          </p>
+          <p className="muted">
+            Revert of <code>{remediation.sha?.slice(0, 7)}</code> on <code>{remediation.branch}</code>
+            {remediation.pr_url && (
+              <> · <a href={remediation.pr_url} target="_blank" rel="noreferrer">pull request</a></>
+            )}
+          </p>
+          {v && (
+            <dl className="usage">
+              <div><dt>Before the fix</dt><dd>{pct(v.error_rate_before)}</dd></div>
+              <div><dt>In staging after</dt><dd>{pct(v.error_rate_after)}</dd></div>
+              <div><dt>Baseline</dt><dd>{pct(v.baseline_error_rate)}</dd></div>
+              {v.run_url && <div><dt>Run</dt><dd><a href={v.run_url} target="_blank" rel="noreferrer">Actions</a></dd></div>}
+            </dl>
+          )}
+          {canAct && remediation.status === "verified" && (
+            <button type="button" className="btn press" disabled={approve.isPending} onClick={() => approve.mutate(remediation.id)}>
+              {approve.isPending ? "Approving…" : "Approve fix"}
+            </button>
+          )}
+          {remediation.approved_by && <p className="muted">Approved by {remediation.approved_by}. A human merges the pull request.</p>}
+          {approve.error && <p role="alert" className="verdict" data-verdict="wrong">{approve.error.message}</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function IncidentInvestigation({ incidentId }: { incidentId: string }) {
   const [view, setView] = useState<RankMethod>("graph");
   const detail = useIncidentDetail(incidentId);
   const baseline = useBaseline(incidentId, view === "graph" ? "b1" : view, view !== "graph");
+  const me = useMe();
 
   if (detail.isLoading) return <LoadingState rows={4} />;
   if (detail.error || !detail.data) return <ErrorState error={detail.error} onRetry={() => detail.refetch()} />;
@@ -108,6 +196,7 @@ export function IncidentInvestigation({ incidentId }: { incidentId: string }) {
   const shown = view === "graph" ? graph : (baseline.data ?? null);
   const graphTop = graph.candidates[0]?.sha;
   const inv = detail.data.investigation;
+  const role = me.data?.repos[detail.data.incident.repo];
 
   return (
     <>
@@ -198,12 +287,12 @@ export function IncidentInvestigation({ incidentId }: { incidentId: string }) {
         )}
       </section>
 
-      <section className="card card-pad" aria-labelledby="fix-title">
-        <div className="card-head">
-          <h2 id="fix-title" className="card-title">Fix and verification</h2>
-        </div>
-        <p className="muted">No fix has been proposed or verified for this incident yet.</p>
-      </section>
+      <FixSection
+        incidentId={incidentId}
+        remediation={detail.data.remediation}
+        canAct={role === "approver"}
+        hasSuspect={graph.verdict === "confident" || graph.verdict === "ambiguous"}
+      />
     </>
   );
 }

@@ -20,10 +20,10 @@ test.describe("Incident investigation page (mock)", () => {
 
   test("graph off: the baseline blames a different commit than the graph", async ({ page }) => {
     await page.getByRole("radio", { name: /Baseline: latest commit/ }).click();
-    await expect(page.locator(".verdict")).toContainText("The baseline blames");
-    await expect(page.locator(".verdict")).toContainText("the graph says");
+    await expect(page.locator("section[aria-labelledby='sus-title'] .verdict")).toContainText("The baseline blames");
+    await expect(page.locator("section[aria-labelledby='sus-title'] .verdict")).toContainText("the graph says");
     await page.getByRole("radio", { name: "Graph" }).click();
-    await expect(page.locator(".verdict")).toContainText("Confident");
+    await expect(page.locator("section[aria-labelledby='sus-title'] .verdict")).toContainText("Confident");
   });
 
   test("shows the agent's tool calls in order with the cited nodes", async ({ page }) => {
@@ -34,4 +34,14 @@ test.describe("Incident investigation page (mock)", () => {
     await expect(page.getByRole("heading", { name: "Explanation" })).toBeVisible();
     await expect(page.getByText("Commit:9f2c1ab").first()).toBeVisible();
   });
+});
+
+test("fix section shows the staging verification result and lets an approver approve", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("button", { name: /Sign in with GitHub/i }).click();
+  await page.goto("/incidents/inc-2");
+  await expect(page.getByText("Fix tested in staging: passed")).toBeVisible();
+  await expect(page.getByText("42.0%")).toBeVisible();
+  await expect(page.getByRole("link", { name: "pull request" })).toHaveAttribute("href", /pull\/14/);
+  await page.getByRole("button", { name: "Approve fix" }).click();
 });

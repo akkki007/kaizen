@@ -30,8 +30,16 @@ from causaldeploy.github.webhooks import normalize, verify_signature
 from causaldeploy.graph.evidence import EvidenceGraph, evidence_graph
 from causaldeploy.graph.store import GraphStore
 from causaldeploy.investigate.scorer import Method, RankResult, persist, rank
-from causaldeploy.jobs.queue import BackfillPayload, IngestEventPayload, enqueue
+from causaldeploy.jobs.queue import (
+    BackfillPayload,
+    IngestEventPayload,
+    MergedPayload,
+    ProposeFixPayload,
+    VerifyResultPayload,
+    enqueue,
+)
 from causaldeploy.observability import EVENTS_INGESTED
+from causaldeploy.remediate.service import BRANCH_PREFIX
 
 v1 = APIRouter(prefix="/api/v1")
 webhooks = APIRouter(prefix="/webhooks")
@@ -185,10 +193,22 @@ class InvestigationView(BaseModel):
     validation_errors: list[str]
 
 
+class RemediationView(BaseModel):
+    id: str
+    kind: str
+    status: str  # proposing|verifying|verified|failed|needs_manual|approved|merged
+    sha: str | None
+    branch: str | None
+    pr_url: str | None
+    approved_by: str | None
+    verification: dict[str, Any] | None
+
+
 class IncidentDetail(BaseModel):
     incident: IncidentSummary
     ranking: RankResult  # deterministic, recomputed from the graph so it is always current
     investigation: InvestigationView
+    remediation: RemediationView | None
 
 
 @v1.get("/incidents/{incident_id}", response_model=IncidentDetail)
@@ -235,7 +255,65 @@ async def get_incident_detail(incident_id: str, user: CurrentUser) -> IncidentDe
         onset_ts=row.onset_ts,
         detected_at=row.detected_at,
     )
-    return IncidentDetail(incident=summary, ranking=ranking, investigation=view)
+    async with session_scope() as s2:
+        rem = (
+            await s2.execute(
+                select(RemediationRun)
+                .where(RemediationRun.incident_id == incident_id)
+                .order_by(RemediationRun.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+    remediation = None
+    if rem:
+        r = rem.result or {}
+        remediation = RemediationView(
+            id=rem.id,
+            kind=rem.kind,
+            status=rem.status,
+            sha=r.get("sha"),
+            branch=r.get("branch"),
+            pr_url=r.get("pr_url"),
+            approved_by=rem.approved_by,
+            verification=r.get("verification"),
+        )
+    return IncidentDetail(
+        incident=summary, ranking=ranking, investigation=view, remediation=remediation
+    )
+
+
+@v1.post(
+    "/incidents/{incident_id}/remediations", status_code=202, dependencies=[Depends(csrf_protect)]
+)
+async def propose_remediation(incident_id: str, user: CurrentUser) -> dict[str, str]:
+    """Approver-only: open a revert PR for the top-ranked commit and start verification."""
+    row = await _incident_for(user, incident_id)
+    require_role(user, row.repo, "approver")
+    async with session_scope() as s:
+        live = (
+            await s.execute(
+                select(RemediationRun.id).where(
+                    RemediationRun.incident_id == incident_id,
+                    RemediationRun.status.in_(("proposing", "verifying", "verified", "approved")),
+                )
+            )
+        ).first()
+        if live:
+            raise HTTPException(409, "a remediation is already in progress for this incident")
+        s.add(
+            AuditLog(
+                actor=user.login,
+                action="remediation.propose",
+                target=incident_id,
+                detail={"repo": row.repo},
+            )
+        )
+    jid, _ = await enqueue(
+        "propose_fix",
+        ProposeFixPayload(repo=row.repo, incident_id=incident_id),
+        f"propose:{incident_id}:{secrets.token_hex(6)}",
+    )
+    return {"job_id": jid, "status": "queued"}
 
 
 @v1.post("/incidents/{incident_id}/rank", response_model=RankResult)
@@ -531,6 +609,38 @@ async def dispatch_github(delivery: str, event_type: str, payload: dict[str, Any
             f"push:{repo}:{payload.get('after')}",
         )
         ids.append(jid)
+    installation = (payload.get("installation") or {}).get("id")
+    if event_type == "workflow_run" and payload.get("action") == "completed" and repo:
+        run = payload.get("workflow_run") or {}
+        title = str(run.get("display_title") or "")
+        if run.get("name") == "verify" and title.startswith("verify " + BRANCH_PREFIX):
+            jid, _ = await enqueue(
+                "verify_result",
+                VerifyResultPayload(
+                    repo=repo,
+                    branch=title.removeprefix("verify ").strip(),
+                    conclusion=str(run.get("conclusion") or "failure"),
+                    run_id=int(run["id"]),
+                    run_url=str(run.get("html_url") or ""),
+                    installation_id=installation,
+                ),
+                f"verify:{repo}:{run['id']}",
+            )
+            ids.append(jid)
+    if event_type == "pull_request" and payload.get("action") == "closed" and repo:
+        pr = payload.get("pull_request") or {}
+        head = str((pr.get("head") or {}).get("ref") or "")
+        if pr.get("merged") and head.startswith(BRANCH_PREFIX):
+            jid, _ = await enqueue(
+                "remediation_merged",
+                MergedPayload(
+                    repo=repo,
+                    branch=head,
+                    merged_by=str((pr.get("merged_by") or {}).get("login") or "unknown"),
+                ),
+                f"merged:{repo}:{pr.get('number')}",
+            )
+            ids.append(jid)
     for i, ev in enumerate(normalize(event_type, payload)):
         jid, _ = await enqueue(
             "ingest_event",

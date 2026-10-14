@@ -118,6 +118,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/incidents/{incident_id}/remediations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose Remediation
+         * @description Approver-only: open a revert PR for the top-ranked commit and start verification.
+         */
+        post: operations["propose_remediation_api_v1_incidents__incident_id__remediations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -480,6 +500,7 @@ export interface components {
             incident: components["schemas"]["IncidentSummary"];
             investigation: components["schemas"]["InvestigationView"];
             ranking: components["schemas"]["RankResult"];
+            remediation: components["schemas"]["RemediationView"] | null;
         };
         /**
          * IncidentPage
@@ -596,6 +617,27 @@ export interface components {
             score: number;
             /** Sha */
             sha: string;
+        };
+        /** RemediationView */
+        RemediationView: {
+            /** Approved By */
+            approved_by: string | null;
+            /** Branch */
+            branch: string | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Pr Url */
+            pr_url: string | null;
+            /** Sha */
+            sha: string | null;
+            /** Status */
+            status: string;
+            /** Verification */
+            verification: {
+                [key: string]: unknown;
+            } | null;
         };
         /** TraceStep */
         TraceStep: {
@@ -839,6 +881,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RankResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_remediation_api_v1_incidents__incident_id__remediations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */

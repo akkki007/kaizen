@@ -66,6 +66,28 @@ export function useIncidentDetail(incidentId: string) {
   });
 }
 
+export function useProposeFix(incidentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/api/v1/incidents/{incident_id}/remediations", { params: { path: { incident_id: incidentId } } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["incident-detail", incidentId] }),
+  });
+}
+
+export function useApproveFix(incidentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (remediationId: string) =>
+      unwrap(
+        await api.POST("/api/v1/remediations/{remediation_id}/approve", {
+          params: { path: { remediation_id: remediationId } },
+        }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["incident-detail", incidentId] }),
+  });
+}
+
 /** Baseline rankings (no graph traversal) for the "graph off" comparison. */
 export function useBaseline(incidentId: string, method: Exclude<RankMethod, "graph">, enabled: boolean) {
   return useQuery({
