@@ -106,6 +106,14 @@ def blast_radius(store: GraphStore, function_id: str, max_depth: int = 3) -> Bla
         {"id": function_id},
     )
     fns, eps, svcs = rows[0] if rows else ([], [], [])
+    if svcs:
+        # callers reach this code over the network too: services upstream via service calls
+        up = store.read(
+            "MATCH (s:Service) WHERE s.id IN $svcs "
+            f"OPTIONAL MATCH (u:Service)-[:calls*1..{d}]->(s) RETURN collect(DISTINCT u.id)",
+            {"svcs": svcs},
+        )
+        svcs = sorted({*svcs, *(up[0][0] if up else [])})
     return BlastRadius(
         function_id=function_id,
         affected_functions=sorted(f for f in fns if f != function_id),

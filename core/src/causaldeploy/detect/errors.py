@@ -112,3 +112,41 @@ def link_error(store: GraphStore, event: TelemetryEvent, fp: str) -> list[str]:
             edges.append(Edge("Error", fp, "observed_on", "Endpoint", ep))
     store.upsert_edges(edges)
     return thrown
+
+
+def derive_service_calls(store: GraphStore, spans: list[tuple[str, float]]) -> int:
+    """Service call chain of one request: callers start before callees (start = ts - latency).
+
+    `spans` are (service, start_epoch) for the same request id. Writes (Service)-[:calls]->(Service)
+    edges between consecutive distinct services; MERGE keeps it idempotent.
+    """
+    ordered: list[str] = []
+    for svc, _ in sorted(spans, key=lambda x: x[1]):
+        if not ordered or ordered[-1] != svc:
+            ordered.append(svc)
+    edges = [
+        Edge("Service", a, "calls", "Service", b)
+        for a, b in zip(ordered, ordered[1:], strict=False)
+        if a != b
+    ]
+    if edges:
+        store.ensure_schema()
+        store.upsert_edges(edges)
+    return len(edges)
+
+
+async def request_spans(repo: str, request_id: str) -> list[tuple[str, float]]:
+    from sqlalchemy import text
+
+    async with session_scope() as s:
+        rows = (
+            await s.execute(
+                text(
+                    "SELECT service, extract(epoch from ts) - coalesce(latency_ms, 0) / 1000.0 "
+                    "FROM telemetry WHERE repo = :r AND kind = 'request' "
+                    "AND body->>'request_id' = :rid"
+                ),
+                {"r": repo, "rid": request_id},
+            )
+        ).all()
+    return [(r[0], float(r[1])) for r in rows]

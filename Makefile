@@ -65,8 +65,8 @@ restore:     ## make restore DIR=backups/<timestamp>
 drill:       ## backup -> destroy -> restore -> verify, on a throwaway project
 	./scripts/test-restore.sh
 
-eval:
-	@echo "eval harness not implemented yet (see issue #92)"
+eval:        ## graph vs. baselines on the seeded scenarios -> eval/reports/latest.md
+	cd core && uv run python -m causaldeploy.evalharness --out ../eval/reports/latest.md
 
 seed:
 	@echo "ShopLite lives in https://github.com/yashchandnani07/shoplite (history seeded, see docs/history.md there)"

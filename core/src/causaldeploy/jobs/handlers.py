@@ -4,7 +4,12 @@ from typing import Any
 
 from causaldeploy.config import get_settings
 from causaldeploy.contracts import HealthEvent, TelemetryEvent, parse_event
-from causaldeploy.detect.errors import link_error, store_telemetry
+from causaldeploy.detect.errors import (
+    derive_service_calls,
+    link_error,
+    request_spans,
+    store_telemetry,
+)
 from causaldeploy.graph.store import GraphStore
 from causaldeploy.ingest.events import apply_event
 from causaldeploy.jobs.queue import (
@@ -27,6 +32,11 @@ async def ingest_event(payload: dict[str, Any]) -> None:
     store = GraphStore(event.repo)
     if isinstance(event, TelemetryEvent | HealthEvent):
         fp = await store_telemetry(event)  # Postgres first: detection reads from there
+        rid = getattr(event, "request_id", None)
+        if rid and getattr(event, "kind", None) == "request":
+            spans = await request_spans(event.repo, rid)
+            if len({svc for svc, _ in spans}) > 1:
+                await asyncio.to_thread(derive_service_calls, store, spans)
         if fp and isinstance(event, TelemetryEvent):
             await asyncio.to_thread(link_error, store, event, fp)
         return

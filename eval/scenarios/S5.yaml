@@ -1,0 +1,41 @@
+id: S5
+title: Dependency bump in money-utils breaks formatting for one currency
+split: tune
+variants:
+  - { version: 2.0.2, loc: de-DE }
+  - { version: 2.1.0, loc: fr-FR }
+  - { version: 3.0.0, loc: nl-NL }
+commits:
+  - message: "chore(deps): money-utils {{version}} with locale-aware formatMoney"
+    culprit: true
+    edits:
+      - file: lib/money-utils/package.json
+        find: '"version": "2.0.1"'
+        replace: '"version": "{{version}}"'
+      - file: package-lock.json
+        find: |
+          "lib/money-utils": {
+                "version": "2.0.1",
+        replace: |
+          "lib/money-utils": {
+                "version": "{{version}}",
+      - file: lib/money-utils/src/index.js
+        find: |
+          function formatMoney(cents, currency = "USD") {
+            return `${fromCents(cents).toFixed(2)} ${currency}`;
+          }
+        replace: |
+          const LOCALES = { USD: "en-US", EUR: "{{loc}}" };
+
+          function formatMoney(cents, currency = "USD") {
+            const locale = LOCALES[currency].replace("_", "-");
+            return new Intl.NumberFormat(locale, { style: "currency", currency }).format(fromCents(cents));
+          }
+      - file: lib/money-utils/test/money.test.js
+        find: 'test("formatMoney", () => assert.strictEqual(m.formatMoney(1999, "EUR"), "19.99 EUR"));'
+        replace: 'test("formatMoney", () => assert.match(m.formatMoney(1999, "EUR"), /19[.,]99/));'
+ground_truth:
+  culprit_function: "money-utils:lib/money-utils/src/index.js:formatMoney"
+  affected_services: [payments, orders, gateway]
+  expected_fix: revert
+expect: { min_error_rate: 0.02 }

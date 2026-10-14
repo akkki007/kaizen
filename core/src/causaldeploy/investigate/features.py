@@ -11,14 +11,19 @@ from typing import Any
 from causaldeploy.graph.store import GraphStore
 
 CANDIDATES = """
+MATCH (d:Deployment)-[:triggers]->(:Incident {id: $inc})
+MATCH (d)-[:includes]->(c:Commit)
+OPTIONAL MATCH (c)-[:authored_by]->(dev:Developer)
+RETURN DISTINCT c.sha, c.message, c.ts, dev.id, d.id
+ORDER BY c.ts DESC, c.sha
+""".strip()
+
+# Used when no deployment is linked to the incident: successful deployments to the same
+# environment that started within the lookback window before onset.
+CANDIDATES_FALLBACK = """
 MATCH (i:Incident {id: $inc})
-OPTIONAL MATCH (d:Deployment)-[:triggers]->(i)
-WITH i, collect(DISTINCT d) AS triggered
-OPTIONAL MATCH (d2:Deployment {env: i.env})
-  WHERE d2.status = 'success' AND d2.started_at <= i.onset_ts
-    AND d2.started_at >= i.onset_ts - $lookback
-WITH i, CASE WHEN size(triggered) > 0 THEN triggered ELSE collect(DISTINCT d2) END AS deps
-UNWIND deps AS d
+MATCH (d:Deployment {env: i.env})
+WHERE d.status = 'success' AND d.started_at <= i.onset_ts AND d.started_at >= i.onset_ts - $lookback
 MATCH (d)-[:includes]->(c:Commit)
 OPTIONAL MATCH (c)-[:authored_by]->(dev:Developer)
 RETURN DISTINCT c.sha, c.message, c.ts, dev.id, d.id
@@ -51,6 +56,13 @@ MATCH (h:Function)-[:handles]->(:Endpoint {id: $ep})
 MATCH p = (h)-[:calls*0..4]->(f)
 RETURN count(p) > 0
 """.strip(),
+    "service": """
+MATCH (c:Commit {sha: $sha})-[:modifies_fn]->(:Function)-[:belongs_to]->(s:Service)
+MATCH (t:Service {id: $svc})
+OPTIONAL MATCH p = (s)-[:calls*0..3]->(t)
+WITH s, min(length(p)) AS d
+RETURN max(CASE WHEN d IS NULL THEN 0.0 ELSE 1.0 / (1 + d) END)
+""".strip(),
     "dependency": """
 MATCH (c:Commit {sha: $sha})-[:changes_dep]->(:Dependency)<-[:depends_on]-(x:Function)
 MATCH (:Incident {id: $inc})-[:evidenced_by]->(:Error)-[:thrown_in]->(g:Function)
@@ -68,9 +80,9 @@ RETURN max(toFloat(size([t IN etoks WHERE t IN ctoks AND size(t) > 3])) / (size(
 """.strip(),
     "history": """
 MATCH (c:Commit {sha: $sha})-[:modifies_fn]->(f:Function)
-OPTIONAL MATCH (:Incident {id: $inc})-[:resembles]->(:Incident {status: 'resolved'})
+OPTIONAL MATCH (:Incident {id: $inc})-[:resembles]->(old:Incident {status: 'resolved'})
                -[:likely_caused_by]->(:Commit)-[:modifies_fn]->(f)
-WITH f, count(*) AS similar
+WITH f, count(old) AS similar
 OPTIONAL MATCH (f)<-[:modifies_fn]-(:Commit)<-[:likely_caused_by]-(past:Incident)
 WHERE past.status = 'resolved' AND past.id <> $inc
 WITH f, similar, count(DISTINCT past) AS blamed
@@ -126,7 +138,8 @@ def load_incident(store: GraphStore, incident_id: str) -> IncidentContext | None
 
 
 def candidates(store: GraphStore, inc: IncidentContext, lookback_s: int) -> list[dict[str, Any]]:
-    rows = store.read(CANDIDATES, {"inc": inc.id, "lookback": lookback_s})
+    params = {"inc": inc.id, "lookback": lookback_s}
+    rows = store.read(CANDIDATES, params) or store.read(CANDIDATES_FALLBACK, params)
     return [
         {"sha": r[0], "message": r[1] or "", "ts": r[2], "author": r[3], "deployment": r[4]}
         for r in rows
@@ -136,7 +149,7 @@ def candidates(store: GraphStore, inc: IncidentContext, lookback_s: int) -> list
 def feature_values(
     store: GraphStore, inc: IncidentContext, sha: str, tau: float
 ) -> dict[str, float]:
-    params = {"sha": sha, "inc": inc.id, "ep": inc.endpoint_id, "tau": tau}
+    params = {"sha": sha, "inc": inc.id, "ep": inc.endpoint_id, "svc": inc.service, "tau": tau}
     out: dict[str, float] = {}
     for name, cypher in FEATURE_QUERIES.items():
         rows = store.read(cypher, params)

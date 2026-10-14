@@ -18,10 +18,11 @@ Method = Literal["graph", "b0", "b1"]
 # Initial weights; fitted on the tuning split (S1, S3, S5, S8) by the eval harness (#92).
 WEIGHTS: dict[str, float] = {
     "temporal": 0.15,
-    "path": 0.30,
+    "path": 0.25,
     "endpoint": 0.15,
+    "service": 0.10,  # changed function's service reaches the failing service via service calls
     "dependency": 0.10,
-    "msg_sim": 0.10,
+    "msg_sim": 0.05,
     "history": 0.10,
     "sequence": 0.10,
     "blast": -0.10,  # mild penalty so the biggest diff is not blamed by default
@@ -99,10 +100,15 @@ def _verdict(
     top = {f.name: f.value for f in cands[0].features}
     if not (top["path"] > 0 or top["endpoint"] > 0 or top["dependency"] > 0):
         return "no_code_evidence", margin  # nothing ties the change to the failure: say so
-    return ("ambiguous" if margin < AMBIGUOUS_MARGIN else "confident"), margin
+    # Confident needs a stack-level link (a thrown function reached from the change, or a changed
+    # dependency); an endpoint/service-level match alone is not enough to name a culprit.
+    grounded = top["path"] > 0 or top["dependency"] > 0
+    return ("confident" if grounded and margin >= AMBIGUOUS_MARGIN else "ambiguous"), margin
 
 
-def rank_graph(store: GraphStore, incident_id: str) -> RankResult:
+def rank_graph(
+    store: GraphStore, incident_id: str, weights: dict[str, float] | None = None
+) -> RankResult:
     inc = F.load_incident(store, incident_id)
     if inc is None:
         return RankResult(
@@ -116,7 +122,8 @@ def rank_graph(store: GraphStore, incident_id: str) -> RankResult:
     scored: list[tuple[float, dict[str, Any], dict[str, float]]] = []
     for c in rows:
         vals = F.feature_values(store, inc, c["sha"], TAU_SECONDS)
-        scored.append((sum(WEIGHTS[k] * v for k, v in vals.items()), c, vals))
+        w = weights or WEIGHTS
+        scored.append((sum(w.get(k, 0.0) * v for k, v in vals.items()), c, vals))
     scored.sort(key=lambda t: (-t[0], t[1]["sha"]))  # deterministic tie-break
     conf = _softmax([s for s, _, _ in scored])
     cands = []
@@ -204,7 +211,8 @@ def rank_b1(store: GraphStore, incident_id: str) -> RankResult:
     scored = []
     for c in rows:
         files = store.read(
-            "MATCH (:Commit {sha: $s})-[:modifies]->(f:File) RETURN f.path", {"s": c["sha"]}
+            "MATCH (:Commit {sha: $s})-[:modifies]->(f:File) RETURN coalesce(f.path, f.id)",
+            {"s": c["sha"]},
         )
         ctoks = set(_TOKEN.findall((c["message"] + " " + " ".join(r[0] for r in files)).lower()))
         scored.append((len(etoks & ctoks) / (len(etoks) + 1), c))

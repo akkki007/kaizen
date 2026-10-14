@@ -227,3 +227,46 @@ async def test_incident_detail_bundles_ranking_and_trace(db: None, builder: Grap
     assert d["ranking"]["candidates"][0]["sha"] == sc.culprit_commit
     assert d["investigation"]["status"] == "explained"
     assert d["investigation"]["steps"][0]["name"] == "get_incident"
+
+
+def test_service_feature_follows_service_calls_across_services(builder: GraphBuilder) -> None:
+    from causaldeploy.detect.errors import derive_service_calls
+
+    sc = builder.s4_cross_service()
+    # request chain observed in telemetry: gateway -> orders -> payments (callers start first)
+    n = derive_service_calls(builder.store, [("payments", 3.0), ("gateway", 1.0), ("orders", 2.0)])
+    assert n == 2
+    assert (
+        derive_service_calls(builder.store, [("payments", 3.0), ("gateway", 1.0), ("orders", 2.0)])
+        == 2
+    )
+    r = rank(builder.store, sc.incident_id)
+    # createOrder lives in orders; failing service is payments: 1 service hop
+    assert feat(r, sc.culprit_commit, "service") == 0.5
+    assert top(r) == sc.culprit_commit
+
+
+def test_only_the_triggering_deployment_supplies_candidates(builder: GraphBuilder) -> None:
+    """S7 shape: an unrelated later deployment in the lookback window must not add suspects."""
+    sc = builder.s1_payment_validation()
+    other = builder.commit("b0000001", 250, modifies_fn=[], message="unrelated later deploy")
+    builder.deployment("dep-later", "prod", [other], 340)
+    r = rank(builder.store, sc.incident_id)
+    assert {c.sha for c in r.candidates} == {sc.culprit_commit, "n0000001"}
+
+
+def test_no_history_is_zero_not_one(builder: GraphBuilder) -> None:
+    """Regression: count(*) over an unmatched OPTIONAL MATCH is 1; the feature must be 0."""
+    sc = builder.s1_payment_validation()
+    r = rank(builder.store, sc.incident_id)
+    assert all(feat(r, c.sha, "history") == 0.0 for c in r.candidates)
+
+
+def test_endpoint_only_evidence_is_never_confident(builder: GraphBuilder) -> None:
+    sc = builder.s1_payment_validation()
+    # the failure has no stack: the error is not linked to any function
+    builder.store.graph.query(
+        "MATCH (:Error {fingerprint: 'fp-undefined-currency'})-[t:thrown_in]->() DELETE t"
+    )
+    r = rank(builder.store, sc.incident_id)
+    assert r.verdict == "ambiguous"  # the culprit may still lead, but with endpoint evidence only

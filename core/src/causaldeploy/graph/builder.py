@@ -41,7 +41,11 @@ class GraphBuilder:
         s = self.store
         s.upsert_nodes("Service", [{"id": service}])
         s.upsert_nodes("File", [{"id": file_id, "path": path, "service": service}])
-        s.upsert_nodes("Function", [{"id": fid, "name": name, "path": path, "service": service}])
+        s.upsert_nodes(
+            "Function",
+            [{"id": fid, "name": name, "path": path, "service": service,
+              "start_line": 1, "end_line": 200}],
+        )
         edges = [
             Edge("File", file_id, "contains", "Function", fid),
             Edge("Function", fid, "belongs_to", "Service", service),
