@@ -5,6 +5,7 @@ import { use, useEffect, type CSSProperties } from "react";
 import { useDashboard } from "@/components/analytics-dashboard/context";
 import { ArrowRightIcon } from "@/components/analytics-dashboard/icons";
 import { IncidentEvidence } from "@/components/incident-evidence";
+import { IncidentInvestigation } from "@/components/incident-investigation";
 import { useIncidents, useLlmCost } from "@/lib/api/hooks";
 import { STATUS } from "@/lib/dashboard-data";
 import { relativeTime } from "@/lib/time";
@@ -53,6 +54,8 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
           </p>
         )}
       </header>
+
+      <IncidentInvestigation incidentId={id} />
 
       <section className="card card-pad enter" style={{ "--i": 2 } as CSSProperties} aria-labelledby="ev-title">
         <div className="card-head">
