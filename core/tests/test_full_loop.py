@@ -97,6 +97,9 @@ async def test_s1_end_to_end(
     result = await investigate(repo, incident_id)
     assert result.verdict == "confident" and result.candidates[0].sha == culprit
     assert [c.rank for c in result.candidates][0] == 1
+    async with session_scope() as s:  # must leave "investigating" once a suspect is named
+        status = (await s.execute(select(IncidentRow.status))).scalar_one()
+    assert status == "identified"
     assert store.read(
         "MATCH (:Incident {id: $i})-[:likely_caused_by]->(c:Commit) RETURN c.sha",
         {"i": incident_id},

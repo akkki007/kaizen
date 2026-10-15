@@ -219,6 +219,7 @@
           "enum": [
             "open",
             "investigating",
+            "identified",
             "resolved"
           ],
           "title": "IncidentStatus",

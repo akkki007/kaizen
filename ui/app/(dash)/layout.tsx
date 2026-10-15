@@ -6,7 +6,9 @@ import { AuthGate } from "@/components/auth-gate";
 import { AnalyticsDashboard, type AnalyticsDashboardPage } from "@/components/block/analytics-dashboard";
 import { IncidentEvidence } from "@/components/incident-evidence";
 import { ErrorState, LoadingState } from "@/components/states";
-import { useIncidents, useSignOut } from "@/lib/api/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { fetchIncidentDetail, useIncidents, useSignOut } from "@/lib/api/hooks";
+import { answerFromDetail } from "@/lib/incident-answer";
 import type { components } from "@/lib/api/schema";
 import { toDashboardData } from "@/lib/dashboard-data";
 
@@ -38,6 +40,7 @@ function Shell({ me, children }: { me: components["schemas"]["User"]; children: 
   const path = usePathname();
   const router = useRouter();
   const q = useIncidents();
+  const qc = useQueryClient();
   const signOut = useSignOut();
   const data = useMemo(() => toDashboardData(q.data?.items ?? [], me.repos), [q.data, me.repos]);
   if (q.isLoading) return <div className="p-8"><LoadingState /></div>;
@@ -53,6 +56,7 @@ function Shell({ me, children }: { me: components["schemas"]["User"]; children: 
         onPageChange={(page) => router.push(PATHS[page])}
         pageKey={path}
         title={titleFor(path)}
+        onAsk={async (question, pr) => answerFromDetail(question, await fetchIncidentDetail(qc, incidentIdOf(pr.href ?? "")))}
         onSignOut={() => signOut.mutate()}
         signingOut={signOut.isPending}
         renderIncidentAside={(pr) =>

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class IncidentStatus(StrEnum):
     OPEN = "open"
     INVESTIGATING = "investigating"
+    IDENTIFIED = "identified"  # ranked; a suspect is named, waiting on a fix
     RESOLVED = "resolved"
 
 

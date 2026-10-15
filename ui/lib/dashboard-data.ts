@@ -30,6 +30,7 @@ const when = (iso: string) =>
 export const STATUS = {
   open: { kind: "open", label: "Open" },
   investigating: { kind: "review", label: "Investigating" },
+  identified: { kind: "review", label: "Cause found" },
   resolved: { kind: "merged", label: "Resolved" },
 } as const;
 
@@ -139,7 +140,11 @@ export function toDashboardData(
         approach: [
           i.status === "resolved"
             ? "Resolved: the cause was identified and the fix verified."
-            : "Kaizen is mapping this incident to the deployment and commits that preceded the failure.",
+            : i.status === "identified"
+              ? "Root cause identified. Open the incident to see the suspect, the evidence path and the proposed fix."
+              : i.status === "investigating"
+                ? "Kaizen is mapping this incident to the deployment and commits that preceded the failure."
+                : "Open: no investigation result yet, or Kaizen found no code evidence and abstained.",
         ],
         href: `/incidents/${encodeURIComponent(i.id)}`,
       };
