@@ -63,6 +63,13 @@ OPTIONAL MATCH p = (s)-[:calls*0..3]->(t)
 WITH s, min(length(p)) AS d
 RETURN max(CASE WHEN d IS NULL THEN 0.0 ELSE 1.0 / (1 + d) END)
 """.strip(),
+    "centrality": """
+CALL algo.pageRank('Function', 'calls') YIELD node, score
+WITH max(score) AS top, collect([node, score]) AS ranked
+MATCH (c:Commit {sha: $sha})-[:modifies_fn]->(f:Function)
+WITH f, top, [r IN ranked WHERE r[0] = f | r[1]] AS s
+RETURN max(CASE WHEN size(s) = 0 OR top = 0 THEN 0.0 ELSE s[0] / top END)
+""".strip(),
     "dependency": """
 MATCH (c:Commit {sha: $sha})-[:changes_dep]->(:Dependency)<-[:depends_on]-(x:Function)
 MATCH (:Incident {id: $inc})-[:evidenced_by]->(:Error)-[:thrown_in]->(g:Function)

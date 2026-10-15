@@ -270,3 +270,27 @@ def test_endpoint_only_evidence_is_never_confident(builder: GraphBuilder) -> Non
     )
     r = rank(builder.store, sc.incident_id)
     assert r.verdict == "ambiguous"  # the culprit may still lead, but with endpoint evidence only
+
+
+def test_centrality_uses_the_builtin_pagerank_algorithm(builder: GraphBuilder) -> None:
+    """The changed function that many others depend on scores higher than a leaf caller."""
+    sc = builder.s1_payment_validation()
+    s = builder.store
+    hub = builder.function("payments", "src/hub.js", "hub")
+    callers = [
+        builder.function("payments", f"src/c{i}.js", f"caller{i}", calls=[hub]) for i in range(5)
+    ]
+    assert callers
+    leaf = builder.function("payments", "src/leaf.js", "leaf")
+    hub_commit = builder.commit("h0000001", 150, modifies_fn=[hub], message="touch hub")
+    leaf_commit = builder.commit("l0000001", 151, modifies_fn=[leaf], message="touch leaf")
+    s.upsert_edges(
+        [
+            Edge("Deployment", "dep-842", "includes", "Commit", hub_commit),
+            Edge("Deployment", "dep-842", "includes", "Commit", leaf_commit),
+        ]
+    )
+    r = rank(s, sc.incident_id)
+    assert feat(r, hub_commit, "centrality") == 1.0  # normalized to the most central function
+    assert 0.0 <= feat(r, leaf_commit, "centrality") < feat(r, hub_commit, "centrality")
+    assert "algo.pageRank" in F.FEATURE_QUERIES["centrality"]

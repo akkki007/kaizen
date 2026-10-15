@@ -48,6 +48,7 @@ Cypher next to each score (`feature.<name>`).
 | `msg_sim` | error words vs. commit message and changed function names | list comprehension over `split()` |
 | `history` | function blamed in resolved, resembling incidents | `resembles`, `likely_caused_by` |
 | `sequence` | candidate is in the deployment before the signature first appeared | `first_seen`, deployment ordering |
+| `centrality` | how central the changed code is | **`algo.pageRank`** over `Function`/`calls`, normalized to the top node |
 | `blast` | breadth of the change (penalty) | `calls*1..3` callers |
 
 Verdicts: `confident` needs a stack-level link (`path` or `dependency`) and a score margin;

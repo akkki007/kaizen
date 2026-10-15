@@ -102,6 +102,16 @@ async def test_s1_end_to_end(
         {"i": incident_id},
     ) == [[culprit]]
 
+    # the guilty path is highlighted in the evidence graph the UI renders
+    from causaldeploy.graph.evidence import evidence_graph
+
+    g = evidence_graph(store, incident_id)
+    assert g is not None
+    hl_nodes = {n.id for n in g.nodes if n.highlight}
+    assert f"Commit:{culprit}" in hl_nodes
+    assert "Function:payments:src/payment/validation.js:validatePayment" in hl_nodes
+    assert any(e.rel == "modifies_fn" and e.highlight for e in g.edges)
+
     # 4. the agent explains it with cited, validated evidence
     good = {
         "verdict": "confident",

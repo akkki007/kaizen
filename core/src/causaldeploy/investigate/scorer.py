@@ -24,7 +24,9 @@ WEIGHTS: dict[str, float] = {
     "dependency": 0.10,
     "msg_sim": 0.05,
     "history": 0.10,
-    "sequence": 0.10,
+    "sequence": 0.05,
+    # FalkorDB built-in algorithm (algo.pageRank over `calls`): how central the changed code is
+    "centrality": 0.05,
     "blast": -0.10,  # mild penalty so the biggest diff is not blamed by default
 }
 TAU_SECONDS = 600.0
