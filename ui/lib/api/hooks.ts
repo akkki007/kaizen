@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { ApiError, MOCK, api, redirectToLogin, unwrap } from "./client";
 
 export function useMe() {
@@ -63,6 +63,15 @@ export function useIncidentDetail(incidentId: string) {
       unwrap(await api.GET("/api/v1/incidents/{incident_id}", { params: { path: { incident_id: incidentId } } })),
     refetchInterval: (q) => (q.state.data?.investigation.status === "not_run" ? 4_000 : false),
     retry: (count, err) => !(err instanceof ApiError && err.status === 404) && count < 2,
+  });
+}
+
+export function fetchIncidentDetail(qc: QueryClient, incidentId: string) {
+  return qc.fetchQuery({
+    queryKey: ["incident-detail", incidentId],
+    staleTime: 5_000,
+    queryFn: async () =>
+      unwrap(await api.GET("/api/v1/incidents/{incident_id}", { params: { path: { incident_id: incidentId } } })),
   });
 }
 
