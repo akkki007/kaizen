@@ -1,0 +1,48 @@
+id: S9
+title: Refactor renames and moves the culprit function
+split: test
+variants:
+  - { limit: 500 }
+  - { limit: 600 }
+  - { limit: 700 }
+commits:
+  - message: "refactor(payments): move amount rules to rules.js"
+    culprit: true
+    edits:
+      - file: services/payments/src/payment/rules.js
+        create: |
+          // Per-payment amount rules.
+          const MAX_AMOUNT = {{limit}};
+
+          function checkAmount(payment) {
+            if (!Number.isFinite(payment.amount) || payment.amount <= 0) return ["amount must be > 0"];
+            if (payment.amount > MAX_AMOUNT) return ["amount exceeds limit"];
+            return [];
+          }
+
+          module.exports = { checkAmount };
+      - file: services/payments/src/payment/validation.js
+        find: |
+          // Upper bound for a single payment (fraud guard).
+          const MAX_AMOUNT = 30000;
+
+          function validateAmount(payment) {
+            if (!Number.isFinite(payment.amount) || payment.amount <= 0) return ["amount must be > 0"];
+            if (payment.amount > MAX_AMOUNT) return ["amount exceeds limit"];
+            return [];
+          }
+        replace: |
+          const { checkAmount } = require("./rules");
+      - file: services/payments/src/payment/validation.js
+        find: "errors.push(...validateAmount(payment),"
+        replace: "errors.push(...checkAmount(payment),"
+      - file: services/payments/src/payment/validation.js
+        find: "module.exports = { validatePayment, validateAmount, SUPPORTED_CURRENCIES };"
+        replace: "module.exports = { validatePayment, SUPPORTED_CURRENCIES };"
+ground_truth:
+  culprit_function: "payments:services/payments/src/payment/rules.js:checkAmount"
+  moved_from: "payments:services/payments/src/payment/validation.js:validateAmount"
+  affected_services: [payments, orders, gateway]
+  expected_fix: revert
+  expected_partial_failure: true
+expect: { min_error_rate: 0.005 }

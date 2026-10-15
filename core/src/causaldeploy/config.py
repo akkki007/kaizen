@@ -51,6 +51,14 @@ class Settings(BaseSettings):
 
     # Investigation tunables (PLAN.md §8)
     lookback_hours: int = Field(24, ge=1)
+    # Detection: error rate / p95 per service+endpoint in fixed windows vs. a rolling baseline
+    detect_window_seconds: int = Field(30, ge=5)
+    detect_baseline_minutes: int = Field(10, ge=1)
+    detect_min_requests: int = Field(5, ge=1)  # windows with fewer requests are ignored
+    detect_min_error_delta: float = Field(0.10, gt=0, le=1)  # absolute rise over baseline
+    detect_sigma: float = Field(3.0, gt=0)
+    detect_consecutive: int = Field(2, ge=1)  # anomalous windows in a row before opening
+    detect_p95_factor: float = Field(3.0, gt=1)
     telemetry_retention_days: int = Field(14, ge=1)
 
     @field_validator("github_app_private_key", mode="before")

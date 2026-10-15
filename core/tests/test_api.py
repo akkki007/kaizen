@@ -310,7 +310,9 @@ async def test_oauth_login_flow_sets_session_and_roles(
         assert state
 
         wrong = await client.get("/auth/callback?code=c&state=wrong", follow_redirects=False)
-        assert wrong.status_code == 302 and wrong.headers["location"].endswith("/login?error=expired")
+        assert wrong.status_code == 302 and wrong.headers["location"].endswith(
+            "/login?error=expired"
+        )
         # a failed attempt consumed the OAuth state: sign in again
         await client.get("/auth/login", follow_redirects=False)
         state = client.cookies.get("cd_oauth_state")
@@ -668,7 +670,9 @@ async def test_login_passes_next_and_origin_through_to_the_callback(
             m.get("https://api.github.com/user/installations/9/repositories").mock(
                 return_value=httpx.Response(
                     200,
-                    json={"repositories": [{"full_name": "acme/shop", "permissions": {"push": True}}]},
+                    json={
+                        "repositories": [{"full_name": "acme/shop", "permissions": {"push": True}}]
+                    },
                 )
             )
             state = client.cookies.get("cd_oauth_state")

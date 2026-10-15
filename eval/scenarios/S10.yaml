@@ -1,0 +1,39 @@
+id: S10
+title: Culprit commit alongside unrelated flaky endpoint errors
+split: test
+variants:
+  - { limit: 2, rate: 0.3 }
+  - { limit: 2, rate: 0.5 }
+  - { limit: 2, rate: 0.7 }
+commits:
+  - message: "feat(gateway): serve /orders from a short-lived cache"
+    edits:
+      - file: services/gateway/src/app.js
+        find: '  app.get("/orders", forward(ordersUrl, "/orders"));'
+        replace: |
+          app.get("/orders", (_req, _res, next) => {
+              if (Math.random() < {{rate}}) return next(new Error("orders cache backend timeout"));
+              return next();
+            }, forward(ordersUrl, "/orders"));
+  - message: "feat(orders): enforce a per-line quantity limit"
+    culprit: true
+    edits:
+      - file: services/orders/src/pricing.js
+        find: |
+          function lineCents(product, quantity) {
+            return toCents(product.price) * quantity;
+        replace: |
+          function lineCents(product, quantity) {
+            if (quantity > {{limit}}) {
+              const err = new Error(`quantity limit exceeded for ${product.id}`);
+              err.status = 400;
+              err.expose = true;
+              throw err;
+            }
+            return toCents(product.price) * quantity;
+ground_truth:
+  culprit_function: "orders:services/orders/src/pricing.js:lineCents"
+  affected_services: [orders, gateway]
+  expected_fix: revert
+  distractor_function: "gateway:services/gateway/src/app.js:GET /orders"
+expect: { min_error_rate: 0.1 }

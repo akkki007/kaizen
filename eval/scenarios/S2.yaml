@@ -1,0 +1,35 @@
+id: S2
+title: Two functions changed in one file, only one is on the failing path
+split: test
+variants:
+  - { limit: 20 }
+  - { limit: 40 }
+  - { limit: 80 }
+commits:
+  - message: "refactor(payments): wallet limits and method normalisation"
+    culprit: true
+    edits:
+      - file: services/payments/src/payment/validation.js
+        find: |
+          function validateMethod(payment) {
+            return payment.method && METHOD_TYPES.includes(payment.method.type)
+        replace: |
+          function validateMethod(payment) {
+            if (payment.method && typeof payment.method.type === "string") {
+              payment.method.type = payment.method.type.trim();
+            }
+            return payment.method && METHOD_TYPES.includes(payment.method.type)
+      - file: services/payments/src/payment/validation.js
+        find: |
+          function validateAmount(payment) {
+            if (!Number.isFinite(payment.amount) || payment.amount <= 0) return ["amount must be > 0"];
+        replace: |
+          function validateAmount(payment) {
+            if (!Number.isFinite(payment.amount) || payment.amount <= 0) return ["amount must be > 0"];
+            if (payment.currency === "EUR" && payment.method && payment.method.type === "wallet"
+              && payment.amount > {{limit}}) return ["wallet limit exceeded"];
+ground_truth:
+  culprit_function: "payments:services/payments/src/payment/validation.js:validateAmount"
+  affected_services: [payments, orders, gateway]
+  expected_fix: revert
+expect: { min_error_rate: 0.015 }

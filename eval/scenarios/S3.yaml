@@ -1,0 +1,47 @@
+id: S3
+title: A deployment bundles five commits, one is the culprit
+split: tune
+variants:
+  - { limit: 2 }
+commits:
+  - message: "docs(orders): describe order statuses"
+    edits:
+      - file: README.md
+        find: "## Request flow\n"
+        replace: "## Request flow\n\nOrder statuses: pending, paid, payment_failed, cancelled.\n"
+  - message: "chore(orders): log catalog size at startup path"
+    edits:
+      - file: services/orders/src/catalog.js
+        find: "const byId = (id) => PRODUCTS.find((p) => p.id === id);"
+        replace: "// Lookup helper used by pricing and the product routes.\nconst byId = (id) => PRODUCTS.find((p) => p.id === id);"
+  - message: "feat(orders): enforce a per-line quantity limit"
+    culprit: true
+    edits:
+      - file: services/orders/src/pricing.js
+        find: |
+          function lineCents(product, quantity) {
+            return toCents(product.price) * quantity;
+        replace: |
+          function lineCents(product, quantity) {
+            if (quantity > {{limit}}) {
+              const err = new Error(`quantity limit exceeded for ${product.id}`);
+              err.status = 400;
+              err.expose = true;
+              throw err;
+            }
+            return toCents(product.price) * quantity;
+  - message: "docs(gateway): note the body limit"
+    edits:
+      - file: README.md
+        find: "## Request flow\n"
+        replace: "## Request flow\n\nThe gateway rejects bodies over 100kb.\n"
+  - message: "chore(payments): tidy comment"
+    edits:
+      - file: services/payments/src/payment/store.js
+        find: "class PaymentStore {"
+        replace: "// In-memory payment store.\nclass PaymentStore {"
+ground_truth:
+  culprit_function: "orders:services/orders/src/pricing.js:lineCents"
+  affected_services: [orders, gateway]
+  expected_fix: revert
+expect: { min_error_rate: 0.05 }

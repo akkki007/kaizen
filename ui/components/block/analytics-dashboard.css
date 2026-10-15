@@ -3396,3 +3396,44 @@
     display: none;
   }
 }
+
+/* ───────── Incident investigation (suspects, score breakdown, agent trace) ───────── */
+
+.obsidian-analytics-dashboard .muted { color: var(--text-3); font-size: 13px; }
+.obsidian-analytics-dashboard .verdict { display: flex; align-items: center; gap: 6px; margin: 4px 0 12px; font-size: 13px; color: var(--text-2); }
+.obsidian-analytics-dashboard .verdict[data-verdict="confident"] { color: #2fd06f; }
+.obsidian-analytics-dashboard .verdict[data-verdict="wrong"] { color: #f0605d; }
+.obsidian-analytics-dashboard .verdict[data-verdict="ambiguous"] { color: #e6a23c; }
+.obsidian-analytics-dashboard .verdict code, .obsidian-analytics-dashboard .suspect code { font-family: var(--obsidian-analytics-dashboard-font-mono); font-size: 12px; }
+.obsidian-analytics-dashboard .suspects { display: grid; gap: 8px; list-style: none; }
+.obsidian-analytics-dashboard .suspect { border-radius: 12px; background: var(--fill-1); box-shadow: var(--ring); }
+.obsidian-analytics-dashboard .suspect[data-top="true"] { box-shadow: var(--ring-strong); background: var(--fill-2); }
+.obsidian-analytics-dashboard .suspect-head { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; width: 100%; padding: 10px 12px; text-align: left; border-radius: 12px; }
+.obsidian-analytics-dashboard .suspect-rank { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.obsidian-analytics-dashboard .suspect-main { display: grid; gap: 2px; min-width: 0; }
+.obsidian-analytics-dashboard .suspect-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obsidian-analytics-dashboard .suspect-meta { color: var(--text-3); font-size: 12px; }
+.obsidian-analytics-dashboard .suspect-score { display: grid; justify-items: end; }
+.obsidian-analytics-dashboard .suspect-score small { color: var(--text-3); }
+.obsidian-analytics-dashboard .suspect-body { padding: 4px 12px 12px; display: grid; gap: 10px; }
+.obsidian-analytics-dashboard .feats { display: grid; gap: 6px; list-style: none; }
+.obsidian-analytics-dashboard .feat-line { display: grid; grid-template-columns: 84px 1fr 40px 56px auto; gap: 10px; align-items: center; font-size: 13px; }
+.obsidian-analytics-dashboard .feat-name { color: var(--text-2); }
+.obsidian-analytics-dashboard .feat-bar { height: 6px; border-radius: 3px; background: var(--fill-2); overflow: hidden; }
+.obsidian-analytics-dashboard .feat-bar i { display: block; height: 100%; border-radius: 3px; background: #4aa8ff; }
+.obsidian-analytics-dashboard .feat-bar[data-negative="true"] i { background: #e6a23c; }
+.obsidian-analytics-dashboard .feat-val, .obsidian-analytics-dashboard .feat-contrib { font-variant-numeric: tabular-nums; text-align: right; color: var(--text-2); }
+.obsidian-analytics-dashboard .feat-query { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 6px; background: var(--fill-1); color: var(--text-3); }
+.obsidian-analytics-dashboard .feat-cypher { margin: 6px 0 2px; padding: 10px 12px; border-radius: 8px; background: var(--fill-1); font: 12px/1.5 var(--obsidian-analytics-dashboard-font-mono); overflow-x: auto; white-space: pre; }
+.obsidian-analytics-dashboard .suspect-path { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--text-3); }
+.obsidian-analytics-dashboard .suspect-path code { padding: 2px 6px; border-radius: 6px; background: var(--fill-1); color: var(--text-2); }
+.obsidian-analytics-dashboard .trace { display: grid; gap: 10px; list-style: none; }
+.obsidian-analytics-dashboard .trace > li { display: grid; grid-template-columns: 24px 1fr; gap: 10px; }
+.obsidian-analytics-dashboard .trace-n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--fill-2); font-size: 12px; }
+.obsidian-analytics-dashboard .trace-line { display: flex; gap: 8px; align-items: baseline; }
+.obsidian-analytics-dashboard .trace-ms, .obsidian-analytics-dashboard .trace-sum { color: var(--text-3); font-size: 12px; }
+.obsidian-analytics-dashboard .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.obsidian-analytics-dashboard .chip { padding: 1px 6px; border-radius: 6px; background: var(--fill-1); font: 11px var(--obsidian-analytics-dashboard-font-mono); color: var(--text-2); }
+.obsidian-analytics-dashboard .explain { margin-top: 14px; display: grid; gap: 8px; }
+.obsidian-analytics-dashboard .explain h3 { font-size: 13px; color: var(--text-2); }
+.obsidian-analytics-dashboard .explain ul { display: grid; gap: 10px; list-style: none; }

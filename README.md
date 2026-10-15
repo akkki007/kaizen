@@ -17,8 +17,8 @@ before anything ships.
 | #85 ShopLite (app, seeded history, 28 failure-scenario variants, pipelines) | built and verified, lives in its own repo |
 | #86 GitHub App, webhooks, backfill, analyzer, hunk-to-function mapping | built; verified in production |
 | #87 FalkorDB schema, 6 core queries, evidence graph, ops | built and tested |
-| #93 Web UI | scaffold + analytics dashboard on incident data; incident detail and evidence graph **not built** |
-| #88/#89 incident detection and ranking, #90 agent, #91 remediation, #92 eval | **not started**: no incident is opened automatically yet |
+| #88 detection, #89 ranking, #90 MCP agent, #91 revert-first remediation, #92 eval | **built** on `feat/issue-88..92` branches (see below) |
+| #93 Web UI | scaffold, dashboard, incident page with suspects, per-feature Cypher, graph-off toggle, agent trace, fix + verification |
 
 Full evidence per acceptance item: [`docs/verification.md`](docs/verification.md).
 

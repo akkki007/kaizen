@@ -1,0 +1,25 @@
+id: S6
+title: Environment/config change, no code diff
+split: test
+variants:
+  - { port: 4004 }
+  - { port: 4403 }
+  - { port: 4030 }
+commits:
+  - message: "chore(deploy): move payments to a new port"
+    culprit: true
+    edits:
+      - file: docker-compose.prod.yml
+        find: "      <<: *telemetry\n      PAYMENTS_URL: http://payments:4003\n    networks: [default]\n  gateway:"
+        replace: "      <<: *telemetry\n      PAYMENTS_URL: http://payments:{{port}}\n    networks: [default]\n  gateway:"
+      - file: docker-compose.yml
+        find: "      <<: *telemetry\n      PAYMENTS_URL: http://payments:4003\n    depends_on: [payments]"
+        replace: "      <<: *telemetry\n      PAYMENTS_URL: http://payments:{{port}}\n    depends_on: [payments]"
+env_override: { orders: { PAYMENTS_URL: "http://127.0.0.1:{{port}}" } }
+ground_truth:
+  culprit_file: docker-compose.prod.yml
+  culprit_function: null
+  affected_services: [orders, gateway]
+  expected_fix: config
+  code_bug: false
+expect: { min_error_rate: 0.3 }

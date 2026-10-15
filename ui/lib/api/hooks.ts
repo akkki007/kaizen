@@ -53,6 +53,55 @@ export function useEvidenceGraph(incidentId: string, expand?: string) {
   });
 }
 
+export type RankMethod = "graph" | "b0" | "b1";
+
+/** Incident, deterministic ranking (with the Cypher behind each feature) and the agent trace. */
+export function useIncidentDetail(incidentId: string) {
+  return useQuery({
+    queryKey: ["incident-detail", incidentId],
+    queryFn: async () =>
+      unwrap(await api.GET("/api/v1/incidents/{incident_id}", { params: { path: { incident_id: incidentId } } })),
+    refetchInterval: (q) => (q.state.data?.investigation.status === "not_run" ? 4_000 : false),
+    retry: (count, err) => !(err instanceof ApiError && err.status === 404) && count < 2,
+  });
+}
+
+export function useProposeFix(incidentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/api/v1/incidents/{incident_id}/remediations", { params: { path: { incident_id: incidentId } } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["incident-detail", incidentId] }),
+  });
+}
+
+export function useApproveFix(incidentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (remediationId: string) =>
+      unwrap(
+        await api.POST("/api/v1/remediations/{remediation_id}/approve", {
+          params: { path: { remediation_id: remediationId } },
+        }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["incident-detail", incidentId] }),
+  });
+}
+
+/** Baseline rankings (no graph traversal) for the "graph off" comparison. */
+export function useBaseline(incidentId: string, method: Exclude<RankMethod, "graph">, enabled: boolean) {
+  return useQuery({
+    queryKey: ["rank", incidentId, method],
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await api.POST("/api/v1/incidents/{incident_id}/rank", {
+          params: { path: { incident_id: incidentId }, query: { method } },
+        }),
+      ),
+  });
+}
+
 export function useLlmCost(incidentId: string) {
   return useQuery({
     queryKey: ["llm-cost", incidentId],

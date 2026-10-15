@@ -4,7 +4,7 @@ import { toDashboardData } from "../dashboard-data";
 const NOW = Date.parse("2026-10-11T12:00:00Z");
 const min = (m: number) => new Date(NOW - m * 60_000).toISOString();
 const incident = (id: string, service: string, status: string, detected: number, onset: number) => ({
-  id, repo: "acme/shop", service, env: "production", status, detected_at: min(detected), onset_ts: min(onset),
+  id, repo: "acme/shop", service, env: "production", endpoint: "POST /orders", status, detected_at: min(detected), onset_ts: min(onset),
 });
 
 describe("toDashboardData", () => {

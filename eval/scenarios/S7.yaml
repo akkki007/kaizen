@@ -1,0 +1,23 @@
+id: S7
+title: Old commit, latent bug triggered by a new traffic pattern
+split: test
+variants:
+  - { frac: 0.15 }
+  - { frac: 0.25 }
+  - { frac: 0.5 }
+commits:
+  - message: "feat(orders): keep a trimmed copy of customer notes"
+    culprit: true
+    edits:
+      - file: services/orders/src/app.js
+        find: |
+          notes: typeof notes === "string" ? notes.trim().slice(0, 200) : undefined };
+        replace: |
+          notes: notes && notes.trim().slice(0, 200) };
+traffic_shift: { notes_numeric: "{{frac}}" }
+ground_truth:
+  culprit_function: "orders:services/orders/src/app.js:POST /orders"
+  affected_services: [orders, gateway]
+  expected_fix: patch
+  latent: true
+expect: { baseline_max_error_rate: 0.01, shifted_min_error_rate: 0.04 }

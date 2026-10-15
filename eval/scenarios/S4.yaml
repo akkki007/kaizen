@@ -1,0 +1,19 @@
+id: S4
+title: Bug in orders, symptom appears in payments
+split: test
+variants:
+  - { expr: "order.subtotalCents" }
+  - { expr: "order.totalCents + 1" }
+  - { expr: "order.lines[0].cents" }
+commits:
+  - message: "refactor(orders): pass the net amount to payments"
+    culprit: true
+    edits:
+      - file: services/orders/src/app.js
+        find: "amountCents: order.totalCents, currency, method,"
+        replace: "amountCents: currency === \"GBP\" ? {{expr}} : order.totalCents, currency, method,"
+ground_truth:
+  culprit_function: "orders:services/orders/src/app.js:POST /orders"
+  affected_services: [payments, orders, gateway]
+  expected_fix: revert
+expect: { min_error_rate: 0.02 }

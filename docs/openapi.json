@@ -209,6 +209,67 @@
         "title": "EvidenceNode",
         "type": "object"
       },
+      "EvidencePair": {
+        "properties": {
+          "changed_function": {
+            "title": "Changed Function",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "thrown_function": {
+            "title": "Thrown Function",
+            "type": "string"
+          }
+        },
+        "required": [
+          "changed_function",
+          "thrown_function",
+          "error"
+        ],
+        "title": "EvidencePair",
+        "type": "object"
+      },
+      "FeatureValue": {
+        "properties": {
+          "contribution": {
+            "title": "Contribution",
+            "type": "number"
+          },
+          "cypher": {
+            "title": "Cypher",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "weight",
+          "contribution",
+          "query",
+          "cypher"
+        ],
+        "title": "FeatureValue",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -220,6 +281,37 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IncidentDetail": {
+        "properties": {
+          "incident": {
+            "$ref": "#/components/schemas/IncidentSummary"
+          },
+          "investigation": {
+            "$ref": "#/components/schemas/InvestigationView"
+          },
+          "ranking": {
+            "$ref": "#/components/schemas/RankResult"
+          },
+          "remediation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RemediationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "incident",
+          "ranking",
+          "investigation",
+          "remediation"
+        ],
+        "title": "IncidentDetail",
         "type": "object"
       },
       "IncidentPage": {
@@ -261,6 +353,10 @@
             "title": "Detected At",
             "type": "string"
           },
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          },
           "env": {
             "title": "Env",
             "type": "string"
@@ -292,11 +388,66 @@
           "repo",
           "service",
           "env",
+          "endpoint",
           "status",
           "onset_ts",
           "detected_at"
         ],
         "title": "IncidentSummary",
+        "type": "object"
+      },
+      "InvestigationView": {
+        "properties": {
+          "explanation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/TraceStep"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "validation_errors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Validation Errors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "explanation",
+          "steps",
+          "validation_errors"
+        ],
+        "title": "InvestigationView",
         "type": "object"
       },
       "LlmCost": {
@@ -353,6 +504,252 @@
           "key"
         ],
         "title": "NewKey",
+        "type": "object"
+      },
+      "RankResult": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/RankedCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "margin": {
+            "title": "Margin",
+            "type": "number"
+          },
+          "method": {
+            "enum": [
+              "graph",
+              "b0",
+              "b1"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "confident",
+              "ambiguous",
+              "no_code_evidence",
+              "no_candidates"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "method",
+          "verdict",
+          "margin",
+          "candidates"
+        ],
+        "title": "RankResult",
+        "type": "object"
+      },
+      "RankedCandidate": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "deployment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployment"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidencePair"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureValue"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha",
+          "message",
+          "author",
+          "deployment",
+          "rank",
+          "score",
+          "confidence",
+          "features",
+          "evidence"
+        ],
+        "title": "RankedCandidate",
+        "type": "object"
+      },
+      "RemediationView": {
+        "properties": {
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
+          "sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "sha",
+          "branch",
+          "pr_url",
+          "approved_by",
+          "verification"
+        ],
+        "title": "RemediationView",
+        "type": "object"
+      },
+      "TraceStep": {
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "title": "Args",
+            "type": "object"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "node_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Node Ids",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "n",
+          "name",
+          "summary",
+          "latency_ms",
+          "node_ids",
+          "args"
+        ],
+        "title": "TraceStep",
         "type": "object"
       },
       "User": {
@@ -559,6 +956,62 @@
         "summary": "List Incidents"
       }
     },
+    "/api/v1/incidents/{incident_id}": {
+      "get": {
+        "description": "Everything the incident page needs: suspects with feature queries, agent trace, status.",
+        "operationId": "get_incident_detail_api_v1_incidents__incident_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Incident Detail"
+      }
+    },
     "/api/v1/incidents/{incident_id}/evidence-graph": {
       "get": {
         "operationId": "get_evidence_graph_api_v1_incidents__incident_id__evidence_graph_get",
@@ -683,6 +1136,169 @@
           }
         },
         "summary": "Incident Llm Cost"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/rank": {
+      "post": {
+        "description": "Ranked suspect commits with the per-feature breakdown and the Cypher behind each value.\n\n`method=b0|b1` returns the baselines (no graph traversal) for the \"graph off\" comparison;\nonly the graph ranking is persisted.",
+        "operationId": "rank_incident_api_v1_incidents__incident_id__rank_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "method",
+            "required": false,
+            "schema": {
+              "default": "graph",
+              "enum": [
+                "graph",
+                "b0",
+                "b1"
+              ],
+              "title": "Method",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rank Incident"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/remediations": {
+      "post": {
+        "description": "Approver-only: open a revert PR for the top-ranked commit and start verification.",
+        "operationId": "propose_remediation_api_v1_incidents__incident_id__remediations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Csrf"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Propose Remediation Api V1 Incidents  Incident Id  Remediations Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose Remediation"
       }
     },
     "/api/v1/jobs/{job_id}": {

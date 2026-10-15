@@ -37,6 +37,14 @@ def _ts(value: str | None) -> datetime:
 
 
 def normalize(event_type: str, p: dict[str, Any]) -> list[Event]:
+    """Malformed or partial payloads yield no events instead of failing the delivery."""
+    try:
+        return _normalize(event_type, p)
+    except (KeyError, ValueError, TypeError):
+        return []
+
+
+def _normalize(event_type: str, p: dict[str, Any]) -> list[Event]:
     """GitHub webhook -> internal events. `push` is handled by the incremental backfill job."""
     repo = (p.get("repository") or {}).get("full_name")
     if not repo:

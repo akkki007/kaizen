@@ -41,6 +41,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/incidents/{incident_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Incident Detail
+         * @description Everything the incident page needs: suspects with feature queries, agent trace, status.
+         */
+        get: operations["get_incident_detail_api_v1_incidents__incident_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/incidents/{incident_id}/evidence-graph": {
         parameters: {
             query?: never;
@@ -69,6 +89,49 @@ export interface paths {
         get: operations["incident_llm_cost_api_v1_incidents__incident_id__llm_cost_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/incidents/{incident_id}/rank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rank Incident
+         * @description Ranked suspect commits with the per-feature breakdown and the Cypher behind each value.
+         *
+         *     `method=b0|b1` returns the baselines (no graph traversal) for the "graph off" comparison;
+         *     only the graph ranking is persisted.
+         */
+        post: operations["rank_incident_api_v1_incidents__incident_id__rank_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/incidents/{incident_id}/remediations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose Remediation
+         * @description Approver-only: open a revert PR for the top-ranked commit and start verification.
+         */
+        post: operations["propose_remediation_api_v1_incidents__incident_id__remediations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -403,10 +466,41 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** EvidencePair */
+        EvidencePair: {
+            /** Changed Function */
+            changed_function: string;
+            /** Error */
+            error: string;
+            /** Thrown Function */
+            thrown_function: string;
+        };
+        /** FeatureValue */
+        FeatureValue: {
+            /** Contribution */
+            contribution: number;
+            /** Cypher */
+            cypher: string;
+            /** Name */
+            name: string;
+            /** Query */
+            query: string;
+            /** Value */
+            value: number;
+            /** Weight */
+            weight: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** IncidentDetail */
+        IncidentDetail: {
+            incident: components["schemas"]["IncidentSummary"];
+            investigation: components["schemas"]["InvestigationView"];
+            ranking: components["schemas"]["RankResult"];
+            remediation: components["schemas"]["RemediationView"] | null;
         };
         /**
          * IncidentPage
@@ -429,6 +523,8 @@ export interface components {
              * Format: date-time
              */
             detected_at: string;
+            /** Endpoint */
+            endpoint: string;
             /** Env */
             env: string;
             /** Id */
@@ -444,6 +540,21 @@ export interface components {
             service: string;
             /** Status */
             status: string;
+        };
+        /** InvestigationView */
+        InvestigationView: {
+            /** Explanation */
+            explanation: {
+                [key: string]: unknown;
+            } | null;
+            /** Id */
+            id: number | null;
+            /** Status */
+            status: string;
+            /** Steps */
+            steps: components["schemas"]["TraceStep"][];
+            /** Validation Errors */
+            validation_errors: string[];
         };
         /** LlmCost */
         LlmCost: {
@@ -466,6 +577,84 @@ export interface components {
             id: number;
             /** Key */
             key: string;
+        };
+        /** RankResult */
+        RankResult: {
+            /** Candidates */
+            candidates: components["schemas"]["RankedCandidate"][];
+            /** Incident Id */
+            incident_id: string;
+            /** Margin */
+            margin: number;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "graph" | "b0" | "b1";
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "confident" | "ambiguous" | "no_code_evidence" | "no_candidates";
+        };
+        /** RankedCandidate */
+        RankedCandidate: {
+            /** Author */
+            author: string | null;
+            /** Confidence */
+            confidence: number;
+            /** Deployment */
+            deployment: string | null;
+            /** Evidence */
+            evidence: components["schemas"]["EvidencePair"][];
+            /** Features */
+            features: components["schemas"]["FeatureValue"][];
+            /** Message */
+            message: string;
+            /** Rank */
+            rank: number;
+            /** Score */
+            score: number;
+            /** Sha */
+            sha: string;
+        };
+        /** RemediationView */
+        RemediationView: {
+            /** Approved By */
+            approved_by: string | null;
+            /** Branch */
+            branch: string | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Pr Url */
+            pr_url: string | null;
+            /** Sha */
+            sha: string | null;
+            /** Status */
+            status: string;
+            /** Verification */
+            verification: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** TraceStep */
+        TraceStep: {
+            /** Args */
+            args: {
+                [key: string]: unknown;
+            };
+            /** Latency Ms */
+            latency_ms: number;
+            /** N */
+            n: number;
+            /** Name */
+            name: string;
+            /** Node Ids */
+            node_ids: string[];
+            /** Summary */
+            summary: string;
         };
         /** User */
         User: {
@@ -569,6 +758,39 @@ export interface operations {
             };
         };
     };
+    get_incident_detail_api_v1_incidents__incident_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_evidence_graph_api_v1_incidents__incident_id__evidence_graph_get: {
         parameters: {
             query?: {
@@ -624,6 +846,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LlmCost"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rank_incident_api_v1_incidents__incident_id__rank_post: {
+        parameters: {
+            query?: {
+                method?: "graph" | "b0" | "b1";
+            };
+            header?: never;
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RankResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_remediation_api_v1_incidents__incident_id__remediations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */

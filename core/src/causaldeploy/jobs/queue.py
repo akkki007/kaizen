@@ -14,7 +14,15 @@ from causaldeploy.db.models import JobRecord
 from causaldeploy.db.session import session_scope
 from causaldeploy.observability import inject_trace
 
-JobKind = Literal["ingest_event", "backfill_repo"]
+JobKind = Literal[
+    "ingest_event",
+    "backfill_repo",
+    "investigate_incident",
+    "propose_fix",
+    "verify_result",
+    "remediation_merged",
+    "guard_pr",
+]
 MAX_ATTEMPTS = 5
 
 
@@ -27,7 +35,43 @@ class BackfillPayload(BaseModel):
     installation_id: int | None = None
 
 
+class InvestigatePayload(BaseModel):
+    repo: str
+    incident_id: str
+
+
+class ProposeFixPayload(BaseModel):
+    repo: str
+    incident_id: str
+
+
+class VerifyResultPayload(BaseModel):
+    repo: str
+    branch: str
+    conclusion: str
+    run_id: int
+    run_url: str
+    installation_id: int | None = None
+
+
+class GuardPayload(BaseModel):
+    repo: str
+    number: int
+    installation_id: int | None = None
+
+
+class MergedPayload(BaseModel):
+    repo: str
+    branch: str
+    merged_by: str
+
+
 PAYLOADS: dict[str, type[BaseModel]] = {
+    "guard_pr": GuardPayload,
+    "propose_fix": ProposeFixPayload,
+    "verify_result": VerifyResultPayload,
+    "remediation_merged": MergedPayload,
+    "investigate_incident": InvestigatePayload,
     "ingest_event": IngestEventPayload,
     "backfill_repo": BackfillPayload,
 }

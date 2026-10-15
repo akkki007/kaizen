@@ -17,6 +17,7 @@ from causaldeploy.db.models import (
     ApiKey,
     AuditLog,
     IncidentRow,
+    Investigation,
     JobRecord,
     LlmCall,
     RawEvent,
@@ -28,8 +29,18 @@ from causaldeploy.github.installations import INSTALL_EVENTS, record_installatio
 from causaldeploy.github.webhooks import normalize, verify_signature
 from causaldeploy.graph.evidence import EvidenceGraph, evidence_graph
 from causaldeploy.graph.store import GraphStore
-from causaldeploy.jobs.queue import BackfillPayload, IngestEventPayload, enqueue
+from causaldeploy.investigate.scorer import Method, RankResult, persist, rank
+from causaldeploy.jobs.queue import (
+    BackfillPayload,
+    GuardPayload,
+    IngestEventPayload,
+    MergedPayload,
+    ProposeFixPayload,
+    VerifyResultPayload,
+    enqueue,
+)
 from causaldeploy.observability import EVENTS_INGESTED
+from causaldeploy.remediate.service import BRANCH_PREFIX
 
 v1 = APIRouter(prefix="/api/v1")
 webhooks = APIRouter(prefix="/webhooks")
@@ -41,6 +52,7 @@ class IncidentSummary(BaseModel):
     repo: str
     service: str
     env: str
+    endpoint: str
     status: str
     onset_ts: datetime
     detected_at: datetime
@@ -134,6 +146,7 @@ async def list_incidents(
             repo=r.repo,
             service=r.service,
             env=r.env,
+            endpoint=r.endpoint,
             status=r.status,
             onset_ts=r.onset_ts,
             detected_at=r.detected_at,
@@ -162,6 +175,166 @@ async def get_evidence_graph(
     if graph is None:
         raise HTTPException(404, "incident has no evidence in the graph yet")
     return graph
+
+
+class TraceStep(BaseModel):
+    n: int
+    name: str
+    summary: str
+    latency_ms: float
+    node_ids: list[str]
+    args: dict[str, Any]
+
+
+class InvestigationView(BaseModel):
+    id: int | None
+    status: str  # explained | explanation_invalid | not_run
+    explanation: dict[str, Any] | None
+    steps: list[TraceStep]
+    validation_errors: list[str]
+
+
+class RemediationView(BaseModel):
+    id: str
+    kind: str
+    status: str  # proposing|verifying|verified|failed|needs_manual|approved|merged
+    sha: str | None
+    branch: str | None
+    pr_url: str | None
+    approved_by: str | None
+    verification: dict[str, Any] | None
+
+
+class IncidentDetail(BaseModel):
+    incident: IncidentSummary
+    ranking: RankResult  # deterministic, recomputed from the graph so it is always current
+    investigation: InvestigationView
+    remediation: RemediationView | None
+
+
+@v1.get("/incidents/{incident_id}", response_model=IncidentDetail)
+async def get_incident_detail(incident_id: str, user: CurrentUser) -> IncidentDetail:
+    """Everything the incident page needs: suspects with feature queries, agent trace, status."""
+    row = await _incident_for(user, incident_id)
+    store = GraphStore(row.repo)
+    ranking = await asyncio.to_thread(rank, store, incident_id, "graph")
+    async with session_scope() as s:
+        inv = (
+            await s.execute(
+                select(Investigation)
+                .where(Investigation.incident_id == incident_id)
+                .order_by(Investigation.id.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+    agent = (inv.result or {}).get("agent") if inv else None
+    steps = [
+        TraceStep(
+            n=st["n"],
+            name=st["name"],
+            summary=st["summary"],
+            latency_ms=st["latency_ms"],
+            node_ids=st["node_ids"],
+            args=st["args"],
+        )
+        for st in (agent or {}).get("steps", [])
+    ]
+    view = InvestigationView(
+        id=inv.id if inv else None,
+        status=(agent or {}).get("status", "not_run"),
+        explanation=(agent or {}).get("explanation"),
+        steps=steps,
+        validation_errors=(agent or {}).get("validation_errors", []),
+    )
+    summary = IncidentSummary(
+        id=row.id,
+        repo=row.repo,
+        service=row.service,
+        env=row.env,
+        endpoint=row.endpoint,
+        status=row.status,
+        onset_ts=row.onset_ts,
+        detected_at=row.detected_at,
+    )
+    async with session_scope() as s2:
+        rem = (
+            await s2.execute(
+                select(RemediationRun)
+                .where(RemediationRun.incident_id == incident_id)
+                .order_by(RemediationRun.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+    remediation = None
+    if rem:
+        r = rem.result or {}
+        remediation = RemediationView(
+            id=rem.id,
+            kind=rem.kind,
+            status=rem.status,
+            sha=r.get("sha"),
+            branch=r.get("branch"),
+            pr_url=r.get("pr_url"),
+            approved_by=rem.approved_by,
+            verification=r.get("verification"),
+        )
+    return IncidentDetail(
+        incident=summary, ranking=ranking, investigation=view, remediation=remediation
+    )
+
+
+@v1.post(
+    "/incidents/{incident_id}/remediations", status_code=202, dependencies=[Depends(csrf_protect)]
+)
+async def propose_remediation(incident_id: str, user: CurrentUser) -> dict[str, str]:
+    """Approver-only: open a revert PR for the top-ranked commit and start verification."""
+    row = await _incident_for(user, incident_id)
+    require_role(user, row.repo, "approver")
+    async with session_scope() as s:
+        live = (
+            await s.execute(
+                select(RemediationRun.id).where(
+                    RemediationRun.incident_id == incident_id,
+                    RemediationRun.status.in_(("proposing", "verifying", "verified", "approved")),
+                )
+            )
+        ).first()
+        if live:
+            raise HTTPException(409, "a remediation is already in progress for this incident")
+        s.add(
+            AuditLog(
+                actor=user.login,
+                action="remediation.propose",
+                target=incident_id,
+                detail={"repo": row.repo},
+            )
+        )
+    jid, _ = await enqueue(
+        "propose_fix",
+        ProposeFixPayload(repo=row.repo, incident_id=incident_id),
+        f"propose:{incident_id}:{secrets.token_hex(6)}",
+    )
+    return {"job_id": jid, "status": "queued"}
+
+
+@v1.post("/incidents/{incident_id}/rank", response_model=RankResult)
+async def rank_incident(
+    incident_id: str, user: CurrentUser, method: Method = "graph"
+) -> RankResult:
+    """Ranked suspect commits with the per-feature breakdown and the Cypher behind each value.
+
+    `method=b0|b1` returns the baselines (no graph traversal) for the "graph off" comparison;
+    only the graph ranking is persisted.
+    """
+    row = await _incident_for(user, incident_id)
+    store = GraphStore(row.repo)
+
+    def run() -> RankResult:
+        result = rank(store, incident_id, method)
+        persist(store, result)
+        return result
+
+    return await asyncio.to_thread(run)
 
 
 class LlmCost(BaseModel):
@@ -437,6 +610,52 @@ async def dispatch_github(delivery: str, event_type: str, payload: dict[str, Any
             f"push:{repo}:{payload.get('after')}",
         )
         ids.append(jid)
+    installation = (payload.get("installation") or {}).get("id")
+    if event_type == "workflow_run" and payload.get("action") == "completed" and repo:
+        run = payload.get("workflow_run") or {}
+        title = str(run.get("display_title") or "")
+        if run.get("name") == "verify" and title.startswith("verify " + BRANCH_PREFIX):
+            jid, _ = await enqueue(
+                "verify_result",
+                VerifyResultPayload(
+                    repo=repo,
+                    branch=title.removeprefix("verify ").strip(),
+                    conclusion=str(run.get("conclusion") or "failure"),
+                    run_id=int(run["id"]),
+                    run_url=str(run.get("html_url") or ""),
+                    installation_id=installation,
+                ),
+                f"verify:{repo}:{run['id']}",
+            )
+            ids.append(jid)
+    if (
+        event_type == "pull_request"
+        and payload.get("action") in ("opened", "synchronize", "reopened")
+        and repo
+    ):
+        pr = payload.get("pull_request") or {}
+        head = str((pr.get("head") or {}).get("ref") or "")
+        if not head.startswith(BRANCH_PREFIX):  # our own revert PRs need no warning
+            jid, _ = await enqueue(
+                "guard_pr",
+                GuardPayload(repo=repo, number=int(pr["number"]), installation_id=installation),
+                f"guard:{repo}:{pr['number']}:{(pr.get('head') or {}).get('sha')}",
+            )
+            ids.append(jid)
+    if event_type == "pull_request" and payload.get("action") == "closed" and repo:
+        pr = payload.get("pull_request") or {}
+        head = str((pr.get("head") or {}).get("ref") or "")
+        if pr.get("merged") and head.startswith(BRANCH_PREFIX):
+            jid, _ = await enqueue(
+                "remediation_merged",
+                MergedPayload(
+                    repo=repo,
+                    branch=head,
+                    merged_by=str((pr.get("merged_by") or {}).get("login") or "unknown"),
+                ),
+                f"merged:{repo}:{pr.get('number')}",
+            )
+            ids.append(jid)
     for i, ev in enumerate(normalize(event_type, payload)):
         jid, _ = await enqueue(
             "ingest_event",

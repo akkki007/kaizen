@@ -1,4 +1,4 @@
-.PHONY: env backfill bootstrap dev deps up down install lint test migrate schemas api worker ui eval seed \
+.PHONY: mcp env backfill bootstrap dev deps up down install lint test migrate schemas api worker ui eval seed \
         backup restore drill
 
 env:         ## .env from the team GitHub App in AWS Secrets Manager (needs AWS credentials)
@@ -47,6 +47,9 @@ schemas:     ## regenerate docs/schemas and docs/openapi.json after a contract c
 api:         ## API locally with reload
 	cd core && uv run uvicorn causaldeploy.api.main:app --reload --port 8000
 
+mcp:         ## graph tools over MCP (stdio): make mcp [REPO=owner/name]
+	cd core && uv run python -m causaldeploy.mcp_server --repo $(or $(REPO),yashchandnani07/shoplite)
+
 worker:
 	cd core && uv run arq causaldeploy.jobs.worker.WorkerSettings
 
@@ -62,8 +65,8 @@ restore:     ## make restore DIR=backups/<timestamp>
 drill:       ## backup -> destroy -> restore -> verify, on a throwaway project
 	./scripts/test-restore.sh
 
-eval:
-	@echo "eval harness not implemented yet (see issue #92)"
+eval:        ## graph vs. baselines on the seeded scenarios -> eval/reports/latest.md
+	cd core && uv run python -m causaldeploy.evalharness --out ../eval/reports/latest.md
 
 seed:
 	@echo "ShopLite lives in https://github.com/yashchandnani07/shoplite (history seeded, see docs/history.md there)"

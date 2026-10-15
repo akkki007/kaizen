@@ -1,0 +1,24 @@
+id: S8
+title: Recurrence of the S1 pattern in a different service
+split: tune
+variants:
+  - { cur: GBP, field: region }
+  - { cur: EUR, field: locale }
+  - { cur: GBP, field: country }
+commits:
+  - message: "feat(orders): log the customer region for tax reporting"
+    culprit: true
+    edits:
+      - file: services/orders/src/app.js
+        find: "      const priced = priceOrder(items);\n"
+        replace: |
+          if (currency === "{{cur}}") {
+            logger.info("regional order", { request_id: req.id, region: req.body.{{field}}.toUpperCase() });
+          }
+                const priced = priceOrder(items);
+ground_truth:
+  culprit_function: "orders:services/orders/src/app.js:POST /orders"
+  affected_services: [orders, gateway]
+  expected_fix: revert
+  resembles: S1
+expect: { min_error_rate: 0.02 }

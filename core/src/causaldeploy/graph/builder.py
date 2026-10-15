@@ -41,7 +41,19 @@ class GraphBuilder:
         s = self.store
         s.upsert_nodes("Service", [{"id": service}])
         s.upsert_nodes("File", [{"id": file_id, "path": path, "service": service}])
-        s.upsert_nodes("Function", [{"id": fid, "name": name, "path": path, "service": service}])
+        s.upsert_nodes(
+            "Function",
+            [
+                {
+                    "id": fid,
+                    "name": name,
+                    "path": path,
+                    "service": service,
+                    "start_line": 1,
+                    "end_line": 200,
+                }
+            ],
+        )
         edges = [
             Edge("File", file_id, "contains", "Function", fid),
             Edge("Function", fid, "belongs_to", "Service", service),
@@ -84,11 +96,26 @@ class GraphBuilder:
         return sha
 
     def deployment(
-        self, dep_id: str, env: str, commits: list[str], started_at: int, status: str = "success"
+        self,
+        dep_id: str,
+        env: str,
+        commits: list[str],
+        started_at: int,
+        status: str = "success",
+        finished_at: int | None = None,
     ) -> str:
         s = self.store
         s.upsert_nodes(
-            "Deployment", [{"id": dep_id, "env": env, "started_at": started_at, "status": status}]
+            "Deployment",
+            [
+                {
+                    "id": dep_id,
+                    "env": env,
+                    "started_at": started_at,
+                    "status": status,
+                    "finished_at": finished_at if finished_at is not None else started_at,
+                }
+            ],
         )
         s.upsert_nodes("Environment", [{"id": env}])
         s.upsert_edges(
@@ -105,9 +132,23 @@ class GraphBuilder:
         endpoint: str | None = None,
         message: str = "",
         count: int = 1,
+        service: str = "",
+        first_seen: int = 360,
     ) -> str:
         s = self.store
-        s.upsert_nodes("Error", [{"fingerprint": fingerprint, "message": message, "count": count}])
+        s.upsert_nodes(
+            "Error",
+            [
+                {
+                    "fingerprint": fingerprint,
+                    "message": message,
+                    "count": count,
+                    "service": service,
+                    "first_seen": first_seen,
+                    "last_seen": first_seen,
+                }
+            ],
+        )
         edges = [
             Edge("Error", fingerprint, "thrown_in", "Function", f, {"frame_depth": i})
             for i, f in enumerate(thrown_in)
@@ -126,9 +167,25 @@ class GraphBuilder:
         errors: list[str] | None = None,
         status: str = "open",
         detected_at: int = 0,
+        onset_ts: int = 360,
+        env: str = "prod",
+        endpoint: str = "",
     ) -> str:
         s = self.store
-        s.upsert_nodes("Incident", [{"id": inc_id, "status": status, "detected_at": detected_at}])
+        s.upsert_nodes(
+            "Incident",
+            [
+                {
+                    "id": inc_id,
+                    "status": status,
+                    "detected_at": detected_at,
+                    "onset_ts": onset_ts,
+                    "env": env,
+                    "service": service,
+                    "endpoint": endpoint,
+                }
+            ],
+        )
         edges = [Edge("Incident", inc_id, "affects", "Service", service)]
         edges += [Edge("Incident", inc_id, "evidenced_by", "Error", e) for e in errors or []]
         if deployment:
@@ -157,9 +214,19 @@ class GraphBuilder:
         noise = self.commit("n0000001", 100, files=["docs:README.md"], message="docs")
         bad = self.commit("c0ffee01", 200, modifies_fn=[v], message="Refactor payment validation")
         self.deployment("dep-842", "prod", [noise, bad], 300)
-        self.error("fp-undefined-currency", thrown_in=[v, h], endpoint="payments:POST /payments")
+        self.error(
+            "fp-undefined-currency",
+            thrown_in=[v, h],
+            endpoint="payments:POST /payments",
+            service="payments",
+            message="Cannot read properties of undefined (reading currency)",
+        )
         self.incident(
-            "inc-1", service="payments", deployment="dep-842", errors=["fp-undefined-currency"]
+            "inc-1",
+            service="payments",
+            deployment="dep-842",
+            errors=["fp-undefined-currency"],
+            endpoint="POST /payments",
         )
         return Scenario("S1", "inc-1", bad, [v], ["payments"], [noise, bad])
 
@@ -173,8 +240,16 @@ class GraphBuilder:
         decoy = self.commit("d3c0y001", 200, modifies_fn=[r], message="tidy receipt format")
         bad = self.commit("c0ffee02", 210, modifies_fn=[v], message="stricter validation")
         self.deployment("dep-2", "prod", [decoy, bad], 300)
-        self.error("fp-s2", thrown_in=[v, h], endpoint="payments:POST /payments")
-        self.incident("inc-2", service="payments", deployment="dep-2", errors=["fp-s2"])
+        self.error(
+            "fp-s2", thrown_in=[v, h], endpoint="payments:POST /payments", service="payments"
+        )
+        self.incident(
+            "inc-2",
+            service="payments",
+            deployment="dep-2",
+            errors=["fp-s2"],
+            endpoint="POST /payments",
+        )
         return Scenario("S2", "inc-2", bad, [v], ["payments"], [decoy, bad])
 
     def s3_five_commit_deployment(self) -> Scenario:
@@ -189,8 +264,14 @@ class GraphBuilder:
         ]
         bad = self.commit("c0ffee03", 150, modifies_fn=[v], message="refactor validation")
         self.deployment("dep-3", "prod", [*shas, bad], 300)
-        self.error("fp-s3", thrown_in=[v, h])
-        self.incident("inc-3", service="payments", deployment="dep-3", errors=["fp-s3"])
+        self.error("fp-s3", thrown_in=[v, h], service="payments")
+        self.incident(
+            "inc-3",
+            service="payments",
+            deployment="dep-3",
+            errors=["fp-s3"],
+            endpoint="POST /payments",
+        )
         return Scenario("S3", "inc-3", bad, [v], ["payments"], [*shas, bad])
 
     def s4_cross_service(self) -> Scenario:
@@ -204,8 +285,16 @@ class GraphBuilder:
         )
         bad = self.commit("c0ffee04", 200, modifies_fn=[create], message="send amount in cents")
         self.deployment("dep-4", "prod", [bad], 300)
-        self.error("fp-s4", thrown_in=[validate], endpoint="payments:POST /charge")
-        self.incident("inc-4", service="payments", deployment="dep-4", errors=["fp-s4"])
+        self.error(
+            "fp-s4", thrown_in=[validate], endpoint="payments:POST /charge", service="payments"
+        )
+        self.incident(
+            "inc-4",
+            service="payments",
+            deployment="dep-4",
+            errors=["fp-s4"],
+            endpoint="POST /charge",
+        )
         return Scenario("S4", "inc-4", bad, [create], ["payments", "orders", "gateway"], [bad])
 
     def s5_dependency_bump(self) -> Scenario:
@@ -219,6 +308,12 @@ class GraphBuilder:
             "c0ffee05", 200, files=["payments:package.json"], changes_dep=[new], message="bump"
         )
         self.deployment("dep-5", "prod", [bad], 300)
-        self.error("fp-s5", thrown_in=[fmt, h])
-        self.incident("inc-5", service="payments", deployment="dep-5", errors=["fp-s5"])
+        self.error("fp-s5", thrown_in=[fmt, h], service="payments")
+        self.incident(
+            "inc-5",
+            service="payments",
+            deployment="dep-5",
+            errors=["fp-s5"],
+            endpoint="POST /payments",
+        )
         return Scenario("S5", "inc-5", bad, [fmt], ["payments", "orders"], [bad])

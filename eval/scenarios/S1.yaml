@@ -1,0 +1,28 @@
+id: S1
+title: Payment validation refactor throws on a valid input
+split: tune
+variants:
+  - { cur: GBP, field: region }
+  - { cur: GBP, field: locale }
+  - { cur: GBP, field: country }
+commits:
+  - message: "refactor(payments): normalise currency handling per region"
+    culprit: true
+    edits:
+      - file: services/payments/src/payment/validation.js
+        find: |
+          function validateCurrency(payment) {
+            return SUPPORTED_CURRENCIES.includes(payment.currency) ? [] : ["unsupported currency"];
+          }
+        replace: |
+          function validateCurrency(payment) {
+            if (payment.currency === "{{cur}}") {
+              payment.{{field}} = payment.{{field}}.toUpperCase();
+            }
+            return SUPPORTED_CURRENCIES.includes(payment.currency) ? [] : ["unsupported currency"];
+          }
+ground_truth:
+  culprit_function: "payments:services/payments/src/payment/validation.js:validateCurrency"
+  affected_services: [payments, orders, gateway]
+  expected_fix: revert
+expect: { min_error_rate: 0.02 }
