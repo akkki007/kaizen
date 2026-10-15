@@ -32,6 +32,7 @@ from causaldeploy.graph.store import GraphStore
 from causaldeploy.investigate.scorer import Method, RankResult, persist, rank
 from causaldeploy.jobs.queue import (
     BackfillPayload,
+    GuardPayload,
     IngestEventPayload,
     MergedPayload,
     ProposeFixPayload,
@@ -625,6 +626,20 @@ async def dispatch_github(delivery: str, event_type: str, payload: dict[str, Any
                     installation_id=installation,
                 ),
                 f"verify:{repo}:{run['id']}",
+            )
+            ids.append(jid)
+    if (
+        event_type == "pull_request"
+        and payload.get("action") in ("opened", "synchronize", "reopened")
+        and repo
+    ):
+        pr = payload.get("pull_request") or {}
+        head = str((pr.get("head") or {}).get("ref") or "")
+        if not head.startswith(BRANCH_PREFIX):  # our own revert PRs need no warning
+            jid, _ = await enqueue(
+                "guard_pr",
+                GuardPayload(repo=repo, number=int(pr["number"]), installation_id=installation),
+                f"guard:{repo}:{pr['number']}:{(pr.get('head') or {}).get('sha')}",
             )
             ids.append(jid)
     if event_type == "pull_request" and payload.get("action") == "closed" and repo:

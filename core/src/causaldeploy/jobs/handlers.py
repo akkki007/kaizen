@@ -14,6 +14,7 @@ from causaldeploy.graph.store import GraphStore
 from causaldeploy.ingest.events import apply_event
 from causaldeploy.jobs.queue import (
     BackfillPayload,
+    GuardPayload,
     IngestEventPayload,
     InvestigatePayload,
     MergedPayload,
@@ -108,7 +109,20 @@ async def remediation_merged(payload: dict[str, Any]) -> None:
         await finalize_merged(job.repo, job.branch, job.merged_by)
 
 
+async def guard_pr(payload: dict[str, Any]) -> None:
+    from causaldeploy.guardian.service import review_pr
+
+    job = GuardPayload.model_validate(payload)
+    if not get_settings().is_allowed(job.repo):
+        return
+    installation = job.installation_id or await _installation(job.repo)
+    if installation is None:
+        raise RuntimeError(f"the GitHub App is not installed on {job.repo}")
+    await review_pr(job.repo, job.number, installation)
+
+
 HANDLERS: dict[str, Handler] = {
+    "guard_pr": guard_pr,
     "propose_fix": propose_fix,
     "verify_result": verify_result,
     "remediation_merged": remediation_merged,

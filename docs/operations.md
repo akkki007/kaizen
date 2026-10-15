@@ -80,3 +80,15 @@ Raw telemetry lives in Postgres (`telemetry`, index `(repo, service, ts)`), kept
 `ix_telemetry_window (repo, service, ts)` serves "service X in [t0, t1]" scans. Detection windows are
 minutes wide, so one index range scan per window. If volume grows past ~50M rows, partition `telemetry`
 by month on `ts` and drop partitions for retention instead of deleting rows.
+
+## PR Guardian
+
+On `pull_request` opened/synchronize/reopened (non-`kaizen/revert-` branches, allowlisted repos
+only) the `guard_pr` job fetches the PR files, maps hunks to functions via the graph's line
+ranges, and upserts one comment (marker `<!-- kaizen-pr-guardian -->`) with blast radius
+(callers, endpoints, services) and past incidents per changed function. Code: `core/src/causaldeploy/guardian/`.
+
+Requirements on the GitHub App: **Pull requests: Read & write** (comment) and the `pull_request`
+webhook event. Without them the job fails and retries; nothing else is affected.
+Limitation: line ranges come from the graph (default branch), so a PR based on a stale default
+branch can map a hunk to the wrong function; unmapped files are listed, never guessed.

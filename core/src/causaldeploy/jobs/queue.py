@@ -21,6 +21,7 @@ JobKind = Literal[
     "propose_fix",
     "verify_result",
     "remediation_merged",
+    "guard_pr",
 ]
 MAX_ATTEMPTS = 5
 
@@ -53,6 +54,12 @@ class VerifyResultPayload(BaseModel):
     installation_id: int | None = None
 
 
+class GuardPayload(BaseModel):
+    repo: str
+    number: int
+    installation_id: int | None = None
+
+
 class MergedPayload(BaseModel):
     repo: str
     branch: str
@@ -60,6 +67,7 @@ class MergedPayload(BaseModel):
 
 
 PAYLOADS: dict[str, type[BaseModel]] = {
+    "guard_pr": GuardPayload,
     "propose_fix": ProposeFixPayload,
     "verify_result": VerifyResultPayload,
     "remediation_merged": MergedPayload,

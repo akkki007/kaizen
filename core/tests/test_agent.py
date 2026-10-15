@@ -145,3 +145,77 @@ async def test_tool_budget_is_enforced(builder: GraphBuilder) -> None:
     async with Client(build_server(builder.store.repo, builder.store)) as c:
         run = await run_agent(c, builder.store, sc.incident_id, llm, max_tool_calls=3)  # type: ignore[arg-type]
     assert len(run.steps) == 3
+
+
+async def test_real_openai_sdk_client_drives_the_agent_over_http(
+    builder: GraphBuilder, monkeypatch: Any
+) -> None:
+    """The production OpenAIClient (real SDK, real HTTP) against a local chat-completions server.
+
+    Proves request/response serialization and tool-call parsing; it is not a live model.
+    """
+    import socket
+    import threading
+    import time
+
+    import uvicorn
+    from fastapi import FastAPI, Request
+
+    from causaldeploy.agent.llm import OpenAIClient
+
+    sc = builder.s1_payment_validation()
+    script = [
+        ("get_incident", {"incident_id": sc.incident_id}),
+        ("rank_candidates", {"incident_id": sc.incident_id}),
+        None,
+    ]
+    app = FastAPI()
+    seen: list[dict[str, Any]] = []
+
+    @app.post("/v1/chat/completions")
+    async def completions(req: Request) -> dict[str, Any]:
+        body = await req.json()
+        seen.append(body)
+        step = script[min(len([m for m in body["messages"] if m["role"] == "tool"]), 2)]
+        if step is None:
+            msg: dict[str, Any] = {"role": "assistant", "content": json.dumps(GOOD)}
+        else:
+            msg = {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": f"call_{len(seen)}",
+                        "type": "function",
+                        "function": {"name": step[0], "arguments": json.dumps(step[1])},
+                    }
+                ],
+            }
+        return {
+            "id": "x",
+            "object": "chat.completion",
+            "created": 0,
+            "model": "m",
+            "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        }
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(app, port=port, log_level="error"))
+    t = threading.Thread(target=server.run, daemon=True)
+    t.start()
+    while not server.started:
+        time.sleep(0.05)
+    try:
+        monkeypatch.setenv("OPENAI_BASE_URL", f"http://127.0.0.1:{port}/v1")
+        llm = OpenAIClient(api_key="test-key", model="m")
+        async with Client(build_server(builder.store.repo, builder.store)) as c:
+            run = await run_agent(c, builder.store, sc.incident_id, llm)
+    finally:
+        server.should_exit = True
+        t.join(5)
+    assert run.status == "explained"
+    assert [s.name for s in run.steps] == ["get_incident", "rank_candidates"]
+    assert seen[0]["tools"], "tool schemas are sent to the model"
