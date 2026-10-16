@@ -12,6 +12,7 @@ from causaldeploy.config import Settings, get_settings
 from causaldeploy.db.models import IncidentRow, Repository
 from causaldeploy.db.session import session_scope
 from causaldeploy.graph.store import Edge, GraphStore
+from causaldeploy.incidents import lifecycle
 
 log = logging.getLogger(__name__)
 
@@ -159,7 +160,7 @@ async def open_incident(
                     IncidentRow.service == a.service,
                     IncidentRow.env == a.env,
                     IncidentRow.endpoint == a.endpoint,
-                    IncidentRow.status != "resolved",
+                    IncidentRow.status.in_([str(st) for st in lifecycle.ACTIVE]),
                 )
             )
         ).first()
@@ -181,6 +182,8 @@ async def open_incident(
                 detected_at=detected_at,
             )
         )
+        await session.flush()
+        await lifecycle.record_opened(session, inc_id)
     await _write_graph(store or GraphStore(repo), inc_id, a, detected_at)
     from causaldeploy.jobs.queue import InvestigatePayload, enqueue
 

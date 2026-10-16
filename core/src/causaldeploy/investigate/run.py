@@ -1,31 +1,34 @@
 """Investigation job: rank candidates, persist them to the graph and Postgres."""
 
 import asyncio
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
 
 from causaldeploy.agent.models import AgentRun
 from causaldeploy.config import get_settings
+from causaldeploy.contracts.domain import IncidentStatus as S
 from causaldeploy.db.models import IncidentRow, Investigation
 from causaldeploy.db.session import session_scope
 from causaldeploy.graph.store import GraphStore
+from causaldeploy.incidents import lifecycle
 from causaldeploy.investigate.scorer import RankResult, persist, rank
 
 
 async def investigate(repo: str, incident_id: str) -> RankResult:
     store = GraphStore(repo)
-    async with session_scope() as s:
-        row = (
-            await s.execute(select(IncidentRow).where(IncidentRow.id == incident_id))
-        ).scalar_one()
-        if row.status == "open":
-            row.status = "investigating"
+    await lifecycle.advance(
+        incident_id, S.INVESTIGATING, only_from=[S.OPEN], reason="investigation started"
+    )
     try:
         result = await asyncio.to_thread(_rank_and_persist, store, incident_id)
         run = await _run_agent(repo, store, incident_id)
     except Exception:
-        await _set_status(incident_id, "investigating", "open")  # never stay "investigating"
+        # never stay "investigating"
+        await lifecycle.advance(
+            incident_id, S.OPEN, only_from=[S.INVESTIGATING], reason="investigation failed"
+        )
         raise
     async with session_scope() as s:
         inv = Investigation(
@@ -41,21 +44,28 @@ async def investigate(repo: str, incident_id: str) -> RankResult:
     # a named suspect is "identified"; abstaining (no code evidence) goes back to "open" with the
     # abstention recorded, instead of claiming an investigation is still running
     named = result.verdict in ("confident", "ambiguous")
-    await _set_status(incident_id, "investigating", "identified" if named else "open")
+    if named:
+        async with session_scope() as s:
+            row = (
+                await s.execute(select(IncidentRow).where(IncidentRow.id == incident_id))
+            ).scalar_one()
+            row.diagnosed_at = row.diagnosed_at or datetime.now(UTC)
+        explained = run is not None and run.status == "explained"
+        await lifecycle.advance(
+            incident_id,
+            S.EXPLAINED if explained else S.IDENTIFIED,
+            only_from=[S.INVESTIGATING],
+            reason=f"ranking {result.verdict}",
+        )
+    else:
+        await lifecycle.advance(
+            incident_id, S.OPEN, only_from=[S.INVESTIGATING], reason=f"ranking {result.verdict}"
+        )
     if run:
         from causaldeploy.agent.persist import write_trace
 
         await asyncio.to_thread(write_trace, store, run, f"inv-{inv_id}")
     return result
-
-
-async def _set_status(incident_id: str, expected: str, new: str) -> None:
-    async with session_scope() as s:
-        row = (
-            await s.execute(select(IncidentRow).where(IncidentRow.id == incident_id))
-        ).scalar_one()
-        if row.status == expected:  # never overwrite "resolved"
-            row.status = new
 
 
 async def _run_agent(repo: str, store: GraphStore, incident_id: str) -> AgentRun | None:

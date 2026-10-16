@@ -96,7 +96,7 @@ async def seed(builder: GraphBuilder, culprit: str) -> str:
                 service="payments",
                 env="prod",
                 endpoint="POST /payments",
-                status="investigating",
+                status="identified",  # ranked: a suspect is named, so a fix can be proposed
                 onset_ts=now,
                 detected_at=now,
             )
@@ -164,7 +164,14 @@ async def test_full_remediation_flow(
         "MATCH (f:Fix {id: $f}) RETURN f.verified", {"f": f"fix-{run.id}"}
     ) == [[True]]
 
-    # a human merges
+    # merging before anyone approved never resolves the incident
+    assert await finalize_merged(builder.store.repo, branch, "yash") is None
+    async with session_scope() as s:
+        assert (await s.execute(select(IncidentRow))).scalar_one().status == "verifying"
+        rem = (await s.execute(select(RemediationRun))).scalar_one()
+        rem.status, rem.approved_by = "approved", "yash"  # what POST .../approve records
+
+    # a human merges the approved fix
     assert await finalize_merged(builder.store.repo, branch, "yash") == inc
     async with session_scope() as s:
         row = (await s.execute(select(IncidentRow))).scalar_one()

@@ -7,9 +7,11 @@ from typing import Any
 from sqlalchemy import select
 
 from causaldeploy.config import get_settings
-from causaldeploy.db.models import IncidentRow, RemediationRun
+from causaldeploy.contracts.domain import IncidentStatus
+from causaldeploy.db.models import AuditLog, IncidentRow, RemediationRun
 from causaldeploy.db.session import session_scope
 from causaldeploy.graph.store import Edge, GraphStore
+from causaldeploy.incidents import lifecycle
 from causaldeploy.investigate.scorer import RankResult, rank_graph
 from causaldeploy.remediate.ops import GitHubOps, RemediationOps, RevertConflict, make_revert_branch
 
@@ -83,6 +85,12 @@ async def propose_revert(
         )
         session.add(run)
     run_id = run.id
+    await lifecycle.advance(
+        incident_id,
+        IncidentStatus.REMEDIATING,
+        only_from=[IncidentStatus.IDENTIFIED, IncidentStatus.EXPLAINED, IncidentStatus.NEEDS_HUMAN],
+        reason=f"revert of {sha[:7]} proposed",
+    )
 
     def make_branch() -> tuple[str, str]:
         with ops.clone(repo, installation_id) as clone:
@@ -105,6 +113,12 @@ async def propose_revert(
         pr_body(result, incident_id, s.public_base_url.rstrip("/")),
     )
     await ops.dispatch_verify(repo, installation_id, branch)
+    await lifecycle.advance(
+        incident_id,
+        IncidentStatus.VERIFYING,
+        only_from=[IncidentStatus.REMEDIATING],
+        reason="verification dispatched",
+    )
     await _set(
         run_id,
         "verifying",
@@ -214,6 +228,13 @@ async def record_verification(
     await asyncio.to_thread(
         _write_verification, GraphStore(repo), run_id, passed, run_url, report, incident_id
     )
+    if not passed:  # a failed fix never resolves; escalate (fallback chain lives in #91 work)
+        await lifecycle.advance(
+            incident_id,
+            IncidentStatus.NEEDS_HUMAN,
+            only_from=[IncidentStatus.VERIFYING, IncidentStatus.REMEDIATING],
+            reason=f"verification failed ({conclusion})",
+        )
     return status
 
 
@@ -258,8 +279,22 @@ async def finalize_merged(repo: str, branch: str, merged_by: str) -> str | None:
         ).scalar_one()
         if inc.repo != repo:
             return None
+        if run.status != "approved" or not run.approved_by:
+            # A merge without a recorded approval of a verified fix never resolves the incident
+            session.add(
+                AuditLog(
+                    actor=merged_by,
+                    action="remediation.merged_without_approval",
+                    target=run.id,
+                    detail={"branch": branch, "status": run.status},
+                )
+            )
+            return None
         run.status = "merged"
-        inc.status, inc.resolved_at = "resolved", datetime.now(UTC)
+        await lifecycle.apply(
+            session, inc, IncidentStatus.RESOLVED, actor=merged_by, reason=f"fix merged ({branch})"
+        )
+        inc.resolved_at = datetime.now(UTC)
         sha = (run.result or {}).get("sha")
         incident_id = inc.id
     store = GraphStore(repo)

@@ -10,7 +10,13 @@ from sqlalchemy import select
 
 from causaldeploy.agent.loop import run_agent
 from causaldeploy.agent.persist import write_trace
-from causaldeploy.db.models import IncidentRow, Installation, Investigation, Repository
+from causaldeploy.db.models import (
+    IncidentRow,
+    Installation,
+    Investigation,
+    RemediationRun,
+    Repository,
+)
 from causaldeploy.db.session import session_scope
 from causaldeploy.detect.detector import detect_repo
 from causaldeploy.graph.builder import GraphBuilder
@@ -159,6 +165,10 @@ async def test_s1_end_to_end(
         {"error_rate": 0.0, "p95_ms": 41},  # type: ignore[index]
     )
     assert verdict == "verified"
+    async with session_scope() as s:  # approval, as POST /remediations/{id}/approve records it
+        rem = await s.get(RemediationRun, run.id)
+        assert rem is not None
+        rem.status, rem.approved_by = "approved", "yash"
     assert await finalize_merged(repo, run.result["branch"], "yash") == incident_id  # type: ignore[index]
 
     # 6. the graph remembers: resolved incident, confirmed cause, verified fix, resolver
