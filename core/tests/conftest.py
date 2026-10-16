@@ -10,7 +10,8 @@ import pytest_asyncio
 ADMIN_DSN = os.environ.get(
     "CD_TEST_ADMIN_DSN", "postgresql://causaldeploy:causaldeploy@localhost:5432/postgres"
 )
-TEST_DB = "causaldeploy_test"
+# Overridable so parallel checkouts (git worktrees) can run the suite without dropping each other's DB
+TEST_DB = os.environ.get("CD_TEST_DB", "causaldeploy_test")
 os.environ["CD_ENV"] = "test"
 os.environ["CD_POSTGRES_DSN"] = ADMIN_DSN.rsplit("/", 1)[0] + "/" + TEST_DB
 os.environ.setdefault("CD_REDIS_URL", "redis://localhost:6379/15")

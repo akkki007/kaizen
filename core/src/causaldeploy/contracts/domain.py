@@ -5,10 +5,17 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class IncidentStatus(StrEnum):
+    """Lifecycle (#88). Transitions are guarded by `causaldeploy.incidents.lifecycle`."""
+
     OPEN = "open"
     INVESTIGATING = "investigating"
-    IDENTIFIED = "identified"  # ranked; a suspect is named, waiting on a fix
-    RESOLVED = "resolved"
+    IDENTIFIED = "identified"  # ranked; a suspect is named, no validated explanation yet
+    EXPLAINED = "explained"  # ranked and explained with validated citations
+    REMEDIATING = "remediating"  # a fix PR is being prepared
+    VERIFYING = "verifying"  # the fix is under verification in staging
+    NEEDS_HUMAN = "needs_human"  # automatic remediation exhausted; escalated
+    RESOLVED = "resolved"  # fix approved, merged and verified
+    CLOSED = "closed"  # closed by a person without a verified fix (false alarm, wontfix)
 
 
 class RemediationKind(StrEnum):

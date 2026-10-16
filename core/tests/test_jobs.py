@@ -1,3 +1,4 @@
+import sys
 from unittest.mock import AsyncMock
 
 import pytest
@@ -81,6 +82,7 @@ async def test_ingest_handler_writes_graph(db: None, store) -> None:  # type: ig
     assert GraphStore(store.repo).read("MATCH (c:Commit) RETURN c.sha") == [["abcdef123"]]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="SIGKILL is POSIX-only")
 async def test_sigkilled_worker_job_is_retried_exactly_once(db: None, tmp_path) -> None:  # type: ignore[no-untyped-def]
     """Kill -9 a worker mid-job: another worker finishes it; the effect completes once."""
     import asyncio

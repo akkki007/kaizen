@@ -216,11 +216,17 @@
     "Incident": {
       "$defs": {
         "IncidentStatus": {
+          "description": "Lifecycle (#88). Transitions are guarded by `causaldeploy.incidents.lifecycle`.",
           "enum": [
             "open",
             "investigating",
             "identified",
-            "resolved"
+            "explained",
+            "remediating",
+            "verifying",
+            "needs_human",
+            "resolved",
+            "closed"
           ],
           "title": "IncidentStatus",
           "type": "string"

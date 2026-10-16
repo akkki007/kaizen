@@ -62,7 +62,7 @@ def contract_version_problems(base_ref: str) -> list[str]:
     head_version = version((root / events_py).read_text())
     problems = []
     for path in DOCS.glob("schemas/*.json"):
-        rel = str(path.relative_to(root))
+        rel = path.relative_to(root).as_posix()  # git paths use "/" on every OS
         before = git_show(rel)
         if before is not None and json.loads(before) != json.loads(path.read_text()):
             if base_version == head_version:

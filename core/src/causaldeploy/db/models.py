@@ -69,6 +69,7 @@ class Telemetry(Base):
     status_code: Mapped[int | None] = mapped_column(Integer)
     latency_ms: Mapped[float | None] = mapped_column(Float)
     fingerprint: Mapped[str | None] = mapped_column(String(64))
+    sha: Mapped[str | None] = mapped_column(String(64))  # deployed build version, from the reporter
     body: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
@@ -84,6 +85,27 @@ class IncidentRow(Base):
     onset_ts: Mapped[datetime] = mapped_column(TZ)
     detected_at: Mapped[datetime] = mapped_column(TZ)
     resolved_at: Mapped[datetime | None] = mapped_column(TZ)
+    severity: Mapped[str | None] = mapped_column(String(16))  # sev1..sev3, from the detector
+    diagnosed_at: Mapped[datetime | None] = mapped_column(TZ)  # first ranking/explanation
+    acknowledged_by: Mapped[str | None] = mapped_column(String(255))
+    confirmed_root_cause: Mapped[str | None] = mapped_column(String(64))  # commit sha
+    root_cause_status: Mapped[str | None] = mapped_column(String(16))  # confirmed | rejected
+    memory: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # snapshot written on resolve
+
+
+class IncidentTransition(Base):
+    """Audit trail of the incident state machine: every status change, who made it and why."""
+
+    __tablename__ = "incident_transitions"
+    __table_args__ = (Index("ix_incident_transitions_incident", "incident_id", "id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    incident_id: Mapped[str] = mapped_column(ForeignKey("incidents.id"))
+    from_status: Mapped[str | None] = mapped_column(String(16))
+    to_status: Mapped[str] = mapped_column(String(16))
+    actor: Mapped[str] = mapped_column(String(255))  # "system" or a GitHub login
+    reason: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(TZ, server_default=func.now())
 
 
 class Investigation(Base):
@@ -92,6 +114,9 @@ class Investigation(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     incident_id: Mapped[str] = mapped_column(ForeignKey("incidents.id"))
     result: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    inputs: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # incident, lookback, candidates
+    scorer_version: Mapped[str | None] = mapped_column(String(64))  # weights file version
+    duration_ms: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(TZ, server_default=func.now())
 
 
@@ -103,6 +128,8 @@ class RemediationRun(Base):
     kind: Mapped[str] = mapped_column(String(16))
     status: Mapped[str] = mapped_column(String(16))
     approved_by: Mapped[str | None] = mapped_column(String(255))
+    rejected_by: Mapped[str | None] = mapped_column(String(255))
+    reject_reason: Mapped[str | None] = mapped_column(Text)
     result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(TZ, server_default=func.now())
 
@@ -112,8 +139,13 @@ class LlmCall(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     incident_id: Mapped[str | None] = mapped_column(String(64))
+    run_id: Mapped[str | None] = mapped_column(String(64))  # one agent run = many calls
     model: Mapped[str] = mapped_column(String(64))
     prompt_version: Mapped[str] = mapped_column(String(32))
+    prompt_hash: Mapped[str | None] = mapped_column(String(64))  # replay-cache key
+    status: Mapped[str | None] = mapped_column(String(32))  # ok|error|replayed|budget_exhausted
+    request: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # redacted
+    response: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     input_tokens: Mapped[int] = mapped_column(Integer)
     output_tokens: Mapped[int] = mapped_column(Integer)
     cost_usd: Mapped[float] = mapped_column(Float)
