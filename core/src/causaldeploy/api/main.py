@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from causaldeploy import __version__
 from causaldeploy.api.auth import router as auth_router
+from causaldeploy.api.deps import BodySizeLimit
 from causaldeploy.api.errors import install_error_handlers
 from causaldeploy.api.onboarding import router as onboarding_router
 from causaldeploy.api.routes import v1, webhooks
@@ -75,6 +76,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # inside the request-id middleware (added below, so outer): 413s carry x-request-id
+    app.add_middleware(BodySizeLimit)
 
     @app.middleware("http")
     async def request_id(request: Request, call_next):  # type: ignore[no-untyped-def]

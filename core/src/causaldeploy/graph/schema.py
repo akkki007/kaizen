@@ -52,6 +52,7 @@ RELATIONSHIPS: dict[str, frozenset[tuple[str, str]]] = {
     "traced_by": frozenset({("Incident", "Trace")}),
     "thrown_in": frozenset({("Error", "Function")}),
     "observed_on": frozenset({("Error", "Endpoint")}),
+    "raised_by": frozenset({("Error", "Service")}),
     "candidate": frozenset({("Incident", "Commit")}),
     "likely_caused_by": frozenset({("Incident", "Commit")}),
     "resembles": frozenset({("Incident", "Incident")}),

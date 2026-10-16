@@ -2,15 +2,16 @@ import asyncio
 import hashlib
 import secrets
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from causaldeploy.api.auth import CurrentUser, csrf_protect, require_role
-from causaldeploy.api.deps import RepoDep, hash_key
+from causaldeploy.api.deps import CallerDep, IngestCaller, charge_events, hash_key
+from causaldeploy.api.errors import envelope
 from causaldeploy.config import get_settings
 from causaldeploy.contracts import Event
 from causaldeploy.db.models import (
@@ -30,6 +31,7 @@ from causaldeploy.github.webhooks import normalize, verify_signature
 from causaldeploy.graph.evidence import EvidenceGraph, evidence_graph
 from causaldeploy.graph.store import GraphStore
 from causaldeploy.investigate.scorer import Method, RankResult, persist, rank
+from causaldeploy.jobs import queue as jobs_queue
 from causaldeploy.jobs.queue import (
     BackfillPayload,
     GuardPayload,
@@ -44,7 +46,7 @@ from causaldeploy.remediate.service import BRANCH_PREFIX
 
 v1 = APIRouter(prefix="/api/v1")
 webhooks = APIRouter(prefix="/webhooks")
-_events = TypeAdapter(list[Event])
+_event: TypeAdapter[Event] = TypeAdapter(Event)
 
 
 class IncidentSummary(BaseModel):
@@ -67,31 +69,74 @@ class IncidentPage(BaseModel):
     offset: int
 
 
+class RejectedEvent(BaseModel):
+    index: int  # position in the posted array
+    error: str
+
+
 class AcceptedEvents(BaseModel):
     accepted: int
-    job_ids: list[str]
+    job_ids: list[str]  # one per accepted event, in order
+    rejected: list[RejectedEvent] = []
+
+
+def _event_error(e: ValidationError) -> str:
+    parts = [
+        f"{'.'.join(str(x) for x in err['loc']) or 'event'}: {err['msg']}"
+        for err in e.errors(include_url=False, include_context=False)[:5]
+    ]
+    return "; ".join(parts)[:500]
+
+
+_ENQUEUE_CONCURRENCY = 8
 
 
 @v1.post("/events", response_model=AcceptedEvents, status_code=202)
-async def post_events(body: list[dict[str, Any]], repo: str = RepoDep) -> AcceptedEvents:
-    """Batched event ingest (commit/deployment/build/telemetry/health/verification_result)."""
-    try:
-        events = _events.validate_python(body)
-    except ValidationError as e:
-        raise HTTPException(
-            422, e.errors(include_url=False, include_context=False).__repr__()
-        ) from e
-    if any(ev.repo != repo for ev in events):
+async def post_events(body: list[Any], caller: IngestCaller = CallerDep) -> Any:
+    """Batched event ingest (commit/deployment/build/telemetry/health/verification_result).
+
+    Items are validated one by one: valid events are queued, invalid ones come back in
+    `rejected` with their index. 413 above `ingest_max_batch` events (or `ingest_max_bytes`,
+    enforced by middleware), 429 + Retry-After when the key's events/minute are used up,
+    422 when no item is valid, 403 when an event names another repository.
+    """
+    settings = get_settings()
+    if len(body) > settings.ingest_max_batch:
+        raise HTTPException(413, f"batch of {len(body)} events exceeds {settings.ingest_max_batch}")
+    charge_events(caller, len(body))
+    events: list[Event] = []
+    rejected: list[RejectedEvent] = []
+    for i, item in enumerate(body):
+        try:
+            events.append(_event.validate_python(item))
+        except ValidationError as e:
+            rejected.append(RejectedEvent(index=i, error=_event_error(e)))
+    if rejected and not events:
+        return envelope(422, "no valid events in the batch", [r.model_dump() for r in rejected])
+    if any(ev.repo != caller.repo for ev in events):
         raise HTTPException(403, "API key is not scoped to this repository")
-    ids = []
-    for ev in events:
+    gate = asyncio.Semaphore(_ENQUEUE_CONCURRENCY)
+    # one Redis connection for the whole batch
+    pool = await jobs_queue.get_pool() if events else None
+
+    async def one(ev: Event) -> str:
         EVENTS_INGESTED.labels(ev.type).inc()
         digest = hashlib.sha256(ev.model_dump_json().encode()).hexdigest()
-        job_id, _ = await enqueue(
-            "ingest_event", IngestEventPayload(event=ev.model_dump(mode="json")), f"event:{digest}"
-        )
-        ids.append(job_id)
-    return AcceptedEvents(accepted=len(events), job_ids=ids)
+        async with gate:
+            job_id, _ = await enqueue(
+                "ingest_event",
+                IngestEventPayload(event=ev.model_dump(mode="json")),
+                f"event:{digest}",
+                pool=pool,
+            )
+        return job_id
+
+    try:
+        ids = list(await asyncio.gather(*(one(ev) for ev in events)))
+    finally:
+        if pool is not None:
+            await pool.aclose()
+    return AcceptedEvents(accepted=len(events), job_ids=ids, rejected=rejected)
 
 
 @v1.get("/jobs/{job_id}")
@@ -371,6 +416,100 @@ async def incident_llm_cost(incident_id: str, user: CurrentUser) -> LlmCost:
         cost_usd=float(row[3]),
         latency_ms_total=float(row[4]),
     )
+
+
+class IncidentActionIn(BaseModel):
+    action: Literal["acknowledge", "close", "reopen"]
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class IncidentActionOut(BaseModel):
+    id: str
+    status: str
+    severity: str | None
+    acknowledged_by: str | None
+
+
+class IncidentTransitionOut(BaseModel):
+    from_status: str | None
+    to_status: str
+    actor: str
+    reason: str
+    at: datetime
+
+
+@v1.post(
+    "/incidents/{incident_id}/actions",
+    response_model=IncidentActionOut,
+    dependencies=[Depends(csrf_protect)],
+)
+async def incident_action(
+    incident_id: str, body: IncidentActionIn, user: CurrentUser
+) -> IncidentActionOut:
+    """acknowledge (viewer+: records who is on it, no status change), close / reopen
+    (approver: lifecycle transition to closed / open). Illegal transitions are 409."""
+    from causaldeploy.contracts.domain import IncidentStatus
+    from causaldeploy.incidents import lifecycle
+
+    row = await _incident_for(user, incident_id)
+    require_role(user, row.repo, "viewer" if body.action == "acknowledge" else "approver")
+    reason = (body.reason or "").strip()
+    target = {"close": IncidentStatus.CLOSED, "reopen": IncidentStatus.OPEN}.get(body.action)
+    async with session_scope() as s:
+        inc = (
+            await s.execute(
+                select(IncidentRow).where(IncidentRow.id == incident_id).with_for_update()
+            )
+        ).scalar_one()
+        if target is None:
+            if IncidentStatus(inc.status) in lifecycle.TERMINAL:
+                raise HTTPException(409, f"incident is {inc.status}; reopen it to acknowledge")
+            if inc.acknowledged_by is None:
+                inc.acknowledged_by = user.login
+        else:
+            if inc.status == target:
+                raise HTTPException(409, f"incident is already {inc.status}")
+            try:
+                await lifecycle.apply(s, inc, target, actor=user.login, reason=reason)
+            except lifecycle.InvalidTransition as e:
+                raise HTTPException(409, str(e)) from e
+            if target == IncidentStatus.OPEN:
+                inc.acknowledged_by, inc.resolved_at = None, None
+        s.add(
+            AuditLog(
+                actor=user.login,
+                action=f"incident.{body.action}",
+                target=incident_id,
+                detail={"repo": inc.repo, "reason": reason, "status": inc.status},
+            )
+        )
+        out = IncidentActionOut(
+            id=inc.id,
+            status=inc.status,
+            severity=inc.severity,
+            acknowledged_by=inc.acknowledged_by,
+        )
+    if target is not None:
+        await lifecycle.sync_graph(row.repo, incident_id, target)
+    return out
+
+
+@v1.get("/incidents/{incident_id}/history", response_model=list[IncidentTransitionOut])
+async def incident_history(incident_id: str, user: CurrentUser) -> list[IncidentTransitionOut]:
+    """Every status change, oldest first: who made it, why and when."""
+    from causaldeploy.incidents import lifecycle
+
+    await _incident_for(user, incident_id)
+    return [
+        IncidentTransitionOut(
+            from_status=t.from_status,
+            to_status=t.to_status,
+            actor=t.actor,
+            reason=t.reason or "",
+            at=t.created_at,
+        )
+        for t in await lifecycle.history(incident_id)
+    ]
 
 
 @v1.post("/remediations/{remediation_id}/approve", dependencies=[Depends(csrf_protect)])

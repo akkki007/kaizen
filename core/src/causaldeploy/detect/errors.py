@@ -1,5 +1,6 @@
 """Persist telemetry and link error signatures to code in the graph (thrown_in / observed_on)."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
@@ -20,10 +21,10 @@ def event_fingerprint(e: TelemetryEvent) -> str | None:
     return fingerprint(e.error_type, list(e.stack), e.message)
 
 
-async def store_telemetry(event: TelemetryEvent | HealthEvent) -> str | None:
-    """Write one raw telemetry/health row (Postgres is the source for detection windows)."""
+def telemetry_row(event: TelemetryEvent | HealthEvent) -> dict[str, Any]:
+    """The `telemetry` row for one event (fingerprint included for errors)."""
     if isinstance(event, HealthEvent):
-        row: dict[str, Any] = {
+        return {
             "repo": event.repo,
             "service": event.service,
             "env": event.env,
@@ -33,28 +34,39 @@ async def store_telemetry(event: TelemetryEvent | HealthEvent) -> str | None:
             "status_code": event.status_code,
             "latency_ms": event.latency_ms,
             "fingerprint": None,
+            "sha": event.sha,
             "body": {"ok": event.ok},
         }
-        fp = None
-    else:
-        fp = event_fingerprint(event)
-        row = {
-            "repo": event.repo,
-            "service": event.service,
-            "env": event.env,
-            "ts": event.ts,
-            "kind": event.kind,
-            "endpoint": event.endpoint,
-            "status_code": event.status_code,
-            "latency_ms": event.latency_ms,
-            "fingerprint": fp,
-            "body": event.model_dump(
-                mode="json", include={"request_id", "message", "error_type", "stack"}
-            ),
-        }
-    async with session_scope() as s:
-        await s.execute(insert(Telemetry).values(**row))
-    return fp
+    return {
+        "repo": event.repo,
+        "service": event.service,
+        "env": event.env,
+        "ts": event.ts,
+        "kind": event.kind,
+        "endpoint": event.endpoint,
+        "status_code": event.status_code,
+        "latency_ms": event.latency_ms,
+        "fingerprint": event_fingerprint(event),
+        "sha": event.sha,
+        "body": event.model_dump(
+            mode="json", include={"request_id", "message", "error_type", "stack"}
+        ),
+    }
+
+
+async def store_telemetry_many(events: Sequence[TelemetryEvent | HealthEvent]) -> list[str | None]:
+    """Bulk insert: one multi-row INSERT per call (Postgres is the source for detection
+    windows). Returns each event's error fingerprint (None for non-errors), in order."""
+    rows = [telemetry_row(e) for e in events]
+    if rows:
+        async with session_scope() as s:
+            await s.execute(insert(Telemetry), rows)
+    return [r["fingerprint"] for r in rows]
+
+
+async def store_telemetry(event: TelemetryEvent | HealthEvent) -> str | None:
+    """Write one raw telemetry/health row."""
+    return (await store_telemetry_many([event]))[0]
 
 
 def _epoch(dt: datetime) -> int:
@@ -65,7 +77,11 @@ def link_error(store: GraphStore, event: TelemetryEvent, fp: str) -> list[str]:
     """Upsert the signature and map its application frames to Function nodes.
 
     The frame -> function match is a graph query (file path suffix + line inside the function's
-    range, innermost wins), so it uses the code graph exactly as it was backfilled.
+    range, innermost wins), so it uses the code graph exactly as it was backfilled. When the
+    event carries the deployed `sha`, functions last seen at that sha win ties (line numbers
+    are only trustworthy for the version that actually ran).
+    Each call counts one occurrence (`Error.count`; the ingest job runs once per event) and
+    links the signature to the service that raised it.
     Returns the function ids the error was thrown in, innermost first.
     """
     store.ensure_schema()
@@ -73,6 +89,7 @@ def link_error(store: GraphStore, event: TelemetryEvent, fp: str) -> list[str]:
     store.graph.query(
         "MERGE (e:Error {fingerprint: $fp}) "
         "SET e.error_type = $type, e.message = $msg, e.service = $svc, "
+        "e.count = coalesce(e.count, 0) + 1, "
         "e.first_seen = CASE WHEN e.first_seen IS NULL OR e.first_seen > $ts "
         "THEN $ts ELSE e.first_seen END, "
         "e.last_seen = CASE WHEN e.last_seen IS NULL OR e.last_seen < $ts "
@@ -86,19 +103,23 @@ def link_error(store: GraphStore, event: TelemetryEvent, fp: str) -> list[str]:
         },
     )
     thrown: list[str] = []
+    order = (
+        "ORDER BY CASE WHEN f.sha_seen = $sha THEN 0 ELSE 1 END, f.end_line - f.start_line LIMIT 1"
+    )
     for frame in app_frames(list(event.stack))[:MAX_FRAMES]:
+        params = {"path": frame.path, "line": frame.line, "svc": event.service, "sha": event.sha}
         rows = store.read(
             "MATCH (f:Function) WHERE $path ENDS WITH f.path AND f.service = $svc "
             "AND f.start_line <= $line AND f.end_line >= $line "
-            "RETURN f.id ORDER BY f.end_line - f.start_line LIMIT 1",
-            {"path": frame.path, "line": frame.line, "svc": event.service},
+            "RETURN f.id " + order,
+            params,
         )
         if not rows:
             rows = store.read(  # service of a frame may differ (shared packages): retry without it
                 "MATCH (f:Function) WHERE $path ENDS WITH f.path "
                 "AND f.start_line <= $line AND f.end_line >= $line "
-                "RETURN f.id ORDER BY f.end_line - f.start_line LIMIT 1",
-                {"path": frame.path, "line": frame.line},
+                "RETURN f.id " + order,
+                params,
             )
         if rows:
             thrown.append(rows[0][0])
@@ -106,6 +127,7 @@ def link_error(store: GraphStore, event: TelemetryEvent, fp: str) -> list[str]:
         Edge("Error", fp, "thrown_in", "Function", fid, {"frame_depth": i})
         for i, fid in enumerate(thrown)
     ]
+    edges.append(Edge("Error", fp, "raised_by", "Service", event.service))
     if event.endpoint:
         ep = f"{event.service}:{event.endpoint}"
         if store.read("MATCH (x:Endpoint {id: $id}) RETURN x.id", {"id": ep}):

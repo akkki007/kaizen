@@ -13,6 +13,14 @@
             },
             "title": "Job Ids",
             "type": "array"
+          },
+          "rejected": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RejectedEvent"
+            },
+            "title": "Rejected",
+            "type": "array"
           }
         },
         "required": [
@@ -345,6 +353,78 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "IncidentActionIn": {
+        "properties": {
+          "action": {
+            "enum": [
+              "acknowledge",
+              "close",
+              "reopen"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "IncidentActionIn",
+        "type": "object"
+      },
+      "IncidentActionOut": {
+        "properties": {
+          "acknowledged_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged By"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "severity",
+          "acknowledged_by"
+        ],
+        "title": "IncidentActionOut",
+        "type": "object"
+      },
       "IncidentDetail": {
         "properties": {
           "incident": {
@@ -456,6 +536,47 @@
           "detected_at"
         ],
         "title": "IncidentSummary",
+        "type": "object"
+      },
+      "IncidentTransitionOut": {
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Status"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "to_status": {
+            "title": "To Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_status",
+          "to_status",
+          "actor",
+          "reason",
+          "at"
+        ],
+        "title": "IncidentTransitionOut",
         "type": "object"
       },
       "InvestigationView": {
@@ -686,6 +807,24 @@
           "evidence"
         ],
         "title": "RankedCandidate",
+        "type": "object"
+      },
+      "RejectedEvent": {
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "index",
+          "error"
+        ],
+        "title": "RejectedEvent",
         "type": "object"
       },
       "RemediationView": {
@@ -965,7 +1104,7 @@
   "paths": {
     "/api/v1/events": {
       "post": {
-        "description": "Batched event ingest (commit/deployment/build/telemetry/health/verification_result).",
+        "description": "Batched event ingest (commit/deployment/build/telemetry/health/verification_result).\n\nItems are validated one by one: valid events are queued, invalid ones come back in\n`rejected` with their index. 413 above `ingest_max_batch` events (or `ingest_max_bytes`,\nenforced by middleware), 429 + Retry-After when the key's events/minute are used up,\n422 when no item is valid, 403 when an event names another repository.",
         "operationId": "post_events_api_v1_events_post",
         "parameters": [
           {
@@ -989,10 +1128,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "items": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
+                "items": {},
                 "title": "Body",
                 "type": "array"
               }
@@ -1150,6 +1286,104 @@
         "summary": "Get Incident Detail"
       }
     },
+    "/api/v1/incidents/{incident_id}/actions": {
+      "post": {
+        "description": "acknowledge (viewer+: records who is on it, no status change), close / reopen\n(approver: lifecycle transition to closed / open). Illegal transitions are 409.",
+        "operationId": "incident_action_api_v1_incidents__incident_id__actions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Csrf"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentActionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Incident Action"
+      }
+    },
     "/api/v1/incidents/{incident_id}/evidence-graph": {
       "get": {
         "operationId": "get_evidence_graph_api_v1_incidents__incident_id__evidence_graph_get",
@@ -1219,6 +1453,66 @@
           }
         },
         "summary": "Get Evidence Graph"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/history": {
+      "get": {
+        "description": "Every status change, oldest first: who made it, why and when.",
+        "operationId": "incident_history_api_v1_incidents__incident_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IncidentTransitionOut"
+                  },
+                  "title": "Response Incident History Api V1 Incidents  Incident Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Incident History"
       }
     },
     "/api/v1/incidents/{incident_id}/llm-cost": {

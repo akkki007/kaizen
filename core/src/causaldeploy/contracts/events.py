@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"  # 1.1: optional deployed `sha` on telemetry/health
 
 
 class _Base(BaseModel):
@@ -84,6 +84,7 @@ class TelemetryEvent(_Base):
     message: str | None = None
     error_type: str | None = None
     stack: list[str] = []  # raw frames, top frame first
+    sha: str | None = None  # deployed build version the reporting process runs (optional)
 
 
 class HealthEvent(_Base):
@@ -95,6 +96,7 @@ class HealthEvent(_Base):
     ok: bool
     latency_ms: float | None = None
     status_code: int | None = None
+    sha: str | None = None  # deployed build version the checked service reports (optional)
 
 
 class VerificationResultEvent(_Base):

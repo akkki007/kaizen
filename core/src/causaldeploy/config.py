@@ -5,6 +5,13 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_INT_THRESHOLDS = frozenset({"detect_min_requests", "detect_consecutive", "detect_health_failures"})
+DETECT_OVERRIDABLE = _INT_THRESHOLDS | {
+    "detect_min_error_delta",
+    "detect_sigma",
+    "detect_p95_factor",
+}
+
 
 class Settings(BaseSettings):
     """Validated, fail-fast configuration. Secrets are SecretStr so they never print."""
@@ -18,7 +25,10 @@ class Settings(BaseSettings):
     env: Literal["dev", "test", "prod"] = "dev"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     cors_origins: list[str] = ["http://localhost:3000"]
-    ingest_rate_limit_per_min: int = Field(600, ge=1)
+    # Ingest (#88): the limit counts *events* per API key per minute, not requests
+    ingest_rate_limit_per_min: int = Field(60_000, ge=1)
+    ingest_max_batch: int = Field(1000, ge=1)  # events per POST /api/v1/events
+    ingest_max_bytes: int = Field(1_048_576, ge=1024)  # request body size for the ingest route
 
     falkordb_host: str = "localhost"
     falkordb_port: int = Field(6380, ge=1, le=65535)
@@ -59,6 +69,14 @@ class Settings(BaseSettings):
     detect_sigma: float = Field(3.0, gt=0)
     detect_consecutive: int = Field(2, ge=1)  # anomalous windows in a row before opening
     detect_p95_factor: float = Field(3.0, gt=1)
+    # no new incident for the same repo/service/env/endpoint this soon after one was
+    # resolved or closed (flapping guard)
+    detect_cooldown_minutes: int = Field(15, ge=0)
+    # consecutive failed health checks that open an incident regardless of detect_min_requests
+    detect_health_failures: int = Field(3, ge=1)
+    # per-service partial overrides, e.g. {"payments": {"sigma": 4, "min_requests": 20}};
+    # keys are the detect_* threshold names with or without the "detect_" prefix
+    detect_overrides: dict[str, dict[str, float]] = {}
     telemetry_retention_days: int = Field(14, ge=1)
 
     @field_validator("github_app_private_key", mode="before")
@@ -71,6 +89,35 @@ class Settings(BaseSettings):
         if raw.startswith("base64:"):
             return base64.b64decode(raw[len("base64:") :]).decode()
         return raw.replace("\\n", "\n")
+
+    @field_validator("detect_overrides", mode="after")
+    @classmethod
+    def _known_override_keys(cls, v: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
+        out: dict[str, dict[str, float]] = {}
+        for service, overrides in v.items():
+            norm: dict[str, float] = {}
+            for key, value in overrides.items():
+                name = key if key.startswith("detect_") else f"detect_{key}"
+                if name not in DETECT_OVERRIDABLE:
+                    raise ValueError(
+                        f"detect_overrides[{service!r}]: unknown threshold {key!r} "
+                        f"(allowed: {', '.join(sorted(DETECT_OVERRIDABLE))})"
+                    )
+                if value <= 0:
+                    raise ValueError(f"detect_overrides[{service!r}][{key!r}] must be > 0")
+                norm[name] = value
+            out[service] = norm
+        return out
+
+    def for_service(self, service: str) -> "Settings":
+        """These settings with the service's detection overrides applied (or self)."""
+        overrides = self.detect_overrides.get(service)
+        if not overrides:
+            return self
+        update: dict[str, float | int] = {
+            k: int(v) if k in _INT_THRESHOLDS else float(v) for k, v in overrides.items()
+        }
+        return self.model_copy(update=update)
 
     @model_validator(mode="after")
     def _prod_requires_real_secrets(self) -> "Settings":

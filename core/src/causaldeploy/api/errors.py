@@ -13,6 +13,7 @@ _CODES = {
     403: "forbidden",
     404: "not_found",
     409: "conflict",
+    413: "payload_too_large",
     422: "validation_error",
     429: "rate_limited",
     503: "unavailable",

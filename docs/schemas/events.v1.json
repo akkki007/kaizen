@@ -25,7 +25,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.0.0",
+          "default": "1.1.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -108,7 +108,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.0.0",
+          "default": "1.1.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -180,7 +180,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.0.0",
+          "default": "1.1.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -314,13 +314,25 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.0.0",
+          "default": "1.1.0",
           "title": "Schema Version",
           "type": "string"
         },
         "service": {
           "title": "Service",
           "type": "string"
+        },
+        "sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha"
         },
         "status_code": {
           "anyOf": [
@@ -484,13 +496,25 @@
           "title": "Request Id"
         },
         "schema_version": {
-          "default": "1.0.0",
+          "default": "1.1.0",
           "title": "Schema Version",
           "type": "string"
         },
         "service": {
           "title": "Service",
           "type": "string"
+        },
+        "sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha"
         },
         "stack": {
           "default": [],
@@ -583,7 +607,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.0.0",
+          "default": "1.1.0",
           "title": "Schema Version",
           "type": "string"
         },
