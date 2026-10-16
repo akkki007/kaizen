@@ -12,9 +12,9 @@ export function LogoMark({ className }: { className?: string }) {
 
 export function Logo({ size = "md" }: { size?: "sm" | "md" }) {
   return (
-    <span className={size === "md" ? "flex items-center gap-2 text-[20px]" : "flex items-center gap-1.5 text-[15px]"}>
-      <LogoMark className={size === "md" ? "size-6" : "size-[18px]"} />
-      <span className="font-medium tracking-[-0.02em]">Kaizen</span>
+    <span className={size === "md" ? "flex items-center gap-2 text-[17px]" : "flex items-center gap-1.5 text-[14px]"}>
+      <LogoMark className={size === "md" ? "size-5 text-accent" : "size-4 text-accent"} />
+      <span className="font-semibold tracking-[-0.02em]">Kaizen</span>
     </span>
   );
 }

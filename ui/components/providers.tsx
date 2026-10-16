@@ -9,7 +9,7 @@ export function Providers({ children }: { children: ReactNode }) {
     () => new QueryClient({ defaultOptions: { queries: { staleTime: 2_000, refetchOnWindowFocus: true } } }),
   );
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={client}>
         {children}
       </QueryClientProvider>

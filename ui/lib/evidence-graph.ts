@@ -4,10 +4,10 @@ import type { components } from "./api/schema";
 export type Graph = components["schemas"]["EvidenceGraph"];
 
 // One hue per node label (stable); the highlighted causal path is drawn in the danger colour.
-const HUES = ["#6366f1", "#0ea5e9", "#14b8a6", "#f59e0b", "#a855f7", "#64748b"];
+const HUES = ["#7d84f6", "#5aa9e6", "#4fb7a8", "#d6a03c", "#a48cf0", "#8b8c94"];
 const hue = (label: string) =>
   HUES[[...label].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % HUES.length];
-export const DANGER = "#ef4444";
+export const DANGER = "#f0675d";
 
 export function toElements(graph: Graph): ElementDefinition[] {
   const nodes = new Set(graph.nodes.map((n) => n.id));

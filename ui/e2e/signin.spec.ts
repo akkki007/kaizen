@@ -14,7 +14,7 @@ test.describe("GitHub sign-in flow (mock)", () => {
     await expect(page.getByRole("button", { name: /Sign in with GitHub/i })).toBeVisible();
     await page.getByRole("button", { name: /Sign in with GitHub/i }).click();
     await expect(page).toHaveURL("/overview");
-    await expect(page.locator("nav.rail")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   });
 
   test("account menu button exists and has correct aria attributes", async ({ page }) => {
@@ -22,16 +22,17 @@ test.describe("GitHub sign-in flow (mock)", () => {
     await page.goto("/login");
     await page.getByRole("button", { name: /Sign in with GitHub/i }).click();
     await expect(page).toHaveURL("/overview");
-    await expect(page.locator("nav.rail")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
     // The account button exists with proper aria
-    const accountBtn = page.locator(".rail-account-block button").first();
+    const accountBtn = page.getByRole("button", { name: /account menu/i });
     await expect(accountBtn).toBeVisible({ timeout: 15000 });
     await expect(accountBtn).toHaveAttribute("aria-label", /account/i);
     await expect(accountBtn).toHaveAttribute("aria-haspopup", "menu");
-    // The button shows name and email
-    await expect(accountBtn.locator(".rail-account-name")).toContainText("demo");
-    await expect(accountBtn.locator(".rail-account-mail")).toContainText("demo@users.noreply.github.com");
+    // The button shows the login; the menu adds the email
+    await expect(accountBtn).toContainText("demo");
+    await accountBtn.click();
+    await expect(page.getByRole("menu", { name: "Account" })).toContainText("demo@users.noreply.github.com");
   });
 
   test("viewer vs approver: API keys page shows create only for approver", async ({ page }) => {
@@ -50,33 +51,33 @@ test.describe("GitHub sign-in flow (mock)", () => {
     await expect(page.locator("h2#keys-title")).toBeVisible();
     await expect(page.getByRole("button", { name: /Create key/i })).not.toBeVisible();
     // But the keys list itself is shown
-    await expect(page.locator(".key-list")).toBeVisible();
+    await expect(page.getByRole("list", { name: "API keys" })).toBeVisible();
   });
 });
 
 test.describe("Login page error states (mock)", () => {
   test("shows 'cancelled' error when GitHub access is denied", async ({ page }) => {
     await page.goto("/login?error=denied");
-    await expect(page.locator(".card[data-kind='error'] .card-title")).toHaveText("Sign-in was cancelled");
+    await expect(page.getByRole("alert")).toContainText("Sign-in was cancelled");
     await expect(page.getByRole("button", { name: /Sign in with GitHub/i })).toBeVisible();
   });
 
   test("shows 'expired' error for stale sign-in link", async ({ page }) => {
     await page.goto("/login?error=expired");
-    await expect(page.locator(".card[data-kind='error'] .card-title")).toHaveText("That sign-in link expired");
+    await expect(page.getByRole("alert")).toContainText("That sign-in link expired");
     await expect(page.getByRole("button", { name: /Sign in with GitHub/i })).toBeVisible();
   });
 
   test("shows 'no_repos' error with install link", async ({ page }) => {
     await page.goto("/login?error=no_repos");
-    await expect(page.locator(".card[data-kind='info'] .card-title")).toHaveText("No repositories yet");
-    await expect(page.locator(".card[data-kind='info'] a[href*='github.com/apps/']")).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText("No repositories yet");
+    await expect(page.getByRole("alert").locator("a[href*='github.com/apps/']")).toBeVisible();
     await expect(page.getByRole("button", { name: /I installed it/i })).toBeVisible();
   });
 
   test("shows generic error for invalid callback", async ({ page }) => {
     await page.goto("/login?error=invalid");
-    await expect(page.locator(".card[data-kind='error'] .card-title")).toHaveText("That sign-in link is not valid");
+    await expect(page.getByRole("alert")).toContainText("That sign-in link is not valid");
     await expect(page.getByRole("button", { name: /Sign in with GitHub/i })).toBeVisible();
   });
 });
@@ -97,11 +98,12 @@ test.describe("Session expiry mid-use (mock)", () => {
 test.describe("Repositories list empty state", () => {
   test("shows the repositories page for a user with repos (mock user has repos)", async ({ page }) => {
     await page.goto("/repositories");
-    await expect(page.getByRole("heading", { name: /Repositories/i })).toBeVisible();
-    // The mock user has repos, so the grid should show them.
-    await expect(page.locator(".repo-grid")).toBeVisible();
-    // At least one repo card
-    const count = await page.locator(".repo").count();
+    await expect(page.getByRole("heading", { name: "Repositories", exact: true })).toBeVisible();
+    // The mock user has repos, so the list shows them.
+    const repos = page.getByRole("main").getByRole("list", { name: "Repositories" });
+    await expect(repos).toBeVisible();
+    // At least one repository row
+    const count = await repos.locator("> li").count();
     expect(count).toBeGreaterThan(0);
   });
 });
