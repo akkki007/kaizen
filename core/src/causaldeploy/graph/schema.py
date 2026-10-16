@@ -54,10 +54,14 @@ RELATIONSHIPS: dict[str, frozenset[tuple[str, str]]] = {
     "observed_on": frozenset({("Error", "Endpoint")}),
     "raised_by": frozenset({("Error", "Service")}),
     "candidate": frozenset({("Incident", "Commit")}),
-    "likely_caused_by": frozenset({("Incident", "Commit")}),
+    "likely_caused_by": frozenset({("Incident", "Commit")}),  # props: verdict, rejected
+    # a person confirmed this commit as the root cause (POST /incidents/{id}/root-cause)
+    "confirmed_cause": frozenset({("Incident", "Commit")}),
+    # props: similarity (weighted Jaccard), basis (overlapping signature elements)
     "resembles": frozenset({("Incident", "Incident")}),
     "fixed_by": frozenset({("Incident", "Fix")}),
     "reverts": frozenset({("Fix", "Commit")}),
+    "patches": frozenset({("Fix", "Commit")}),  # an LLM patch on top of the culprit
     "verified_by": frozenset({("Fix", "Test"), ("Fix", "VerificationRun")}),
     "resolved": frozenset({("Developer", "Incident")}),
     "investigated_by": frozenset({("Incident", "Investigation")}),

@@ -42,7 +42,7 @@ from causaldeploy.jobs.queue import (
     enqueue,
 )
 from causaldeploy.observability import EVENTS_INGESTED
-from causaldeploy.remediate.service import BRANCH_PREFIX
+from causaldeploy.remediate.service import KAIZEN_PREFIXES, is_kaizen_branch
 
 v1 = APIRouter(prefix="/api/v1")
 webhooks = APIRouter(prefix="/webhooks")
@@ -241,13 +241,25 @@ class InvestigationView(BaseModel):
 
 class RemediationView(BaseModel):
     id: str
-    kind: str
-    status: str  # proposing|verifying|verified|failed|needs_manual|approved|merged
+    kind: str  # revert | patch
+    status: str  # proposing|verifying|verified|failed|needs_manual|approved|merged|rejected
     sha: str | None
     branch: str | None
     pr_url: str | None
     approved_by: str | None
+    # verification: passed, conclusion, run_url, error_rate_before/after, baseline_error_rate,
+    # p95_ms, metrics {failing, fixed, baseline}, inputs, config, verdict {passed, checks,
+    # reasons}, tests, check {conclusion, posted}
     verification: dict[str, Any] | None
+    pr_number: int | None = None
+    diff: str | None = None  # unified diff of the fix branch against its base
+    rationale: str | None = None
+    labels: list[str] = []
+    rejected_by: str | None = None
+    reject_reason: str | None = None
+    check_status: str | None = None  # conclusion of the GitHub check run Kaizen posted
+    merge: dict[str, Any] | None = None  # "app" merge policy outcome
+    prior_fixes: list[dict[str, Any]] = []  # similar resolved incidents and their fixes
 
 
 class IncidentDetail(BaseModel):
@@ -322,6 +334,15 @@ async def get_incident_detail(incident_id: str, user: CurrentUser) -> IncidentDe
             pr_url=r.get("pr_url"),
             approved_by=rem.approved_by,
             verification=r.get("verification"),
+            pr_number=r.get("pr_number"),
+            diff=r.get("diff"),
+            rationale=r.get("rationale"),
+            labels=list(r.get("labels") or []),
+            rejected_by=rem.rejected_by,
+            reject_reason=rem.reject_reason,
+            check_status=((r.get("verification") or {}).get("check") or {}).get("conclusion"),
+            merge=r.get("merge"),
+            prior_fixes=list(r.get("prior_fixes") or []),
         )
     return IncidentDetail(
         incident=summary, ranking=ranking, investigation=view, remediation=remediation
@@ -514,6 +535,11 @@ async def incident_history(incident_id: str, user: CurrentUser) -> list[Incident
 
 @v1.post("/remediations/{remediation_id}/approve", dependencies=[Depends(csrf_protect)])
 async def approve_remediation(remediation_id: str, user: CurrentUser) -> dict[str, str]:
+    """Approver-only, verified fixes only. With CD_REMEDIATION_MERGE_POLICY=app Kaizen then
+    merges the PR via the API (the merge webhook resolves the incident); with "manual" (the
+    default) a person merges on GitHub."""
+    from causaldeploy.remediate import service as remediation
+
     async with session_scope() as s:
         run = (
             await s.execute(
@@ -541,7 +567,110 @@ async def approve_remediation(remediation_id: str, user: CurrentUser) -> dict[st
                 detail={"repo": inc.repo, "incident": inc.id},
             )
         )
-    return {"id": remediation_id, "status": "approved", "approved_by": user.login}
+    out = {
+        "id": remediation_id,
+        "status": "approved",
+        "approved_by": user.login,
+        "merge": "manual",
+    }
+    if get_settings().remediation_merge_policy == "app":
+        merged = await remediation.merge_approved(remediation_id)
+        out["merge"] = str(merged["status"])  # requested | failed
+    return out
+
+
+class RejectBody(BaseModel):
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class RejectResult(BaseModel):
+    id: str
+    status: str  # "rejected"
+    rejected_by: str
+    reject_reason: str
+    incident_status: str
+
+
+async def _remediation_for(user: CurrentUser, remediation_id: str) -> tuple[str, str]:
+    """(repo, incident id) of a remediation the user can see; 404 otherwise."""
+    async with session_scope() as s:
+        run = await s.get(RemediationRun, remediation_id)
+        inc = await s.get(IncidentRow, run.incident_id) if run is not None else None
+    if run is None or inc is None or inc.repo not in user.repos:
+        raise HTTPException(404, "remediation not found")
+    return inc.repo, inc.id
+
+
+@v1.post(
+    "/remediations/{remediation_id}/reject",
+    response_model=RejectResult,
+    dependencies=[Depends(csrf_protect)],
+)
+async def reject_remediation(
+    remediation_id: str, body: RejectBody, user: CurrentUser
+) -> RejectResult:
+    """Approver-only: reject a fix. Closes its PR, marks the Fix not accepted, and moves the
+    incident back (REMEDIATING -> IDENTIFIED/EXPLAINED, VERIFYING -> NEEDS_HUMAN)."""
+    from causaldeploy.remediate import service as remediation
+
+    repo, incident_id = await _remediation_for(user, remediation_id)
+    require_role(user, repo, "approver")
+    try:
+        run = await remediation.reject_remediation(remediation_id, user.login, body.reason)
+    except remediation.RemediationStateError as e:
+        raise HTTPException(409, str(e)) from e
+    async with session_scope() as s:
+        inc = await s.get(IncidentRow, incident_id)
+        assert inc is not None
+        incident_status = inc.status
+    return RejectResult(
+        id=run.id,
+        status=run.status,
+        rejected_by=run.rejected_by or user.login,
+        reject_reason=run.reject_reason or body.reason,
+        incident_status=incident_status,
+    )
+
+
+class RootCauseBody(BaseModel):
+    sha: str = Field(min_length=7, max_length=64)
+    confirmed: bool
+    reason: str | None = Field(None, max_length=2000)
+
+
+class RootCauseResult(BaseModel):
+    incident_id: str
+    sha: str
+    root_cause_status: str  # confirmed | rejected
+    confirmed_root_cause: str | None
+
+
+@v1.post(
+    "/incidents/{incident_id}/root-cause",
+    response_model=RootCauseResult,
+    dependencies=[Depends(csrf_protect)],
+)
+async def set_incident_root_cause(
+    incident_id: str, body: RootCauseBody, user: CurrentUser
+) -> RootCauseResult:
+    """Approver-only: confirm (Incident-[:confirmed_cause]->Commit) or reject (the
+    likely_caused_by edge gets rejected=true) a suspect commit as the root cause."""
+    from causaldeploy.memory.root_cause import UnknownCommit, set_root_cause
+
+    row = await _incident_for(user, incident_id)
+    require_role(user, row.repo, "approver")
+    try:
+        updated = await set_root_cause(
+            incident_id, body.sha, body.confirmed, user.login, body.reason
+        )
+    except UnknownCommit as e:
+        raise HTTPException(422, f"commit {body.sha} is not in this repository's graph") from e
+    return RootCauseResult(
+        incident_id=incident_id,
+        sha=body.sha,
+        root_cause_status=updated.root_cause_status or "",
+        confirmed_root_cause=updated.confirmed_root_cause,
+    )
 
 
 class NewKey(BaseModel):
@@ -757,7 +886,9 @@ async def dispatch_github(delivery: str, event_type: str, payload: dict[str, Any
     if event_type == "workflow_run" and payload.get("action") == "completed" and repo:
         run = payload.get("workflow_run") or {}
         title = str(run.get("display_title") or "")
-        if run.get("name") == "verify" and title.startswith("verify " + BRANCH_PREFIX):
+        if run.get("name") == "verify" and title.startswith(
+            tuple("verify " + p for p in KAIZEN_PREFIXES)
+        ):
             jid, _ = await enqueue(
                 "verify_result",
                 VerifyResultPayload(
@@ -778,7 +909,7 @@ async def dispatch_github(delivery: str, event_type: str, payload: dict[str, Any
     ):
         pr = payload.get("pull_request") or {}
         head = str((pr.get("head") or {}).get("ref") or "")
-        if not head.startswith(BRANCH_PREFIX):  # our own revert PRs need no warning
+        if not is_kaizen_branch(head):  # our own fix PRs need no warning
             jid, _ = await enqueue(
                 "guard_pr",
                 GuardPayload(repo=repo, number=int(pr["number"]), installation_id=installation),
@@ -788,7 +919,7 @@ async def dispatch_github(delivery: str, event_type: str, payload: dict[str, Any
     if event_type == "pull_request" and payload.get("action") == "closed" and repo:
         pr = payload.get("pull_request") or {}
         head = str((pr.get("head") or {}).get("ref") or "")
-        if pr.get("merged") and head.startswith(BRANCH_PREFIX):
+        if pr.get("merged") and is_kaizen_branch(head):
             jid, _ = await enqueue(
                 "remediation_merged",
                 MergedPayload(

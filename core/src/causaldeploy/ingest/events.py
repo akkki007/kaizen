@@ -139,4 +139,5 @@ def apply_event(
         apply_build(store, event)
     elif isinstance(event, DeploymentEvent):
         apply_deployment(store, event)
-    # telemetry / health / verification_result are handled by their own pipelines
+    # telemetry / health go to detection; verification_result is routed by the ingest job
+    # (jobs.handlers.ingest_event) to remediate.service.record_verification_event

@@ -3,7 +3,12 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from causaldeploy.config import get_settings
-from causaldeploy.contracts import HealthEvent, TelemetryEvent, parse_event
+from causaldeploy.contracts import (
+    HealthEvent,
+    TelemetryEvent,
+    VerificationResultEvent,
+    parse_event,
+)
 from causaldeploy.detect.errors import (
     derive_service_calls,
     link_error,
@@ -41,7 +46,19 @@ async def ingest_event(payload: dict[str, Any]) -> None:
         if fp and isinstance(event, TelemetryEvent):
             await asyncio.to_thread(link_error, store, event, fp)
         return
+    if isinstance(event, VerificationResultEvent):
+        await _verification_event(event)
+        return
     await asyncio.to_thread(apply_event, store, event)
+
+
+async def _verification_event(event: VerificationResultEvent) -> None:
+    """Route a reported verification result to its remediation; post the GitHub check run."""
+    from causaldeploy.remediate import service
+
+    installation = await _installation(event.repo)
+    ops = service.make_ops() if installation is not None else None
+    await service.record_verification_event(event, ops=ops, installation_id=installation)
 
 
 async def backfill_repo(payload: dict[str, Any]) -> None:
@@ -76,7 +93,8 @@ async def _installation(repo: str) -> int | None:
 
 
 async def propose_fix(payload: dict[str, Any]) -> None:
-    from causaldeploy.remediate.service import propose_revert
+    from causaldeploy.remediate import service
+    from causaldeploy.remediate.patch import default_patch_client
 
     job = ProposeFixPayload.model_validate(payload)
     if not get_settings().is_allowed(job.repo):
@@ -84,21 +102,31 @@ async def propose_fix(payload: dict[str, Any]) -> None:
     installation = await _installation(job.repo)
     if installation is None:
         raise RuntimeError(f"the GitHub App is not installed on {job.repo}")
-    await propose_revert(job.repo, job.incident_id, installation)
+    await service.propose_fix(
+        job.repo, job.incident_id, installation, service.make_ops(), default_patch_client()
+    )
 
 
 async def verify_result(payload: dict[str, Any]) -> None:
-    from causaldeploy.remediate.ops import GitHubOps
-    from causaldeploy.remediate.service import record_verification
+    from causaldeploy.remediate import service
 
     job = VerifyResultPayload.model_validate(payload)
     if not get_settings().is_allowed(job.repo):
         return
     installation = job.installation_id or await _installation(job.repo)
     report = None
-    if installation is not None:
-        report = await GitHubOps().fetch_report(job.repo, installation, job.run_id)
-    await record_verification(job.repo, job.branch, job.conclusion, job.run_url, report)
+    ops = service.make_ops() if installation is not None else None
+    if ops is not None and installation is not None:
+        report = await ops.fetch_report(job.repo, installation, job.run_id)
+    await service.record_verification(
+        job.repo,
+        job.branch,
+        job.conclusion,
+        job.run_url,
+        report,
+        ops=ops,
+        installation_id=installation,
+    )
 
 
 async def remediation_merged(payload: dict[str, Any]) -> None:

@@ -105,6 +105,16 @@ async def backfill(repo: str) -> dict[str, str]:
     return {"repo": repo, "installation_id": str(installation)}
 
 
+async def demo_history(repo: str) -> dict[str, object]:
+    """Seed resolved historical incidents + fixes (idempotent) and run the similarity pass."""
+    from causaldeploy.config import get_settings
+    from causaldeploy.memory.demo import seed_history
+
+    if not get_settings().is_allowed(repo):
+        raise SystemExit(f"{repo} is not in CD_ALLOWED_REPOS")
+    return await seed_history(repo)
+
+
 async def create_key(repo: str, label: str) -> str:
     from causaldeploy.api.routes import create_api_key
 
@@ -125,6 +135,10 @@ def main() -> None:
         "backfill", help="import a repository into the local graph via the GitHub App"
     )
     b.add_argument("repo", help="owner/name")
+    d = sub.add_parser(
+        "demo-history", help="seed resolved demo incidents + fixes and compute similarity"
+    )
+    d.add_argument("repo", help="owner/name")
     k = sub.add_parser("create-api-key", help="print a new ingest API key for a repository")
     k.add_argument("repo")
     k.add_argument("--label", default="")
@@ -139,6 +153,8 @@ def main() -> None:
         raise SystemExit(1 if problems else 0)
     elif a.cmd == "backfill":
         print(json.dumps(asyncio.run(backfill(a.repo))))
+    elif a.cmd == "demo-history":
+        print(json.dumps(asyncio.run(demo_history(a.repo))))
     elif a.cmd == "replay":
         print(f"replayed {asyncio.run(replay(a.limit))} deliveries")
     else:

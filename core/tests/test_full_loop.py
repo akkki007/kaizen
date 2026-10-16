@@ -155,16 +155,19 @@ async def test_s1_end_to_end(
     assert (
         run is not None
         and run.status == "verifying"
-        and ops.pushed == [f"kaizen/revert-{culprit[:7]}"]
+        and ops.pushed == [f"kaizen/fix-{incident_id}"]
+        and ops.prs[0]["labels"] == ["kaizen", f"incident:{incident_id}"]
     )
     verdict = await record_verification(
         repo,
-        run.result["branch"],
+        run.result["branch"],  # type: ignore[index]
         "success",
         "https://run/9",
-        {"error_rate": 0.0, "p95_ms": 41},  # type: ignore[index]
+        {"error_rate": 0.0, "p95_ms": 41},
+        ops=ops,
+        installation_id=1,
     )
-    assert verdict == "verified"
+    assert verdict == "verified" and ops.checks[0]["passed"] is True
     async with session_scope() as s:  # approval, as POST /remediations/{id}/approve records it
         rem = await s.get(RemediationRun, run.id)
         assert rem is not None
@@ -179,4 +182,16 @@ async def test_s1_end_to_end(
         {"i": incident_id},
     )
     assert mem == [["resolved", culprit, True, culprit, "yash"]]
+    chain = store.read(
+        "MATCH (i:Incident {id: $i})-[:confirmed_cause]->(c:Commit)<-[:reverts]-(:Fix)"
+        "-[:verified_by]->(t:Test) RETURN c.sha, t.id",
+        {"i": incident_id},
+    )
+    assert chain == [[culprit, f"test-{run.id}"]]
+    async with session_scope() as s:
+        row = (await s.execute(select(IncidentRow))).scalar_one()
+    memory = row.memory or {}
+    assert row.confirmed_root_cause == culprit and memory["fix"]["merged_by"] == "yash"
+    assert memory["ttd_s"] == 100.0  # detected at onset + 100 s (step 2)
+    assert memory["ttdiagnose_s"] is not None and memory["ttr_s"] is not None
     assert json.dumps(agent.model_dump(mode="json"))  # trace is serializable for the UI

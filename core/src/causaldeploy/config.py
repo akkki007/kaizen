@@ -79,6 +79,24 @@ class Settings(BaseSettings):
     detect_overrides: dict[str, dict[str, float]] = {}
     telemetry_retention_days: int = Field(14, ge=1)
 
+    # Remediation (#91). "manual": a person merges the approved PR on GitHub; "app": Kaizen
+    # merges it through the API right after a recorded approval. Never without an approval.
+    remediation_merge_policy: Literal["manual", "app"] = "manual"
+    remediation_merge_method: Literal["merge", "squash", "rebase"] = "squash"
+    # Resolved incidents at least this similar (weighted Jaccard) get a `resembles` edge
+    remediation_similarity_threshold: float = Field(0.3, gt=0, le=1)
+    # LLM patch attempt before the revert (off by default; needs an injected patch client)
+    remediation_patch_enabled: bool = False
+    remediation_patch_max_lines: int = Field(80, ge=1)  # added + removed lines in the patch
+    remediation_patch_max_files: int = Field(3, ge=1)
+    remediation_test_command: str = "npm test --silent"
+    remediation_test_timeout_s: int = Field(600, ge=10)
+
+    # Verification verdict: fixed vs. baseline (healthy) metrics
+    verify_error_tolerance: float = Field(0.02, ge=0, le=1)  # absolute error-rate slack
+    verify_p95_tolerance_ms: float = Field(250.0, ge=0)  # p95 may exceed the baseline by this
+    verify_min_samples: int = Field(20, ge=0)  # fewer requests in the fixed run = no verdict
+
     @field_validator("github_app_private_key", mode="before")
     @classmethod
     def _normalise_private_key(cls, v: object) -> object:
