@@ -124,6 +124,52 @@ class GraphBuilder:
         )
         return dep_id
 
+    def config_change(
+        self,
+        deployment: str,
+        service: str,
+        key: str,
+        *,
+        file: str = "",
+        commit: str | None = None,
+    ) -> str:
+        """A config/env value the deployment changed for `service` (a non-code suspect)."""
+        cid = f"{service}:{key}@{deployment}"
+        self.store.upsert_nodes(
+            "ConfigChange", [{"id": cid, "service": service, "key": key, "file": file}]
+        )
+        edges = [Edge("Deployment", deployment, "changes_config", "ConfigChange", cid)]
+        if commit:
+            edges.append(Edge("ConfigChange", cid, "introduced_by", "Commit", commit))
+        self.store.upsert_edges(edges)
+        return cid
+
+    def dependency_change(
+        self,
+        deployment: str,
+        name: str,
+        from_version: str | None,
+        to_version: str,
+        *,
+        commit: str | None = None,
+    ) -> str:
+        """A dependency version the deployment shipped without a commit changing code
+        (lockfile regeneration, base image, transitive bump)."""
+        dep = self.dependency(name, to_version)
+        did = f"{name}:{from_version or '?'}->{to_version}@{deployment}"
+        self.store.upsert_nodes(
+            "DependencyChange",
+            [{"id": did, "name": name, "from_version": from_version, "to_version": to_version}],
+        )
+        edges = [
+            Edge("Deployment", deployment, "bumps", "DependencyChange", did),
+            Edge("DependencyChange", did, "to_version", "Dependency", dep),
+        ]
+        if commit:
+            edges.append(Edge("DependencyChange", did, "introduced_by", "Commit", commit))
+        self.store.upsert_edges(edges)
+        return did
+
     def error(
         self,
         fingerprint: str,
@@ -317,3 +363,34 @@ class GraphBuilder:
             endpoint="POST /payments",
         )
         return Scenario("S5", "inc-5", bad, [fmt], ["payments", "orders"], [bad])
+
+    def s6_config_change(self) -> Scenario:
+        """Orders is pointed at a wrong payments port: no code diff, no stack, just failures."""
+        create = self.function("orders", "src/orders.js", "createOrder", endpoint="POST /orders")
+        price = self.function("orders", "src/pricing.js", "priceOrder")
+        self.store.upsert_edges([Edge("Function", create, "calls", "Function", price)])
+        self.function("payments", "src/routes.js", "handleCharge", endpoint="POST /charge")
+        self.store.upsert_edges([Edge("Service", "orders", "calls", "Service", "payments")])
+        noise = self.commit("a0000006", 190, modifies_fn=[price], message="tidy pricing")
+        cfg_commit = self.commit(
+            "c0ffee06", 200, files=["orders:docker-compose.prod.yml"], message="move payments port"
+        )
+        self.deployment("dep-6", "prod", [noise, cfg_commit], 300)
+        cfg = self.config_change(
+            "dep-6", "orders", "PAYMENTS_URL", file="docker-compose.prod.yml", commit=cfg_commit
+        )
+        self.error(
+            "fp-s6",
+            thrown_in=[],
+            endpoint="orders:POST /orders",
+            service="orders",
+            message="connect ECONNREFUSED payments",
+        )
+        self.incident(
+            "inc-6",
+            service="orders",
+            deployment="dep-6",
+            errors=["fp-s6"],
+            endpoint="POST /orders",
+        )
+        return Scenario("S6", "inc-6", cfg, [], ["orders", "gateway"], [noise, cfg_commit])

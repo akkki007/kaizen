@@ -1,0 +1,19 @@
+{
+  "version": "v1",
+  "fitted_on": "tune",
+  "notes": "Hand-set initial weights (PLAN section 5), checked on the tune split only (S1, S3, S5, S8). `config` (#89) carries the same weight as `path`: both are a direct link between the change and the failing code or service. `triggered` (#89) keeps the detector's incident -> deployment link as evidence once lookback-window deployments join the candidate set; set a priori to the weight of `service`, not fitted (every tune case has a single deployment, so the tune split cannot identify it).",
+  "weights": {
+    "temporal": 0.15,
+    "path": 0.25,
+    "endpoint": 0.15,
+    "service": 0.10,
+    "dependency": 0.10,
+    "msg_sim": 0.05,
+    "history": 0.10,
+    "sequence": 0.05,
+    "triggered": 0.10,
+    "centrality": 0.05,
+    "blast": -0.10,
+    "config": 0.25
+  }
+}

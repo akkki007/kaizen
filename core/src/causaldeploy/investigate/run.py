@@ -1,6 +1,7 @@
 """Investigation job: rank candidates, persist them to the graph and Postgres."""
 
 import asyncio
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -22,7 +23,9 @@ async def investigate(repo: str, incident_id: str) -> RankResult:
         incident_id, S.INVESTIGATING, only_from=[S.OPEN], reason="investigation started"
     )
     try:
+        started = time.perf_counter()
         result = await asyncio.to_thread(_rank_and_persist, store, incident_id)
+        rank_ms = (time.perf_counter() - started) * 1000
         run = await _run_agent(repo, store, incident_id)
     except Exception:
         # never stay "investigating"
@@ -37,6 +40,7 @@ async def investigate(repo: str, incident_id: str) -> RankResult:
                 "ranking": result.model_dump(mode="json"),
                 "agent": run.model_dump(mode="json") if run else None,
             },
+            **investigation_record(result, rank_ms),
         )
         s.add(inv)
         await s.flush()
@@ -87,6 +91,20 @@ def _rank_and_persist(store: GraphStore, incident_id: str) -> RankResult:
     result = rank(store, incident_id, "graph")
     persist(store, result)
     return result
+
+
+def investigation_record(result: RankResult, rank_ms: float) -> dict[str, Any]:
+    """What the ranking was computed from (#89): reproducible inputs, weights version, time."""
+    return {
+        "inputs": {
+            "incident_id": result.incident_id,
+            "lookback_hours": get_settings().lookback_hours,
+            "candidate_ids": [c.node_id for c in result.candidates],
+            "weights_version": result.weights_version,
+        },
+        "scorer_version": result.weights_version,
+        "duration_ms": round(rank_ms, 3),
+    }
 
 
 def summary(result: RankResult) -> dict[str, Any]:

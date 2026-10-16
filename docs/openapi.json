@@ -286,6 +286,18 @@
             "title": "Cypher",
             "type": "string"
           },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "explanation": {
+            "default": "",
+            "title": "Explanation",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -724,6 +736,11 @@
             ],
             "title": "Verdict",
             "type": "string"
+          },
+          "weights_version": {
+            "default": "",
+            "title": "Weights Version",
+            "type": "string"
           }
         },
         "required": [
@@ -778,8 +795,23 @@
             "title": "Features",
             "type": "array"
           },
+          "kind": {
+            "default": "commit",
+            "enum": [
+              "commit",
+              "config",
+              "dependency"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
           "message": {
             "title": "Message",
+            "type": "string"
+          },
+          "node_id": {
+            "default": "",
+            "title": "Node Id",
             "type": "string"
           },
           "rank": {

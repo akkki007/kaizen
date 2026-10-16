@@ -115,6 +115,35 @@ async def demo_history(repo: str) -> dict[str, object]:
     return await seed_history(repo)
 
 
+def investigate_report(repo: str, incident_id: str, top: int = 5) -> str:
+    """Read-only ranking of one incident: verdict, suspects, every feature with its reason."""
+    from causaldeploy.graph.store import GraphStore
+    from causaldeploy.investigate.scorer import rank_graph
+
+    r = rank_graph(GraphStore(repo), incident_id)
+    lines = [
+        f"incident {incident_id} in {repo}: verdict {r.verdict}, margin {r.margin:.3f}, "
+        f"weights {r.weights_version}, {len(r.candidates)} candidate(s)"
+    ]
+    for c in r.candidates[:top]:
+        head = c.sha[:12] if c.kind == "commit" else c.sha
+        lines += [
+            "",
+            f"#{c.rank} [{c.kind}] {head} score {c.score:+.3f} confidence {c.confidence:.0%}"
+            f"  {c.message.splitlines()[0] if c.message else ''}",
+        ]
+        for f in sorted(c.features, key=lambda f: -abs(f.contribution)):
+            lines.append(
+                f"    {f.name:<11} {f.value:6.3f} x {f.weight:+.2f} = {f.contribution:+.3f}"
+                f"  {f.explanation}"
+            )
+        for e in c.evidence[:3]:
+            lines.append(f"    path: {e.changed_function} -> {e.thrown_function} ({e.error})")
+    if len(r.candidates) > top:
+        lines += ["", f"... {len(r.candidates) - top} more (use --top)"]
+    return "\n".join(lines)
+
+
 async def create_key(repo: str, label: str) -> str:
     from causaldeploy.api.routes import create_api_key
 
@@ -139,6 +168,12 @@ def main() -> None:
         "demo-history", help="seed resolved demo incidents + fixes and compute similarity"
     )
     d.add_argument("repo", help="owner/name")
+    i = sub.add_parser(
+        "investigate", help="rank an incident's suspects and explain every feature (read-only)"
+    )
+    i.add_argument("repo", help="owner/name")
+    i.add_argument("incident_id")
+    i.add_argument("--top", type=int, default=5)
     k = sub.add_parser("create-api-key", help="print a new ingest API key for a repository")
     k.add_argument("repo")
     k.add_argument("--label", default="")
@@ -155,6 +190,8 @@ def main() -> None:
         print(json.dumps(asyncio.run(backfill(a.repo))))
     elif a.cmd == "demo-history":
         print(json.dumps(asyncio.run(demo_history(a.repo))))
+    elif a.cmd == "investigate":
+        print(investigate_report(a.repo, a.incident_id, a.top))
     elif a.cmd == "replay":
         print(f"replayed {asyncio.run(replay(a.limit))} deliveries")
     else:

@@ -23,6 +23,10 @@ NODE_KEYS: dict[str, str] = {
     "VerificationRun": "id",
     "Investigation": "id",
     "ToolCall": "id",
+    # non-code suspects shipped by a deployment (#89): an env/config value or a dependency
+    # version that changed without a commit touching code (lockfile regen, base image, env var)
+    "ConfigChange": "id",  # e.g. "orders:PAYMENTS_URL@dep-1"
+    "DependencyChange": "id",  # e.g. "money-utils:1.9.0->2.0.0@dep-1"
 }
 
 # relationship type -> allowed (source label, target label) pairs
@@ -35,6 +39,10 @@ RELATIONSHIPS: dict[str, frozenset[tuple[str, str]]] = {
     "produces": frozenset({("Build", "Deployment")}),
     "includes": frozenset({("Deployment", "Commit")}),
     "deployed_to": frozenset({("Deployment", "Environment")}),
+    "changes_config": frozenset({("Deployment", "ConfigChange")}),
+    "bumps": frozenset({("Deployment", "DependencyChange")}),
+    "to_version": frozenset({("DependencyChange", "Dependency")}),
+    "introduced_by": frozenset({("ConfigChange", "Commit"), ("DependencyChange", "Commit")}),
     "modifies": frozenset({("Commit", "File")}),
     "modifies_fn": frozenset({("Commit", "Function")}),
     "changes_dep": frozenset({("Commit", "Dependency")}),
@@ -53,8 +61,11 @@ RELATIONSHIPS: dict[str, frozenset[tuple[str, str]]] = {
     "thrown_in": frozenset({("Error", "Function")}),
     "observed_on": frozenset({("Error", "Endpoint")}),
     "raised_by": frozenset({("Error", "Service")}),
-    "candidate": frozenset({("Incident", "Commit")}),
-    "likely_caused_by": frozenset({("Incident", "Commit")}),  # props: verdict, rejected
+    "candidate": frozenset(
+        {("Incident", "Commit"), ("Incident", "ConfigChange"), ("Incident", "DependencyChange")}
+    ),
+    # props: verdict, tentative (ambiguous ranking), rejected (a person rejected it)
+    "likely_caused_by": frozenset({("Incident", "Commit")}),
     # a person confirmed this commit as the root cause (POST /incidents/{id}/root-cause)
     "confirmed_cause": frozenset({("Incident", "Commit")}),
     # props: similarity (weighted Jaccard), basis (overlapping signature elements)
@@ -81,12 +92,15 @@ RELATIONSHIPS: dict[str, frozenset[tuple[str, str]]] = {
                 "Developer",
                 "Fix",
                 "File",
+                "ConfigChange",
+                "DependencyChange",
             )
         }
     ),
 }
 
 # Versioned schema steps: version -> (label, property) range indexes + unique constraints.
-SCHEMA_VERSION = 3  # v2: Investigation/ToolCall (agent trace); v3: VerificationRun
+# v2: Investigation/ToolCall (agent trace); v3: VerificationRun; v4: ConfigChange/DependencyChange
+SCHEMA_VERSION = 4
 UNIQUE_KEYS = [(label, key) for label, key in NODE_KEYS.items()]
 RANGE_INDEXES = [("Commit", "ts"), ("Deployment", "started_at"), ("Incident", "status")]

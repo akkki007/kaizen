@@ -8,6 +8,7 @@ function edit). Culprit position in the deployment rotates with the variant so t
 baseline is right only some of the time.
 """
 
+import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,8 @@ class Case:
     code_bug: bool
     commits: list[str] = field(default_factory=list)
     resembles: bool = False
+    culprit_id: str | None = None  # key of the true suspect of any kind (sha or config id)
+    fix_verified: bool | None = None  # only when the scenario reports a verification outcome
 
 
 def load_scenarios() -> list[dict[str, Any]]:
@@ -72,6 +75,12 @@ def load_scenarios() -> list[dict[str, Any]]:
         yaml.safe_load(p.read_text())
         for p in sorted(SCENARIO_DIR.glob("S*.yaml"), key=lambda p: int(p.stem[1:]))
     ]
+
+
+def _sha(role: str, tag: str) -> str:
+    """Neutral, deterministic commit id. Names like "c<tag>" for the culprit would sort first
+    and win every score tie (the scorer breaks ties by key), flattering any method that ties."""
+    return hashlib.sha1(f"{role}:{tag}".encode()).hexdigest()[:12]
 
 
 def _service_of(fn: str) -> str:
@@ -119,7 +128,7 @@ def build_case(b: GraphBuilder, spec: dict[str, Any], variant: int) -> Case:
     )
 
     tag = f"{sid.lower()}v{variant}"
-    culprit_sha = f"c{tag}" if code_bug else None
+    culprit_sha = _sha("c", tag) if code_bug else None
     # where the failure is observed
     failing_service = "payments"
     failing_endpoint = "POST /payments"
@@ -127,6 +136,10 @@ def build_case(b: GraphBuilder, spec: dict[str, Any], variant: int) -> Case:
     if sid == "S4":
         thrown = []  # a 422 response, not an exception: only the endpoint is observed
     if sid in ("S3", "S7", "S8", "S10"):
+        failing_service, failing_endpoint = "orders", "POST /orders"
+    if not code_bug:
+        # S6: orders can no longer reach payments. The ground truth lists orders and gateway as
+        # affected (payments itself is healthy), so the failure is observed on orders' endpoint.
         failing_service, failing_endpoint = "orders", "POST /orders"
     if sid == "S5":
         thrown = [FN["m_format"], FN["pay_post"]]
@@ -155,19 +168,19 @@ def build_case(b: GraphBuilder, spec: dict[str, Any], variant: int) -> Case:
         variant % 2 == 0
     )  # even variants: a decoy mentions the error words; odd: the culprit does
     noise: list[tuple[str, str, list[str], list[str]]] = [  # (sha, message, functions, files)
-        (f"d{tag}", "docs: update README", [], ["README.md"]),
-        (f"k{tag}", keywords if bait else "chore: bump logging", [pool[0]], []),
-        (f"r{tag}", "refactor: tidy helpers", [pool[1 % len(pool)]], []),
-        (f"g{tag}", "chore: log request ids", [pool[2 % len(pool)]], []),
+        (_sha("d", tag), "docs: update README", [], ["README.md"]),
+        (_sha("k", tag), keywords if bait else "chore: bump logging", [pool[0]], []),
+        (_sha("r", tag), "refactor: tidy helpers", [pool[1 % len(pool)]], []),
+        (_sha("g", tag), "chore: log request ids", [pool[2 % len(pool)]], []),
     ]
     if sid == "S2":  # sibling function of the culprit in the same file
-        noise.append((f"s{tag}", "refactor: normalise payment method", [FN["pay_method"]], []))
+        noise.append((_sha("s", tag), "refactor: normalise payment method", [FN["pay_method"]], []))
     if sid == "S3":
-        noise.append((f"n1{tag}", "chore: tweak constants", [pool[3 % len(pool)]], []))
+        noise.append((_sha("n1", tag), "chore: tweak constants", [pool[3 % len(pool)]], []))
     if sid == "S10":  # the unrelated flaky endpoint change
         noise.append(
             (
-                f"f{tag}",
+                _sha("f", tag),
                 "feat(gateway): serve /orders from a short-lived cache",
                 [FN["gateway_post"]],
                 [],
@@ -183,7 +196,7 @@ def build_case(b: GraphBuilder, spec: dict[str, Any], variant: int) -> Case:
     entries: list[tuple[str, str, list[str], list[str]]] = list(noise)
     pos = variant % 3  # 0 -> culprit is the latest commit, 1 -> middle, 2 -> earliest
     cm = (
-        culprit_sha or f"x{tag}",
+        culprit_sha or _sha("x", tag),
         culprit_msg,
         [culprit_fn] if (culprit_fn and code_bug) else [],
         ["docker-compose.prod.yml"] if not code_bug else [],
@@ -215,10 +228,25 @@ def build_case(b: GraphBuilder, spec: dict[str, Any], variant: int) -> Case:
     else:
         b.deployment("dep-1", "prod", shas, T_DEPLOY)
         deps_trigger = "dep-1"
+    config_id = None
+    overrides: dict[str, dict[str, Any]] = spec.get("env_override") or {}
+    if not code_bug and overrides:  # the deployment also ships the changed env value
+        target = sorted(overrides)[0]
+        key = sorted(overrides[target])[0]
+        config_id = b.config_change(
+            "dep-1",
+            target,
+            key,
+            file=gt.get("culprit_file") or "",
+            commit=culprit_sha or _sha("x", tag),
+        )
 
-    err_msg = (
-        "currency amount validation failed in payment handler" if thrown else "amount mismatch"
-    )
+    if thrown:
+        err_msg = "currency amount validation failed in payment handler"
+    elif not code_bug:
+        err_msg = "fetch failed: connect ECONNREFUSED"
+    else:
+        err_msg = "amount mismatch"
     err = b.error(
         f"fp-{tag}",
         thrown_in=thrown,
@@ -244,7 +272,9 @@ def build_case(b: GraphBuilder, spec: dict[str, Any], variant: int) -> Case:
         endpoint=failing_endpoint,
     )
     if sid == "S8" and culprit_fn:  # recurrence: a resolved incident blamed the same function
-        old = b.commit(f"old{tag}", 100, modifies_fn=[culprit_fn], message="earlier regression")
+        old = b.commit(
+            _sha("old", tag), 100, modifies_fn=[culprit_fn], message="earlier regression"
+        )
         store.upsert_nodes("Incident", [{"id": f"old-{tag}", "status": "resolved"}])
         store.upsert_edges(
             [
@@ -264,4 +294,6 @@ def build_case(b: GraphBuilder, spec: dict[str, Any], variant: int) -> Case:
         code_bug=code_bug,
         commits=shas,
         resembles=sid == "S8",
+        culprit_id=culprit_sha or config_id,
+        fix_verified=gt.get("fix_verified"),
     )

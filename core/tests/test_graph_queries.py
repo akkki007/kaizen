@@ -122,3 +122,27 @@ def test_queries_are_fast_on_a_realistic_graph(builder: GraphBuilder) -> None:
         t = time.perf_counter()
         fn()
         assert time.perf_counter() - t < 0.2, name
+
+
+def test_q7_impact_report_s4_originating_vs_symptomatic(builder: GraphBuilder) -> None:
+    sc = builder.s4_cross_service()
+    r = q.impact_report(builder.store, sc.incident_id, sc.culprit_commit)
+    assert r.originating == "orders" and r.symptomatic == "payments"
+    svc = {e.id: e for e in r.services}
+    assert svc["payments"].status == "observed" and "callee" in svc["payments"].via
+    assert svc["orders"].status == "potential" and "changed" in svc["orders"].via
+    assert svc["gateway"].status == "potential" and "caller" in svc["gateway"].via
+    eps = {e.id: e.status for e in r.endpoints}
+    assert eps == {"payments:POST /charge": "observed", "gateway:POST /orders": "potential"}
+    assert r.services[0].status == "observed"  # observed first
+
+
+def test_q7_impact_report_shared_dependency_fan_out_s5(builder: GraphBuilder) -> None:
+    sc = builder.s5_dependency_bump()
+    r = q.impact_report(builder.store, sc.incident_id, sc.culprit_commit)
+    [dep] = r.shared_dependencies
+    assert dep.dependency_id == "money-utils@2.0.0" and dep.services == ["orders", "payments"]
+    svc = {e.id: e for e in r.services}
+    assert svc["payments"].status == "observed"
+    assert svc["orders"].status == "potential" and svc["orders"].via == ["shared_dependency"]
+    assert r.symptomatic == "payments" and r.originating is None  # a manifest-only commit
