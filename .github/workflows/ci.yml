@@ -46,6 +46,40 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build -t causaldeploy-core:ci core
       - run: docker build -t causaldeploy-ui:ci ui
+      # container scans: report fixable HIGH/CRITICAL OS or library vulnerabilities. Report-only
+      # until a first clean CI run; then set exit-code to "1" to gate merges (docs/security.md)
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: causaldeploy-core:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: causaldeploy-ui:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      # secrets anywhere in history (keys, tokens, the GitHub App PEM)
+      - name: Secret scan (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 detect --source /repo --redact --no-banner
+      - uses: astral-sh/setup-uv@v5
+      - name: Python dependency audit (pip-audit)
+        working-directory: core
+        run: |
+          uv export --locked --no-dev --no-hashes --no-emit-project > /tmp/requirements.txt
+          uvx pip-audit==2.7.3 --strict -r /tmp/requirements.txt
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: npm audit (runtime dependencies)
+        working-directory: ui
+        run: npm install --ignore-scripts && npm audit --omit=dev --audit-level=high
 
   ui:
     runs-on: ubuntu-latest

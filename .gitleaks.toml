@@ -1,0 +1,16 @@
+# Secret scanning (CI `security` job). Default rules, plus an allowlist for files that hold
+# deliberately fake secrets or the redaction patterns themselves. Keep this list narrow.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "fake secrets in tests, redaction patterns, generated reports"
+paths = [
+  # tests use dummy keys/tokens to prove redaction and config handling
+  '''^core/tests/''',
+  # the redactors are made of secret-shaped regexes
+  '''^core/src/causaldeploy/logging\.py$''',
+  '''^core/src/causaldeploy/agent/safety\.py$''',
+  # Playwright HTML report (minified JS) was committed once in 9cca8cb, untracked in 7036230
+  '''^ui/playwright-report/''',
+]
