@@ -1,5 +1,5 @@
 {
- "key": "72338c90a73f4b928dc79beec00090035fb9aa921e34d0ca5552ff4107a5e862",
+ "key": "1dae442c8a20df16d2dac653ff0e02f133422bb53ae7d0e4214fd6fcea5a0183",
  "model": "golden-scripted",
  "prompt_version": "investigator.v1-b75a666b",
  "messages": 10,
@@ -11,7 +11,7 @@
    "content": "{\"verdict\": \"confident\", \"culprit_sha\": \"c0ffee03\", \"culprit_function\": \"payments:src/payment/validation.js:validatePayment\", \"claims\": [{\"text\": \"c0ffee03 ranks first (verdict confident).\", \"cited_node_ids\": [\"Commit:c0ffee03\"]}, {\"text\": \"It changed payments:src/payment/validation.js:validatePayment, which reaches payments:src/payment/validation.js:validatePayment (threw).\", \"cited_node_ids\": [\"Commit:c0ffee03\", \"Function:payments:src/payment/validation.js:validatePayment\", \"Function:payments:src/payment/validation.js:validatePayment\"]}], \"causal_chain\": [{\"step\": \"dep-3 shipped c0ffee03.\", \"cited_node_ids\": [\"Deployment:dep-3\", \"Commit:c0ffee03\"]}, {\"step\": \"The commit changed payments:src/payment/validation.js:validatePayment.\", \"cited_node_ids\": [\"Commit:c0ffee03\", \"Function:payments:src/payment/validation.js:validatePayment\"]}, {\"step\": \"The incident followed.\", \"cited_node_ids\": [\"Incident:inc-3\"]}], \"confidence_statement\": \"Ranking confident, margin 0.5154.\", \"alternatives\": [{\"sha\": \"a0000000\", \"reason\": \"rank 2\", \"cited_node_ids\": [\"Commit:a0000000\"]}, {\"sha\": \"a0000001\", \"reason\": \"rank 3\", \"cited_node_ids\": [\"Commit:a0000001\"]}], \"suggested_fix\": \"revert c0ffee0\", \"responders\": []}"
   },
   "usage": {
-   "input_tokens": 2225,
+   "input_tokens": 2271,
    "output_tokens": 303
   }
  }

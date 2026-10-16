@@ -1,6 +1,7 @@
 """Investigation job: rank candidates, persist them to the graph and Postgres."""
 
 import asyncio
+import logging
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -8,6 +9,7 @@ from typing import Any
 from sqlalchemy import select
 
 from causaldeploy.agent.models import AgentRun
+from causaldeploy.config import get_settings
 from causaldeploy.contracts.domain import IncidentStatus as S
 from causaldeploy.db.models import IncidentRow, Investigation
 from causaldeploy.db.session import session_scope
@@ -15,12 +17,14 @@ from causaldeploy.graph.store import GraphStore
 from causaldeploy.incidents import lifecycle
 from causaldeploy.investigate.scorer import RankResult, persist, rank
 
+log = logging.getLogger(__name__)
 
 async def investigate(repo: str, incident_id: str) -> RankResult:
     store = GraphStore(repo)
     await lifecycle.advance(
         incident_id, S.INVESTIGATING, only_from=[S.OPEN], reason="investigation started"
     )
+    await _update_similarity(repo, incident_id)  # before ranking: feeds the history feature
     try:
         started = time.perf_counter()
         result = await asyncio.to_thread(_rank_and_persist, store, incident_id)
@@ -69,6 +73,17 @@ async def investigate(repo: str, incident_id: str) -> RankResult:
 
         await asyncio.to_thread(write_trace, store, run, f"inv-{inv_id}")
     return result
+
+
+async def _update_similarity(repo: str, incident_id: str) -> None:
+    """Computed `resembles {similarity, basis}` edges to past incidents (#91). Best effort: a
+    failure here must not block ranking."""
+    from causaldeploy.memory.similarity import update_similarity
+
+    try:
+        await update_similarity(repo, incident_id)
+    except Exception:
+        log.warning("similarity pass failed", extra={"ctx": {"incident": incident_id}})
 
 
 async def _run_agent(repo: str, store: GraphStore, incident_id: str) -> AgentRun | None:

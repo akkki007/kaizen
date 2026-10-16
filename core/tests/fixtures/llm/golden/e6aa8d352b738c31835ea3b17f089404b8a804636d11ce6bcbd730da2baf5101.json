@@ -1,17 +1,16 @@
 {
- "key": "d0a85113823306af8ff439cb35e5396ed54708759e4bff6cf9b6f0f2bef5770d",
+ "key": "e6aa8d352b738c31835ea3b17f089404b8a804636d11ce6bcbd730da2baf5101",
  "model": "golden-scripted",
  "prompt_version": "investigator.v1-b75a666b",
- "messages": 6,
+ "messages": 8,
  "reply": {
   "content": null,
   "tool_calls": [
    {
-    "id": "call_3",
-    "name": "shortest_call_path",
+    "id": "call_4",
+    "name": "get_deployment_commits",
     "arguments": {
-     "sha": "c0ffee01",
-     "incident_id": "inc-1"
+     "incident_id": "inc-3"
     }
    }
   ],
@@ -20,11 +19,11 @@
    "content": null,
    "tool_calls": [
     {
-     "id": "call_3",
+     "id": "call_4",
      "type": "function",
      "function": {
-      "name": "shortest_call_path",
-      "arguments": "{\"sha\": \"c0ffee01\", \"incident_id\": \"inc-1\"}"
+      "name": "get_deployment_commits",
+      "arguments": "{\"incident_id\": \"inc-3\"}"
      }
     }
    ]

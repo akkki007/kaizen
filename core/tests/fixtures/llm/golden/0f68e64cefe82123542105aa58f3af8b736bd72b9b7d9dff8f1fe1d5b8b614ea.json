@@ -1,0 +1,18 @@
+{
+ "key": "0f68e64cefe82123542105aa58f3af8b736bd72b9b7d9dff8f1fe1d5b8b614ea",
+ "model": "golden-scripted",
+ "prompt_version": "investigator.v1-b75a666b",
+ "messages": 10,
+ "reply": {
+  "content": "{\"verdict\": \"confident\", \"culprit_sha\": \"c0ffee01\", \"culprit_function\": \"payments:src/payment/validation.js:validatePayment\", \"claims\": [{\"text\": \"c0ffee01 ranks first (verdict confident).\", \"cited_node_ids\": [\"Commit:c0ffee01\"]}, {\"text\": \"It changed payments:src/payment/validation.js:validatePayment, which reaches payments:src/payment/validation.js:validatePayment (threw).\", \"cited_node_ids\": [\"Commit:c0ffee01\", \"Function:payments:src/payment/validation.js:validatePayment\", \"Function:payments:src/payment/validation.js:validatePayment\"]}], \"causal_chain\": [{\"step\": \"dep-842 shipped c0ffee01.\", \"cited_node_ids\": [\"Deployment:dep-842\", \"Commit:c0ffee01\"]}, {\"step\": \"The commit changed payments:src/payment/validation.js:validatePayment.\", \"cited_node_ids\": [\"Commit:c0ffee01\", \"Function:payments:src/payment/validation.js:validatePayment\"]}, {\"step\": \"The incident followed.\", \"cited_node_ids\": [\"Incident:inc-1\"]}], \"confidence_statement\": \"Ranking confident, margin 0.5333.\", \"alternatives\": [{\"sha\": \"n0000001\", \"reason\": \"rank 2\", \"cited_node_ids\": [\"Commit:n0000001\"]}], \"suggested_fix\": \"revert c0ffee0\", \"responders\": []}",
+  "tool_calls": [],
+  "raw": {
+   "role": "assistant",
+   "content": "{\"verdict\": \"confident\", \"culprit_sha\": \"c0ffee01\", \"culprit_function\": \"payments:src/payment/validation.js:validatePayment\", \"claims\": [{\"text\": \"c0ffee01 ranks first (verdict confident).\", \"cited_node_ids\": [\"Commit:c0ffee01\"]}, {\"text\": \"It changed payments:src/payment/validation.js:validatePayment, which reaches payments:src/payment/validation.js:validatePayment (threw).\", \"cited_node_ids\": [\"Commit:c0ffee01\", \"Function:payments:src/payment/validation.js:validatePayment\", \"Function:payments:src/payment/validation.js:validatePayment\"]}], \"causal_chain\": [{\"step\": \"dep-842 shipped c0ffee01.\", \"cited_node_ids\": [\"Deployment:dep-842\", \"Commit:c0ffee01\"]}, {\"step\": \"The commit changed payments:src/payment/validation.js:validatePayment.\", \"cited_node_ids\": [\"Commit:c0ffee01\", \"Function:payments:src/payment/validation.js:validatePayment\"]}, {\"step\": \"The incident followed.\", \"cited_node_ids\": [\"Incident:inc-1\"]}], \"confidence_statement\": \"Ranking confident, margin 0.5333.\", \"alternatives\": [{\"sha\": \"n0000001\", \"reason\": \"rank 2\", \"cited_node_ids\": [\"Commit:n0000001\"]}], \"suggested_fix\": \"revert c0ffee0\", \"responders\": []}"
+  },
+  "usage": {
+   "input_tokens": 1630,
+   "output_tokens": 284
+  }
+ }
+}

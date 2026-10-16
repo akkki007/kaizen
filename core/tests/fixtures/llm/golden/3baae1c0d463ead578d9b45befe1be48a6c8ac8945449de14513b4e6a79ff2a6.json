@@ -1,5 +1,5 @@
 {
- "key": "7b61a037f5f96f56d38721deb1c682125c95b5fbcfc21c359715a9fc6d4eb45d",
+ "key": "3baae1c0d463ead578d9b45befe1be48a6c8ac8945449de14513b4e6a79ff2a6",
  "model": "golden-scripted",
  "prompt_version": "investigator.v1-b75a666b",
  "messages": 6,
@@ -8,10 +8,9 @@
   "tool_calls": [
    {
     "id": "call_3",
-    "name": "shortest_call_path",
+    "name": "dependency_impact",
     "arguments": {
-     "sha": "c0ffee03",
-     "incident_id": "inc-3"
+     "sha": "c0ffee05"
     }
    }
   ],
@@ -23,8 +22,8 @@
      "id": "call_3",
      "type": "function",
      "function": {
-      "name": "shortest_call_path",
-      "arguments": "{\"sha\": \"c0ffee03\", \"incident_id\": \"inc-3\"}"
+      "name": "dependency_impact",
+      "arguments": "{\"sha\": \"c0ffee05\"}"
      }
     }
    ]

@@ -1,5 +1,5 @@
 {
- "key": "d2d2a6e38cb7f5988e05c42d4b594be35c7d7ddc194ab2426086c9a7cbd429b7",
+ "key": "f535a164051325762d7f2eb9994173dbcbdd13ccb1700ad43403e8c4a9fe4812",
  "model": "golden-scripted",
  "prompt_version": "investigator.v1-b75a666b",
  "messages": 8,
@@ -10,7 +10,7 @@
     "id": "call_4",
     "name": "get_deployment_commits",
     "arguments": {
-     "incident_id": "inc-2"
+     "incident_id": "inc-4"
     }
    }
   ],
@@ -23,7 +23,7 @@
      "type": "function",
      "function": {
       "name": "get_deployment_commits",
-      "arguments": "{\"incident_id\": \"inc-2\"}"
+      "arguments": "{\"incident_id\": \"inc-4\"}"
      }
     }
    ]
