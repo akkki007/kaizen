@@ -23,8 +23,10 @@ export function EvidenceGraphView({
 
   useEffect(() => {
     if (!host.current) return;
-    // Cytoscape cannot parse the theme's oklch() tokens, so label colours are plain hex per theme.
-    const text = resolvedTheme === "dark" ? "#e2e8f0" : "#0f172a";
+    // Cytoscape cannot read CSS variables, so label colours are plain hex per theme.
+    const dark = resolvedTheme !== "light";
+    const text = dark ? "#a3a4ab" : "#57544e";
+    const edge = dark ? "#54555c" : "#aaa69e";
     const instance = cytoscape({
       container: host.current,
       elements: toElements(graph),
@@ -33,11 +35,11 @@ export function EvidenceGraphView({
       minZoom: 0.3,
       maxZoom: 2.5,
       style: [
-        { selector: "node", style: { "background-color": "data(color)", label: "data(label)", color: text, "font-size": 10, "text-valign": "bottom", "text-margin-y": 4, width: 22, height: 22 } },
+        { selector: "node", style: { "background-color": "data(color)", label: "data(label)", color: text, "font-size": 10, "font-family": "Geist, ui-sans-serif, sans-serif", "text-valign": "bottom", "text-margin-y": 4, width: 22, height: 22 } },
         { selector: "node.hl", style: { "border-width": 3, "border-color": DANGER, width: 30, height: 30 } },
-        { selector: "edge", style: { width: 1.2, "line-color": "#94a3b8", "target-arrow-color": "#94a3b8", "target-arrow-shape": "triangle", "curve-style": "bezier", label: "data(label)", "font-size": 8, color: text, "text-rotation": "autorotate", opacity: 0.8 } },
+        { selector: "edge", style: { width: 1.2, "line-color": edge, "target-arrow-color": edge, "target-arrow-shape": "triangle", "curve-style": "bezier", label: "data(label)", "font-size": 8, color: text, "text-rotation": "autorotate", opacity: 0.8 } },
         { selector: "edge.hl", style: { width: 3, "line-color": DANGER, "target-arrow-color": DANGER, opacity: 1 } },
-        { selector: ":selected", style: { "overlay-color": "#6366f1", "overlay-opacity": 0.25 } },
+        { selector: ":selected", style: { "overlay-color": "#7d84f6", "overlay-opacity": 0.25 } },
       ],
     });
     if (instance.zoom() > 1.4) instance.zoom({ level: 1.4, position: { x: instance.width() / 2, y: instance.height() / 2 } }).center();
@@ -57,5 +59,13 @@ export function EvidenceGraphView({
     if (selected) c.getElementById(selected).select();
   }, [selected, graph]);
 
-  return <div ref={host} className="ev-canvas" role="img" aria-label="Evidence graph" />;
+  return (
+    <div
+      ref={host}
+      data-lenis-prevent
+      role="img"
+      aria-label="Evidence graph"
+      className="h-[420px] w-full rounded-lg border border-line bg-panel-2 [background-image:radial-gradient(var(--line)_1px,transparent_1px)] [background-size:18px_18px]"
+    />
+  );
 }

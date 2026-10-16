@@ -1,103 +1,132 @@
 "use client";
 
-import Link from "next/link";
-import { use, useEffect, type CSSProperties } from "react";
-import { useDashboard } from "@/components/analytics-dashboard/context";
-import { ArrowRightIcon } from "@/components/analytics-dashboard/icons";
+import { ArrowUpRight, Link2 } from "lucide-react";
+import { use, useState } from "react";
+import { AskIncident, IncidentFacts } from "@/components/app/incident-brief";
+import { StatusBadge, buttonClass } from "@/components/app/kit";
+import { useWorkspace } from "@/components/app/shell";
+import { Topbar } from "@/components/app/topbar";
 import { IncidentEvidence } from "@/components/incident-evidence";
-import { IncidentInvestigation } from "@/components/incident-investigation";
-import { useIncidents, useLlmCost } from "@/lib/api/hooks";
-import { STATUS } from "@/lib/dashboard-data";
-import { relativeTime } from "@/lib/time";
+import { IncidentInvestigation, Section } from "@/components/incident-investigation";
+import { LogoMark } from "@/components/landing/logo";
+import { useLlmCost } from "@/lib/api/hooks";
+import { haptic } from "@/lib/motion";
+import { ago } from "@/lib/workspace";
 
 export default function IncidentPage({ params }: { params: Promise<{ id: string }> }) {
   const id = decodeURIComponent(use(params).id);
-  const incidents = useIncidents();
-  const incident = incidents.data?.items.find((i) => i.id === id);
-  const status = incident ? (STATUS[incident.status as keyof typeof STATUS] ?? STATUS.open) : null;
+  const { ws } = useWorkspace();
+  const incident = ws.incidents.find((i) => i.id === id);
   const cost = useLlmCost(id);
-
-  // Keep the side panel on the incident this page is about.
-  const { data, openPr } = useDashboard();
-  const prNumber = data.pullRequests.find((pr) => pr.href === `/incidents/${encodeURIComponent(id)}`)?.number;
-  useEffect(() => {
-    if (prNumber !== undefined) openPr(prNumber);
-    // openPr changes identity with every selection; only follow the route.
-  }, [prNumber]);
+  const [copied, setCopied] = useState(false);
+  const now = Date.now();
 
   return (
-    <div className="page-content incident-page">
-      <header className="page-head enter" style={{ "--i": 1 } as CSSProperties}>
-        <div className="page-head-text">
-          <Link href="/incidents" className="back-link press">
-            <ArrowRightIcon size={13} strokeWidth={2} style={{ transform: "rotate(180deg)" }} />
-            Incidents
-          </Link>
-          <h1 className="page-title">
-            {incident ? (
-              <>
-                Elevated failures in <code>{incident.service}</code>
-              </>
-            ) : (
-              id
+    <div className="flex flex-1 flex-col">
+      <Topbar
+        crumbs={[
+          { label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" },
+          { label: "Incidents", href: "/incidents" },
+          { label: <code className="font-mono text-[12.5px]">{id}</code> },
+        ]}
+        actions={
+          <>
+            <button
+              type="button"
+              className={buttonClass("ghost")}
+              onClick={() => {
+                void navigator.clipboard?.writeText(window.location.href);
+                haptic("confirm");
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1400);
+              }}
+            >
+              <Link2 size={13} className={copied ? "text-green" : undefined} /> <span className="max-sm:hidden">{copied ? "Copied" : "Copy link"}</span>
+            </button>
+            {incident && (
+              <a href={`https://github.com/${incident.repo}`} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
+                <span className="max-sm:hidden">Open on</span> GitHub <ArrowUpRight size={13} />
+              </a>
             )}
-          </h1>
-          {incident && (
-            <p className="page-sub">
-              {incident.repo} · {incident.env} · onset {relativeTime(incident.onset_ts)} · detected {relativeTime(incident.detected_at)}
-            </p>
+          </>
+        }
+      />
+
+      <header data-enter className="border-b border-line px-6 py-6">
+        <h1 className="text-[22px] font-semibold leading-[1.25] tracking-[-0.02em]">
+          {incident ? (
+            <>
+              Elevated failures in <code className="font-mono text-[20px]">{incident.service}</code>
+            </>
+          ) : (
+            id
           )}
-        </div>
-        {status && (
-          <p className="status" data-kind={status.kind}>
-            {status.label}
-          </p>
+        </h1>
+        {incident && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] text-ink-3">
+            <StatusBadge status={incident.status} />
+            <span>
+              {incident.repo} · {incident.env} · onset {ago(now - Date.parse(incident.onset_ts))} ago · detected {ago(now - Date.parse(incident.detected_at))} ago
+            </span>
+          </div>
         )}
       </header>
 
-      <IncidentInvestigation incidentId={id} />
+      <div className="grid flex-1 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 xl:border-r xl:border-line">
+          <IncidentInvestigation
+            incidentId={id}
+            evidence={
+              <Section
+                id="ev-title"
+                title="Evidence graph"
+                aside={
+                  <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3">
+                    <i aria-hidden="true" className="h-[3px] w-3.5 rounded-full bg-red" /> causal path
+                  </span>
+                }
+              >
+                <IncidentEvidence incidentId={id} />
+              </Section>
+            }
+          />
 
-      <section className="card card-pad enter" style={{ "--i": 2 } as CSSProperties} aria-labelledby="ev-title">
-        <div className="card-head">
-          <h2 id="ev-title" className="card-title">
-            Evidence graph
-          </h2>
-          <span className="ev-legend">
-            <i aria-hidden="true" /> causal path
-          </span>
+          {cost.data && cost.data.calls > 0 && (
+            <Section id="cost-title" title="LLM usage">
+              <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {[
+                  ["Calls", String(cost.data.calls)],
+                  ["Tokens in / out", `${cost.data.input_tokens.toLocaleString()} / ${cost.data.output_tokens.toLocaleString()}`],
+                  ["Cost", `$${cost.data.cost_usd.toFixed(4)}`],
+                  ["Latency", `${(cost.data.latency_ms_total / 1000).toFixed(1)} s`],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <dt className="text-[12px] text-ink-3">{k}</dt>
+                    <dd className="num mt-1 text-[15px] font-medium">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Section>
+          )}
         </div>
-        <IncidentEvidence incidentId={id} />
-      </section>
 
-      {cost.data && cost.data.calls > 0 && (
-        <section className="card card-pad enter" style={{ "--i": 3 } as CSSProperties} aria-labelledby="cost-title">
-          <div className="card-head">
-            <h2 id="cost-title" className="card-title">
-              LLM usage
+        <aside data-enter className="flex flex-col gap-6 border-t border-line px-6 py-5 xl:sticky xl:top-[46px] xl:h-[calc(100dvh-16px-48px)] xl:overflow-y-auto xl:border-t-0" data-lenis-prevent>
+          {incident && (
+            <section aria-labelledby="about-title">
+              <h2 id="about-title" className="mb-3 text-[13px] font-semibold">
+                About
+              </h2>
+              <IncidentFacts incident={incident} />
+            </section>
+          )}
+          <section aria-labelledby="ask-title" className="xl:mt-auto">
+            <h2 id="ask-title" className="mb-2.5 text-[13px] font-semibold">
+              Ask Kaizen
             </h2>
-          </div>
-          <dl className="usage">
-            <div>
-              <dt>Calls</dt>
-              <dd>{cost.data.calls}</dd>
-            </div>
-            <div>
-              <dt>Tokens in / out</dt>
-              <dd>
-                {cost.data.input_tokens.toLocaleString()} / {cost.data.output_tokens.toLocaleString()}
-              </dd>
-            </div>
-            <div>
-              <dt>Cost</dt>
-              <dd>${cost.data.cost_usd.toFixed(4)}</dd>
-            </div>
-            <div>
-              <dt>Latency</dt>
-              <dd>{(cost.data.latency_ms_total / 1000).toFixed(1)} s</dd>
-            </div>
-          </dl>
-        </section>
-      )}
+            <AskIncident incidentId={id} />
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }
