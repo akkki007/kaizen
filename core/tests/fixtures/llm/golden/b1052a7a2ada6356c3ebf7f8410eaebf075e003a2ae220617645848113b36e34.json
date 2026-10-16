@@ -1,0 +1,36 @@
+{
+ "key": "b1052a7a2ada6356c3ebf7f8410eaebf075e003a2ae220617645848113b36e34",
+ "model": "golden-scripted",
+ "prompt_version": "investigator.v1-b75a666b",
+ "messages": 8,
+ "reply": {
+  "content": null,
+  "tool_calls": [
+   {
+    "id": "call_4",
+    "name": "get_deployment_commits",
+    "arguments": {
+     "incident_id": "inc-1"
+    }
+   }
+  ],
+  "raw": {
+   "role": "assistant",
+   "content": null,
+   "tool_calls": [
+    {
+     "id": "call_4",
+     "type": "function",
+     "function": {
+      "name": "get_deployment_commits",
+      "arguments": "{\"incident_id\": \"inc-1\"}"
+     }
+    }
+   ]
+  },
+  "usage": {
+   "input_tokens": 0,
+   "output_tokens": 0
+  }
+ }
+}

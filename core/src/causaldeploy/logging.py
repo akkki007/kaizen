@@ -15,21 +15,31 @@ _REDACTED = "[REDACTED]"
 _PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_\-]{8,}"),
     re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"),
+    re.compile(r"github_pat_[A-Za-z0-9_]{20,}"),
+    re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),  # AWS access key ids
+    re.compile(r"\beyJ[A-Za-z0-9_\-]{5,}\.eyJ[A-Za-z0-9_\-]{5,}\.[A-Za-z0-9_\-]{5,}"),  # JWT
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
     re.compile(r"(?i)bearer\s+[A-Za-z0-9._\-]{16,}"),
 ]
+# key=value / key: value secrets (password=..., aws_secret_access_key: ..., api_key="...")
+_KV_SECRET = re.compile(
+    r"(?i)\b([A-Za-z0-9_\-]*(?:password|passwd|pwd|secret|token|api[_\-]?key|access[_\-]?key"
+    r"|private[_\-]?key|credential)s?)(\s*[=:]\s*)([\"']?)[^\s\"',;&}]{4,}\3"
+)
 
 
 class Redactor:
+    """Configured secret values, well-known credential formats and key=value secrets."""
+
     def __init__(self, secrets: list[str]) -> None:
-        self._secrets = [s for s in secrets if len(s) >= 4]
+        self._secrets = sorted((s for s in secrets if len(s) >= 4), key=len, reverse=True)
 
     def __call__(self, text: str) -> str:
         for secret in self._secrets:
             text = text.replace(secret, _REDACTED)
         for pattern in _PATTERNS:
             text = pattern.sub(_REDACTED, text)
-        return text
+        return _KV_SECRET.sub(lambda m: f"{m[1]}{m[2]}{m[3]}{_REDACTED}{m[3]}", text)
 
 
 class RedactingJsonFormatter(logging.Formatter):

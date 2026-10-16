@@ -3,14 +3,16 @@
 import argparse
 import asyncio
 import inspect
-from collections.abc import Callable
-from typing import Any
+from typing import Annotated, Any
 
 from mcp.server.mcpserver import MCPServer
+from mcp.types import ToolAnnotations
 
 from causaldeploy.config import get_settings
 from causaldeploy.graph.store import GraphStore
 from causaldeploy.mcp_server import tools as T
+
+READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True)
 
 
 def build_server(repo: str, store: GraphStore | None = None) -> MCPServer:
@@ -20,35 +22,30 @@ def build_server(repo: str, store: GraphStore | None = None) -> MCPServer:
     graph = store or GraphStore(repo)
     server = MCPServer("kaizen-graph")
 
-    def tool(fn: Callable[..., dict[str, Any]], description: str) -> None:
+    def tool(spec: T.ToolSpec) -> None:
         async def run(**kwargs: Any) -> dict[str, Any]:
-            return await asyncio.to_thread(fn, graph, **kwargs)
+            args = spec.args.model_validate(kwargs)  # the input model is the contract
+            out = await asyncio.to_thread(spec.fn, graph, **args.model_dump())
+            return T.cap(out)
 
-        params = list(inspect.signature(fn).parameters.values())[1:]  # drop `store`
-        run.__name__ = fn.__name__
-        run.__doc__ = description
+        # the schema the model sees is generated from the Pydantic input model's fields
+        params = [
+            inspect.Parameter(
+                name,
+                inspect.Parameter.KEYWORD_ONLY,
+                default=inspect.Parameter.empty if f.is_required() else f.default,
+                annotation=Annotated[f.annotation, f],
+            )
+            for name, f in spec.args.model_fields.items()
+        ]
+        run.__name__ = spec.name
+        run.__doc__ = spec.description
         run.__signature__ = inspect.Signature(params, return_annotation=dict)  # type: ignore[attr-defined]
         run.__annotations__ = {p.name: p.annotation for p in params} | {"return": dict}
-        server.add_tool(run, name=fn.__name__, description=description)
+        server.add_tool(run, name=spec.name, description=spec.description, annotations=READ_ONLY)
 
-    for fn, description in (
-        (T.get_incident, "Incident facts: service, endpoint, onset, errors, where thrown."),
-        (T.get_deployment_commits, "Deployments before the incident and the commits in each."),
-        (T.shortest_call_path, "Shortest call path from a commit's changed to thrown functions."),
-        (
-            T.blast_radius,
-            "Functions, endpoints, services affected by changing a function or commit.",
-        ),
-        (
-            T.dependency_impact,
-            "Dependencies a commit changed and the functions/services using them.",
-        ),
-        (T.similar_incidents, "Resolved incidents resembling this one, with the fix that worked."),
-        (T.function_incident_history, "Past incidents that blamed or threw in a function."),
-        (T.rank_candidates, "Deterministic ranking of suspect commits with per-feature scores."),
-        (T.suggest_responders, "Developers to involve: recent authors, resolvers of similar ones."),
-    ):
-        tool(fn, description)
+    for spec in T.TOOLS:
+        tool(spec)
     return server
 
 

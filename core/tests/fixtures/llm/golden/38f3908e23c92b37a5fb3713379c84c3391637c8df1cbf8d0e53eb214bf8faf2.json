@@ -1,0 +1,36 @@
+{
+ "key": "38f3908e23c92b37a5fb3713379c84c3391637c8df1cbf8d0e53eb214bf8faf2",
+ "model": "golden-scripted",
+ "prompt_version": "investigator.v1-b75a666b",
+ "messages": 4,
+ "reply": {
+  "content": null,
+  "tool_calls": [
+   {
+    "id": "call_2",
+    "name": "rank_candidates",
+    "arguments": {
+     "incident_id": "inc-5"
+    }
+   }
+  ],
+  "raw": {
+   "role": "assistant",
+   "content": null,
+   "tool_calls": [
+    {
+     "id": "call_2",
+     "type": "function",
+     "function": {
+      "name": "rank_candidates",
+      "arguments": "{\"incident_id\": \"inc-5\"}"
+     }
+    }
+   ]
+  },
+  "usage": {
+   "input_tokens": 0,
+   "output_tokens": 0
+  }
+ }
+}

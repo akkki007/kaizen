@@ -68,5 +68,9 @@ drill:       ## backup -> destroy -> restore -> verify, on a throwaway project
 eval:        ## graph vs. baselines on the seeded scenarios -> docs/results/latest.{md,json,html}
 	cd core && uv run python -m causaldeploy.evalharness --jobs 4 --quiet --out ../docs/results/latest.md
 
+.PHONY: eval-live
+eval-live:   ## agent golden tests (S1-S5 rubric) against the REAL model; needs CD_OPENAI_API_KEY + CD_OPENAI_MODEL, costs money; replies recorded to eval/llm-live
+	cd core && uv run python -m causaldeploy.evalharness.llm_golden --mode live --dir ../eval/llm-live
+
 seed:
 	@echo "ShopLite lives in https://github.com/yashchandnani07/shoplite (history seeded, see docs/history.md there)"

@@ -8,7 +8,6 @@ from typing import Any
 from sqlalchemy import select
 
 from causaldeploy.agent.models import AgentRun
-from causaldeploy.config import get_settings
 from causaldeploy.contracts.domain import IncidentStatus as S
 from causaldeploy.db.models import IncidentRow, Investigation
 from causaldeploy.db.session import session_scope
@@ -73,18 +72,22 @@ async def investigate(repo: str, incident_id: str) -> RankResult:
 
 
 async def _run_agent(repo: str, store: GraphStore, incident_id: str) -> AgentRun | None:
-    """Agent explanation on top of the deterministic ranking; skipped without an OpenAI key."""
-    s = get_settings()
-    if not (s.openai_api_key.get_secret_value() and s.openai_model):
-        return None
+    """Agent explanation on top of the deterministic ranking; skipped without an OpenAI key
+    (unless CD_LLM_REPLAY_MODE=replay). Every model call is recorded in llm_calls."""
     from mcp import Client
 
-    from causaldeploy.agent.llm import OpenAIClient
+    from causaldeploy.agent import llm as agent_llm
     from causaldeploy.agent.loop import run_agent
+    from causaldeploy.agent.persist import save_llm_calls
     from causaldeploy.mcp_server.server import build_server
 
+    llm = agent_llm.build_llm_client()
+    if llm is None:
+        return None
     async with Client(build_server(repo, store)) as client:
-        return await run_agent(client, store, incident_id, OpenAIClient())
+        run = await run_agent(client, store, incident_id, llm)
+    await save_llm_calls(run)
+    return run
 
 
 def _rank_and_persist(store: GraphStore, incident_id: str) -> RankResult:

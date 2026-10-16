@@ -59,6 +59,27 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr = SecretStr("")
     openai_model: str = ""  # configuration, intentionally not hard-coded
 
+    # LLM harness (#90): transport, budgets, pricing, replay cache
+    llm_timeout_seconds: float = Field(60.0, gt=0)  # per HTTP attempt
+    llm_max_retries: int = Field(4, ge=0, le=10)  # our own loop; SDK retries are disabled
+    llm_backoff_base_seconds: float = Field(0.5, ge=0)
+    llm_backoff_max_seconds: float = Field(20.0, ge=0)  # also caps an honoured Retry-After
+    llm_structured_output: bool = True  # response_format json_schema for the final answer
+    llm_max_steps: int = Field(8, ge=1, le=50)  # tool calls per agent run
+    llm_max_tokens: int = Field(60_000, ge=1)  # input + output tokens per agent run
+    llm_max_cost_usd: float = Field(0.50, gt=0)  # per agent run
+    # USD per 1M tokens: model -> (input, output). Unknown models cost 0 and are logged.
+    llm_prices: dict[str, tuple[float, float]] = {
+        "gpt-4o": (2.50, 10.00),
+        "gpt-4o-mini": (0.15, 0.60),
+        "gpt-4.1": (2.00, 8.00),
+        "gpt-4.1-mini": (0.40, 1.60),
+        "gpt-4.1-nano": (0.10, 0.40),
+    }
+    # off: call the model; record: call it and store each reply; replay: stored replies only
+    llm_replay_mode: Literal["off", "record", "replay"] = "off"
+    llm_replay_dir: str = "tests/fixtures/llm"  # relative to core/
+
     # Investigation tunables (PLAN.md §8)
     lookback_hours: int = Field(24, ge=1)
     # Detection: error rate / p95 per service+endpoint in fixed windows vs. a rolling baseline
@@ -176,6 +197,16 @@ class Settings(BaseSettings):
             )
             if v.get_secret_value()
         ]
+
+    def llm_cost_usd(self, model: str, input_tokens: int, output_tokens: int) -> float:
+        """Price a call from `llm_prices`; dated snapshots (gpt-4o-2024-08-06) use the base."""
+        price = self.llm_prices.get(model)
+        if price is None:
+            base = max(
+                (m for m in self.llm_prices if model.startswith(m + "-")), key=len, default=""
+            )
+            price = self.llm_prices.get(base, (0.0, 0.0))
+        return round((input_tokens * price[0] + output_tokens * price[1]) / 1_000_000, 6)
 
     @property
     def sqlalchemy_url(self) -> str:

@@ -1,0 +1,37 @@
+{
+ "key": "7b61a037f5f96f56d38721deb1c682125c95b5fbcfc21c359715a9fc6d4eb45d",
+ "model": "golden-scripted",
+ "prompt_version": "investigator.v1-b75a666b",
+ "messages": 6,
+ "reply": {
+  "content": null,
+  "tool_calls": [
+   {
+    "id": "call_3",
+    "name": "shortest_call_path",
+    "arguments": {
+     "sha": "c0ffee03",
+     "incident_id": "inc-3"
+    }
+   }
+  ],
+  "raw": {
+   "role": "assistant",
+   "content": null,
+   "tool_calls": [
+    {
+     "id": "call_3",
+     "type": "function",
+     "function": {
+      "name": "shortest_call_path",
+      "arguments": "{\"sha\": \"c0ffee03\", \"incident_id\": \"inc-3\"}"
+     }
+    }
+   ]
+  },
+  "usage": {
+   "input_tokens": 0,
+   "output_tokens": 0
+  }
+ }
+}

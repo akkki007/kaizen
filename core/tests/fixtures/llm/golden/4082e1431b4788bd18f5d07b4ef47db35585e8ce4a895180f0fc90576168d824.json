@@ -1,0 +1,36 @@
+{
+ "key": "4082e1431b4788bd18f5d07b4ef47db35585e8ce4a895180f0fc90576168d824",
+ "model": "golden-scripted",
+ "prompt_version": "investigator.v1-b75a666b",
+ "messages": 6,
+ "reply": {
+  "content": null,
+  "tool_calls": [
+   {
+    "id": "call_3",
+    "name": "dependency_impact",
+    "arguments": {
+     "sha": "c0ffee05"
+    }
+   }
+  ],
+  "raw": {
+   "role": "assistant",
+   "content": null,
+   "tool_calls": [
+    {
+     "id": "call_3",
+     "type": "function",
+     "function": {
+      "name": "dependency_impact",
+      "arguments": "{\"sha\": \"c0ffee05\"}"
+     }
+    }
+   ]
+  },
+  "usage": {
+   "input_tokens": 0,
+   "output_tokens": 0
+  }
+ }
+}

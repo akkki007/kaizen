@@ -1,0 +1,18 @@
+{
+ "key": "0f60fd53a0eaede55f56486fe69c65f021f77c521f3b9d9f9c006a30318cad7c",
+ "model": "golden-scripted",
+ "prompt_version": "investigator.v1-b75a666b",
+ "messages": 10,
+ "reply": {
+  "content": "{\"verdict\": \"confident\", \"culprit_sha\": \"c0ffee04\", \"culprit_function\": \"orders:src/orders.js:createOrder\", \"claims\": [{\"text\": \"c0ffee04 ranks first (verdict confident).\", \"cited_node_ids\": [\"Commit:c0ffee04\"]}, {\"text\": \"It changed orders:src/orders.js:createOrder, which reaches payments:src/validate.js:validateCharge (threw).\", \"cited_node_ids\": [\"Commit:c0ffee04\", \"Function:orders:src/orders.js:createOrder\", \"Function:payments:src/validate.js:validateCharge\"]}], \"causal_chain\": [{\"step\": \"dep-4 shipped c0ffee04.\", \"cited_node_ids\": [\"Deployment:dep-4\", \"Commit:c0ffee04\"]}, {\"step\": \"The commit changed orders:src/orders.js:createOrder.\", \"cited_node_ids\": [\"Commit:c0ffee04\", \"Function:orders:src/orders.js:createOrder\"]}, {\"step\": \"The incident followed.\", \"cited_node_ids\": [\"Incident:inc-4\"]}], \"confidence_statement\": \"Ranking confident, margin 0.3211.\", \"alternatives\": [], \"suggested_fix\": \"revert c0ffee0\", \"responders\": []}",
+  "tool_calls": [],
+  "raw": {
+   "role": "assistant",
+   "content": "{\"verdict\": \"confident\", \"culprit_sha\": \"c0ffee04\", \"culprit_function\": \"orders:src/orders.js:createOrder\", \"claims\": [{\"text\": \"c0ffee04 ranks first (verdict confident).\", \"cited_node_ids\": [\"Commit:c0ffee04\"]}, {\"text\": \"It changed orders:src/orders.js:createOrder, which reaches payments:src/validate.js:validateCharge (threw).\", \"cited_node_ids\": [\"Commit:c0ffee04\", \"Function:orders:src/orders.js:createOrder\", \"Function:payments:src/validate.js:validateCharge\"]}], \"causal_chain\": [{\"step\": \"dep-4 shipped c0ffee04.\", \"cited_node_ids\": [\"Deployment:dep-4\", \"Commit:c0ffee04\"]}, {\"step\": \"The commit changed orders:src/orders.js:createOrder.\", \"cited_node_ids\": [\"Commit:c0ffee04\", \"Function:orders:src/orders.js:createOrder\"]}, {\"step\": \"The incident followed.\", \"cited_node_ids\": [\"Incident:inc-4\"]}], \"confidence_statement\": \"Ranking confident, margin 0.3211.\", \"alternatives\": [], \"suggested_fix\": \"revert c0ffee0\", \"responders\": []}"
+  },
+  "usage": {
+   "input_tokens": 1307,
+   "output_tokens": 235
+  }
+ }
+}

@@ -24,7 +24,7 @@ from causaldeploy.investigate.run import investigate
 from causaldeploy.jobs import handlers
 from causaldeploy.mcp_server.server import build_server
 from causaldeploy.remediate.service import finalize_merged, propose_revert, record_verification
-from tests.test_agent import Scripted, call, final
+from tests.test_agent import Scripted, call, final, resolved_similar_incident
 from tests.test_remediate import FakeOps, remote  # noqa: F401  (fixture)
 
 T0 = datetime(2026, 10, 15, 9, 0, tzinfo=UTC)
@@ -121,30 +121,54 @@ async def test_s1_end_to_end(
     assert "Function:payments:src/payment/validation.js:validatePayment" in hl_nodes
     assert any(e.rel == "modifies_fn" and e.highlight for e in g.edges)
 
-    # 4. the agent explains it with cited, validated evidence
+    # 4. the agent explains it with cited, validated evidence: function, endpoint, deployment
+    # and the similar incident resolved before
+    prior = resolved_similar_incident(builder, incident_id)
+    fn = "Function:payments:src/payment/validation.js:validatePayment"
     good = {
         "verdict": "confident",
         "culprit_sha": culprit,
+        "culprit_function": fn.removeprefix("Function:"),
         "claims": [
             {
                 "text": "validatePayment threw and was changed in the culprit commit",
-                "cited_node_ids": [f"Commit:{culprit}"],
-            }
+                "cited_node_ids": [f"Commit:{culprit}", fn],
+            },
+            {
+                "text": "POST /payments fails since dep-842 shipped it",
+                "cited_node_ids": ["Endpoint:payments:POST /payments", "Deployment:dep-842"],
+            },
+            {
+                "text": "the same failure was resolved by a revert before",
+                "cited_node_ids": [f"Incident:{prior}"],
+            },
         ],
+        "causal_chain": [
+            {"step": "dep-842 shipped the commit", "cited_node_ids": ["Deployment:dep-842"]},
+            {"step": "it changed validatePayment", "cited_node_ids": [f"Commit:{culprit}", fn]},
+            {
+                "step": "POST /payments throws",
+                "cited_node_ids": ["Endpoint:payments:POST /payments"],
+            },
+        ],
+        "confidence_statement": "The deterministic ranking is confident.",
         "suggested_fix": f"revert {culprit[:7]}",
         "responders": [],
     }
     llm = Scripted(
         [
             call(1, "get_incident", incident_id=incident_id),
-            call(2, "rank_candidates", incident_id=incident_id),
-            call(3, "shortest_call_path", sha=culprit, incident_id=incident_id),
+            call(2, "get_deployment_commits", incident_id=incident_id),
+            call(3, "rank_candidates", incident_id=incident_id),
+            call(4, "shortest_call_path", sha=culprit, incident_id=incident_id),
+            call(5, "similar_incidents", incident_id=incident_id),
             final(good),
         ]
     )
     async with Client(build_server(repo, store)) as client:
         agent = await run_agent(client, store, incident_id, llm)  # type: ignore[arg-type]
-    assert agent.status == "explained" and len(agent.steps) == 3
+    assert agent.status == "explained" and len(agent.steps) == 5, agent.validation_errors
+    assert agent.explanation and agent.explanation.source == "model"
     write_trace(store, agent, "inv-e2e")
     async with session_scope() as s:
         assert (await s.execute(select(Investigation))).scalars().first() is not None
