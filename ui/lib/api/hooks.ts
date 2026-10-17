@@ -60,6 +60,7 @@ export type RankMethod = "graph" | "b0" | "b1";
 export function useIncidentDetail(incidentId: string) {
   return useQuery({
     queryKey: ["incident-detail", incidentId],
+    enabled: incidentId !== "", // "" would request /incidents/ (the list) and return the wrong shape
     queryFn: async () =>
       unwrap(await api.GET("/api/v1/incidents/{incident_id}", { params: { path: { incident_id: incidentId } } })),
     refetchInterval: (q) => (q.state.data?.investigation.status === "not_run" ? 4_000 : false),
