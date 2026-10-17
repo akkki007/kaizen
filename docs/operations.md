@@ -92,3 +92,27 @@ Requirements on the GitHub App: **Pull requests: Read & write** (comment) and th
 webhook event. Without them the job fails and retries; nothing else is affected.
 Limitation: line ranges come from the graph (default branch), so a PR based on a stale default
 branch can map a hunk to the wrong function; unmapped files are listed, never guessed.
+
+## Connect flow (sign in, choose a repository, start)
+
+1. `/login` -> GitHub sign-in (`/auth/login`, App user-to-server OAuth). The session carries the
+   repositories where the App is installed and the user's role on each.
+2. `/connect` (default landing after sign-in):
+   - no installed repository: "Install on GitHub" (GitHub's own repository picker), then
+     "I installed it" re-runs sign-in, which refreshes the session's repository list;
+   - repositories listed with their state (`GET /api/v1/onboarding`): `not_started`, `importing`,
+     `ready`, `failed`, `unavailable` (outside `CD_ALLOWED_REPOS`). Only an approver (push access)
+     can start one; the user ticks the repositories and presses **Start monitoring**
+     (`POST /api/v1/repos/{owner}/{name}/connect`, CSRF-protected, idempotent);
+   - progress shows live counts from the graph (commits read, functions mapped, services,
+     endpoints), then "Kaizen is watching" and a link to the dashboard.
+3. Returning users with a monitored repository skip straight to `/overview`; `/connect?manage=1`
+   reopens the flow (the Repositories page links to it).
+
+Installing the App only *records* repositories; nothing is cloned until the user starts it. Pushes
+keep an already-imported repository current but never start a first import.
+
+Owner step (recommended): in the GitHub App settings set **Setup URL** to
+`https://shoplite-demo.duckdns.org/connect` and tick **Redirect on update**, so GitHub sends users
+back to the flow right after installing. The flow works without it (the user returns manually).
+To monitor repositories beyond the allowlist, widen `CD_ALLOWED_REPOS` (empty = any installed repo).

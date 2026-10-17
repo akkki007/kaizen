@@ -13,6 +13,7 @@ from sqlalchemy import text
 from causaldeploy import __version__
 from causaldeploy.api.auth import router as auth_router
 from causaldeploy.api.errors import install_error_handlers
+from causaldeploy.api.onboarding import router as onboarding_router
 from causaldeploy.api.routes import v1, webhooks
 from causaldeploy.config import get_settings
 from causaldeploy.db.session import get_engine
@@ -94,6 +95,7 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.include_router(auth_router)
     app.include_router(v1)
+    app.include_router(onboarding_router)
     app.include_router(webhooks)
 
     @app.get("/metrics", include_in_schema=False)

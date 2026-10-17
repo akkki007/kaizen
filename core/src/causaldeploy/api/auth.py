@@ -234,12 +234,9 @@ async def callback(
     login = me.json()["login"]
     user = User(login=login, repos=await fetch_repo_roles(access, s))
     next_path = safe_next(cd_oauth_next)
-    if not user.repos:
-        # Signed in, but the App is not installed anywhere the user can see: the login page
-        # explains and links the installation. The session still works for the empty dashboard.
-        resp = _login_redirect(origin, "no_repos", clear=False)
-    else:
-        resp = RedirectResponse(origin + next_path, status_code=302)
+    # Signed in. With no installed repository the connect page explains and links the install
+    # step; otherwise the user lands where they were going (the connect page by default).
+    resp = RedirectResponse(origin + (next_path if user.repos else "/connect"), status_code=302)
     resp.set_cookie(SESSION_COOKIE, make_session(user, s), **_cookie_args(s))
     resp.set_cookie(CSRF_COOKIE, secrets.token_urlsafe(24), **_cookie_args(s, http_only=False))
     resp.delete_cookie(STATE_COOKIE, path="/")

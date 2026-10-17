@@ -65,11 +65,11 @@ function LoginInner() {
     setLeaving(true);
     if (MOCK) {
       // Full page navigation so AuthGate picks up the mock session immediately.
-      window.location.assign(next && next.startsWith("/") ? next : "/overview");
+      window.location.assign(next && next.startsWith("/") ? next : "/connect");
       return;
     }
     const qs = new URLSearchParams();
-    qs.set("next", next && next.startsWith("/") ? next : "/overview");
+    qs.set("next", next && next.startsWith("/") ? next : "/connect");
     qs.set("origin", window.location.origin);
     window.location.assign(`/auth/login?${qs.toString()}`);
   }
@@ -92,8 +92,7 @@ function LoginInner() {
             Sign in to Kaizen
           </h1>
           <p data-in className="mt-2 text-[13.5px] leading-[1.55] text-ink-2">
-            Use your GitHub account. You will see the repositories where the Kaizen GitHub App is installed and you have
-            access.
+            Connect GitHub, choose a repository, and Kaizen starts watching it. Takes about a minute.
           </p>
 
           {state && (

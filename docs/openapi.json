@@ -112,6 +112,42 @@
         "title": "BackfillStatus",
         "type": "object"
       },
+      "ConnectResult": {
+        "properties": {
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "not_started",
+              "importing",
+              "ready",
+              "failed",
+              "unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo",
+          "state"
+        ],
+        "title": "ConnectResult",
+        "type": "object"
+      },
       "EvidenceEdge": {
         "properties": {
           "highlight": {
@@ -268,6 +304,32 @@
           "cypher"
         ],
         "title": "FeatureValue",
+        "type": "object"
+      },
+      "GraphStats": {
+        "properties": {
+          "commits": {
+            "default": 0,
+            "title": "Commits",
+            "type": "integer"
+          },
+          "endpoints": {
+            "default": 0,
+            "title": "Endpoints",
+            "type": "integer"
+          },
+          "functions": {
+            "default": 0,
+            "title": "Functions",
+            "type": "integer"
+          },
+          "services": {
+            "default": 0,
+            "title": "Services",
+            "type": "integer"
+          }
+        },
+        "title": "GraphStats",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -708,6 +770,82 @@
           "verification"
         ],
         "title": "RemediationView",
+        "type": "object"
+      },
+      "RepoOnboarding": {
+        "properties": {
+          "backfilled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backfilled At"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "has_api_key": {
+            "default": false,
+            "title": "Has Api Key",
+            "type": "boolean"
+          },
+          "incidents": {
+            "default": 0,
+            "title": "Incidents",
+            "type": "integer"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "viewer",
+              "approver"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "not_started",
+              "importing",
+              "ready",
+              "failed",
+              "unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/GraphStats",
+            "default": {
+              "commits": 0,
+              "endpoints": 0,
+              "functions": 0,
+              "services": 0
+            }
+          }
+        },
+        "required": [
+          "repo",
+          "role",
+          "state"
+        ],
+        "title": "RepoOnboarding",
         "type": "object"
       },
       "TraceStep": {
@@ -1358,6 +1496,56 @@
         "summary": "Get Job"
       }
     },
+    "/api/v1/onboarding": {
+      "get": {
+        "operationId": "onboarding_api_v1_onboarding_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RepoOnboarding"
+                  },
+                  "title": "Response Onboarding Api V1 Onboarding Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Onboarding"
+      }
+    },
     "/api/v1/remediations/{remediation_id}/approve": {
       "post": {
         "operationId": "approve_remediation_api_v1_remediations__remediation_id__approve_post",
@@ -1892,6 +2080,103 @@
           }
         },
         "summary": "Reimport Repo"
+      }
+    },
+    "/api/v1/repos/{owner}/{name}/connect": {
+      "post": {
+        "description": "Start monitoring: record the repository and enqueue its first import. Idempotent.",
+        "operationId": "connect_repo_api_v1_repos__owner___name__connect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Csrf"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connect Repo"
       }
     },
     "/auth/callback": {

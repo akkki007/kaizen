@@ -155,6 +155,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Onboarding */
+        get: operations["onboarding_api_v1_onboarding_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/remediations/{remediation_id}/approve": {
         parameters: {
             query?: never;
@@ -222,6 +239,26 @@ export interface paths {
          * @description Approver-only re-import: clones the repository again and rebuilds its graph.
          */
         post: operations["reimport_repo_api_v1_repos__owner___name__backfill_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repos/{owner}/{name}/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect Repo
+         * @description Start monitoring: record the repository and enqueue its first import. Idempotent.
+         */
+        post: operations["connect_repo_api_v1_repos__owner___name__connect_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -418,6 +455,18 @@ export interface components {
             /** Repo */
             repo: string;
         };
+        /** ConnectResult */
+        ConnectResult: {
+            /** Job Id */
+            job_id?: string | null;
+            /** Repo */
+            repo: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "not_started" | "importing" | "ready" | "failed" | "unavailable";
+        };
         /** EvidenceEdge */
         EvidenceEdge: {
             /**
@@ -489,6 +538,29 @@ export interface components {
             value: number;
             /** Weight */
             weight: number;
+        };
+        /** GraphStats */
+        GraphStats: {
+            /**
+             * Commits
+             * @default 0
+             */
+            commits: number;
+            /**
+             * Endpoints
+             * @default 0
+             */
+            endpoints: number;
+            /**
+             * Functions
+             * @default 0
+             */
+            functions: number;
+            /**
+             * Services
+             * @default 0
+             */
+            services: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -638,6 +710,44 @@ export interface components {
             verification: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** RepoOnboarding */
+        RepoOnboarding: {
+            /** Backfilled At */
+            backfilled_at?: string | null;
+            /** Detail */
+            detail?: string | null;
+            /**
+             * Has Api Key
+             * @default false
+             */
+            has_api_key: boolean;
+            /**
+             * Incidents
+             * @default 0
+             */
+            incidents: number;
+            /** Repo */
+            repo: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "viewer" | "approver";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "not_started" | "importing" | "ready" | "failed" | "unavailable";
+            /**
+             * @default {
+             *       "commits": 0,
+             *       "endpoints": 0,
+             *       "functions": 0,
+             *       "services": 0
+             *     }
+             */
+            stats: components["schemas"]["GraphStats"];
         };
         /** TraceStep */
         TraceStep: {
@@ -967,6 +1077,37 @@ export interface operations {
             };
         };
     };
+    onboarding_api_v1_onboarding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoOnboarding"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     approve_remediation_api_v1_remediations__remediation_id__approve_post: {
         parameters: {
             query?: never;
@@ -1180,6 +1321,43 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_repo_api_v1_repos__owner___name__connect_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                owner: string;
+                name: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectResult"];
                 };
             };
             /** @description Validation Error */

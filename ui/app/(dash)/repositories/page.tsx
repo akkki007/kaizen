@@ -22,9 +22,9 @@ export default function RepositoriesPage() {
   const now = Date.now();
 
   const connect = install.data?.url && (
-    <a href={install.data.url} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
+    <Link href="/connect?manage=1" className={buttonClass("secondary")}>
       Connect repository <ArrowUpRight size={13} />
-    </a>
+    </Link>
   );
 
   return (
@@ -46,13 +46,11 @@ export default function RepositoriesPage() {
         <div data-enter className="px-6 py-16 text-center">
           <p className="text-[14px] font-medium">No repositories connected</p>
           <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-3">
-            Install the Kaizen GitHub App on a repository you can administer. Kaizen imports its history and starts tracking incidents as soon as the App is installed.
+            Install the Kaizen GitHub App on a repository you can administer, then start monitoring it. Kaizen imports its history and begins tracking incidents.
           </p>
-          {install.data?.url && (
-            <a href={install.data.url} target="_blank" rel="noreferrer" className={buttonClass("primary", "mt-4")}>
-              Connect a repository
-            </a>
-          )}
+          <Link href="/connect?manage=1" className={buttonClass("primary", "mt-4")}>
+            Connect a repository
+          </Link>
         </div>
       ) : (
         <>

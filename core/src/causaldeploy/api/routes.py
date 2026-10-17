@@ -587,6 +587,15 @@ async def github_webhook(request: Request) -> dict[str, Any]:
     return {"status": "accepted", "jobs": job_ids}
 
 
+async def _is_imported(repo: str) -> bool:
+    """Pushes keep an already-imported repository current; they never start a first import."""
+    async with session_scope() as s:
+        row = (
+            await s.execute(select(Repository).where(Repository.full_name == repo))
+        ).scalar_one_or_none()
+    return row is not None and row.backfilled_at is not None
+
+
 async def dispatch_github(delivery: str, event_type: str, payload: dict[str, Any]) -> list[str]:
     """Normalize a stored delivery and enqueue its effects (shared with the replay tool)."""
     ids: list[str] = []
@@ -594,15 +603,10 @@ async def dispatch_github(delivery: str, event_type: str, payload: dict[str, Any
     if repo and not get_settings().is_allowed(repo):
         return ids  # stored raw by the receiver; never acted on
     if event_type in INSTALL_EVENTS and payload.get("installation"):
-        inst_id, repos = await record_installation(payload)
-        for name in repos:  # initial import when the App is installed
-            jid, _ = await enqueue(
-                "backfill_repo",
-                BackfillPayload(repo=name, installation_id=inst_id),
-                f"install:{name}:{inst_id}",
-            )
-            ids.append(jid)
-    if event_type == "push" and repo:
+        # Installing only records the repositories. Importing starts when the user presses
+        # "Start monitoring" in the connect flow (api/onboarding.py), so they choose what is read.
+        await record_installation(payload)
+    if event_type == "push" and repo and await _is_imported(repo):
         inst = (payload.get("installation") or {}).get("id")
         jid, _ = await enqueue(
             "backfill_repo",

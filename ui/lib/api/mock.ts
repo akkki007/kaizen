@@ -111,6 +111,29 @@ const mockDetail = (id: string): components["schemas"]["IncidentDetail"] => {
   };
 };
 
+// Connect flow fixtures. `?fresh=1` on the page URL starts shoplite as not yet imported so the whole
+// journey (choose, start, importing, ready) can be exercised without a backend.
+type Onboarding = components["schemas"]["RepoOnboarding"];
+let connectedAt: number | null = null;
+const importingPolls = 3;
+let polls = 0;
+
+const mockOnboarding = (): Onboarding[] => {
+  const fresh = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("fresh");
+  const stats = { commits: 148, functions: 37, services: 4, endpoints: 12 };
+  let shoplite: Onboarding = { repo: "yashchandnani07/shoplite", role: "approver", state: "ready", detail: null, backfilled_at: ago(120), stats, incidents: 3, has_api_key: true };
+  if (fresh && connectedAt === null) {
+    shoplite = { ...shoplite, state: "not_started", backfilled_at: null, stats: { commits: 0, functions: 0, services: 0, endpoints: 0 }, incidents: 0, has_api_key: false };
+  } else if (fresh && connectedAt !== null) {
+    polls += 1;
+    const done = polls > importingPolls;
+    const f = Math.min(1, polls / (importingPolls + 1));
+    shoplite = { ...shoplite, state: done ? "ready" : "importing", backfilled_at: done ? ago(0) : null, incidents: 0, has_api_key: false, stats: { commits: Math.round(stats.commits * f), functions: Math.round(stats.functions * f), services: done ? 4 : 1, endpoints: Math.round(stats.endpoints * f) } };
+  }
+  const docs: Onboarding = { repo: "acme/docs-site", role: "viewer", state: "not_started", detail: null, backfilled_at: null, stats: { commits: 0, functions: 0, services: 0, endpoints: 0 }, incidents: 0, has_api_key: false };
+  return [shoplite, docs];
+};
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
@@ -121,6 +144,12 @@ export const mockFetch: typeof fetch = async (input, init) => {
   if (url.pathname === "/auth/me") return json(mockUser);
   if (url.pathname === "/auth/install-url") {
     return json({ url: "https://github.com/apps/causaldeploy-shoplite-demo/installations/new" });
+  }
+  if (url.pathname === "/api/v1/onboarding") return json(mockOnboarding());
+  if (url.pathname.endsWith("/connect") && method === "POST") {
+    connectedAt = Date.now();
+    polls = 0;
+    return json({ repo: url.pathname.split("/").slice(4, 6).join("/"), state: "importing", job_id: "job-connect-1" }, 202);
   }
   if (url.pathname === "/auth/logout") return json({ status: "logged_out" });
   if (url.pathname === "/api/v1/incidents") return json(mockIncidents);

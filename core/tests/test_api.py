@@ -458,7 +458,7 @@ async def test_replay_reapplies_stored_deliveries_without_double_effects(
     assert await jobs_count() == 2  # replaying again does not multiply jobs
 
 
-async def test_installation_event_records_repos_and_requests_initial_backfill(
+async def test_installation_event_records_repos_without_importing_them(
     client: httpx.AsyncClient,
 ) -> None:
     from causaldeploy.db.models import Installation, Repository
@@ -475,14 +475,13 @@ async def test_installation_event_records_repos_and_requests_initial_backfill(
         "x-hub-signature-256": sign(body),
     }
     r = await client.post("/webhooks/github", content=body, headers=h)
-    assert r.status_code == 202 and len(r.json()["jobs"]) == 1
+    # installing records the repositories; the user starts the import from the connect flow
+    assert r.status_code == 202 and r.json()["jobs"] == [] and await jobs_count() == 0
     async with session_scope() as s:
         inst = (await s.execute(select(Installation))).scalar_one()
         repo = (await s.execute(select(Repository))).scalar_one()
-        job = (await s.execute(select(JobRecord))).scalar_one()
     assert (inst.id, inst.account) == (4242, "yashchandnani07")
     assert (repo.full_name, repo.installation_id) == ("yashchandnani07/shoplite", 4242)
-    assert job.kind == "backfill_repo" and job.payload["installation_id"] == 4242
 
     # removal events import nothing
     gone = json.dumps({**payload, "action": "deleted"}).encode()
@@ -499,7 +498,7 @@ async def test_repositories_outside_the_allowlist_are_never_acted_on(
     monkeypatch.setenv("CD_ALLOWED_REPOS", "acme/shoplite")
     get_settings.cache_clear()
     try:
-        # installation lists two repos: only the allowed one is recorded and imported
+        # installation lists two repos: only the allowed one is recorded
         install = {
             "action": "created",
             "installation": {"id": 9, "account": {"login": "acme"}},
@@ -512,7 +511,7 @@ async def test_repositories_outside_the_allowlist_are_never_acted_on(
             "x-hub-signature-256": sign(body),
         }
         r = await client.post("/webhooks/github", content=body, headers=h)
-        assert len(r.json()["jobs"]) == 1
+        assert r.json()["jobs"] == []
         async with session_scope() as s:
             names = [x.full_name for x in (await s.execute(select(Repository))).scalars()]
         assert names == ["acme/shoplite"]
@@ -533,7 +532,7 @@ async def test_repositories_outside_the_allowlist_are_never_acted_on(
         assert (await client.post("/webhooks/github", content=push, headers=h2)).json()[
             "jobs"
         ] == []
-        assert await raw_count() == 2 and await jobs_count() == 1
+        assert await raw_count() == 2 and await jobs_count() == 0
     finally:
         get_settings.cache_clear()
 
@@ -707,7 +706,7 @@ def test_safe_origin_is_an_allowlist() -> None:
     assert safe_origin(None, dev) == "http://localhost:8000"
 
 
-async def test_callback_without_installations_lands_on_the_no_repos_login(
+async def test_callback_without_installations_lands_on_the_connect_page(
     client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import respx
@@ -731,7 +730,7 @@ async def test_callback_without_installations_lands_on_the_no_repos_login(
             )
             state = client.cookies.get("cd_oauth_state")
             r = await client.get(f"/auth/callback?code=c&state={state}", follow_redirects=False)
-        assert r.status_code == 302 and r.headers["location"].endswith("/login?error=no_repos")
+        assert r.status_code == 302 and r.headers["location"].endswith("/connect")
         # the user is signed in, just with nothing to see yet
         assert (await client.get("/auth/me")).json() == {"login": "yash", "repos": {}}
     finally:
@@ -758,5 +757,69 @@ async def test_install_url(client: httpx.AsyncClient, monkeypatch: pytest.Monkey
         assert body["url"] == (
             "https://github.com/apps/causaldeploy-shoplite-demo/installations/new"
         )
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_connect_flow_lists_repos_and_starts_the_import_once(
+    client: httpx.AsyncClient,
+) -> None:
+    from causaldeploy.db.models import Installation, Repository
+
+    async with session_scope() as s:
+        s.add(Installation(id=77, account="yashchandnani07"))
+        await s.flush()
+        s.add(Repository(full_name="yashchandnani07/shoplite", installation_id=77))
+    h = login_as(
+        client,
+        "yash",
+        {"yashchandnani07/shoplite": "approver", "acme/other": "viewer"},
+    )
+    rows = {r["repo"]: r for r in (await client.get("/api/v1/onboarding")).json()}
+    assert rows["yashchandnani07/shoplite"]["state"] == "not_started"
+    assert rows["acme/other"]["role"] == "viewer"
+
+    # a viewer cannot start monitoring; an approver can, and only once
+    assert (await client.post("/api/v1/repos/acme/other/connect", headers=h)).status_code == 403
+    r = await client.post("/api/v1/repos/yashchandnani07/shoplite/connect", headers=h)
+    assert r.status_code == 202 and r.json()["state"] == "importing" and r.json()["job_id"]
+    again = await client.post("/api/v1/repos/yashchandnani07/shoplite/connect", headers=h)
+    assert again.json()["state"] == "importing" and again.json()["job_id"] is None
+    assert await jobs_count() == 1
+    assert (await client.get("/api/v1/onboarding")).json()[0]["state"] == "importing"
+    # CSRF is required
+    assert (await client.post("/api/v1/repos/yashchandnani07/shoplite/connect")).status_code == 403
+
+
+async def test_connect_marks_ready_when_imported_and_respects_the_allowlist(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from datetime import UTC, datetime
+
+    from causaldeploy.config import get_settings
+    from causaldeploy.db.models import Installation, Repository
+
+    monkeypatch.setenv("CD_ALLOWED_REPOS", "yashchandnani07/shoplite")
+    get_settings.cache_clear()
+    try:
+        async with session_scope() as s:
+            s.add(Installation(id=77, account="yashchandnani07"))
+            await s.flush()
+            s.add(
+                Repository(
+                    full_name="yashchandnani07/shoplite",
+                    installation_id=77,
+                    backfilled_at=datetime.now(UTC),
+                )
+            )
+        h = login_as(client, "yash", {"yashchandnani07/shoplite": "approver", "acme/x": "approver"})
+        rows = {r["repo"]: r for r in (await client.get("/api/v1/onboarding")).json()}
+        assert rows["yashchandnani07/shoplite"]["state"] == "ready"
+        assert rows["acme/x"]["state"] == "unavailable"
+        r = await client.post("/api/v1/repos/acme/x/connect", headers=h)
+        assert r.status_code == 409
+        ok = await client.post("/api/v1/repos/yashchandnani07/shoplite/connect", headers=h)
+        assert ok.json() == {"repo": "yashchandnani07/shoplite", "state": "ready", "job_id": None}
+        assert await jobs_count() == 0
     finally:
         get_settings.cache_clear()

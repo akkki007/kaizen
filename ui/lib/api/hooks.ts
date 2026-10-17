@@ -1,6 +1,7 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import type { components } from "./schema";
 import { ApiError, MOCK, api, redirectToLogin, unwrap } from "./client";
 
 export function useMe() {
@@ -187,6 +188,34 @@ export function useReimport(repo: string) {
     mutationFn: async () =>
       unwrap(await api.POST("/api/v1/repos/{owner}/{name}/backfill", { params: { path: split(repo) } })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["backfill", repo] }),
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 401) redirectToLogin();
+    },
+  });
+}
+
+export type RepoOnboarding = components["schemas"]["RepoOnboarding"];
+
+/** Repositories the user can monitor and where each is in the connect journey; polls while importing. */
+export function useOnboarding() {
+  return useQuery({
+    queryKey: ["onboarding"],
+    queryFn: async () => unwrap(await api.GET("/api/v1/onboarding")),
+    refetchInterval: (q) => (q.state.data?.some((r) => r.state === "importing") ? 2_500 : false),
+  });
+}
+
+/** Start monitoring: records the repository and queues its first import. */
+export function useConnectRepos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (repos: string[]) =>
+      Promise.all(
+        repos.map(async (repo) =>
+          unwrap(await api.POST("/api/v1/repos/{owner}/{name}/connect", { params: { path: split(repo) } })),
+        ),
+      ),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["onboarding"] }),
     onError: (err) => {
       if (err instanceof ApiError && err.status === 401) redirectToLogin();
     },
