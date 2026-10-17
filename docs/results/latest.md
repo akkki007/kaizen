@@ -2,7 +2,7 @@
 
 28 scenario variants, S1-S10 (`eval/scenarios`), rendered into the graph shape Kaizen ingests, with distractor commits. **Replay benchmark**: deterministic and offline; it measures ranking quality, not live failure injection. All methods rank the same candidate set (commits, config and dependency changes of the deployments in scope). The culprit is the latest commit in a third of the variants and in half of them its own message carries the error keywords, so neither baseline is set up to lose.
 
-Weights `v1`. Splits: `tune` = S1, S3, S5, S8 (weights may be fit here), `test` = held out. Top-1 95% CI: seeded percentile bootstrap, n=1000. Wall time 3.0s.
+Weights `v1`. Splits: `tune` = S1, S3, S5, S8 (weights may be fit here), `test` = held out. Top-1 95% CI: seeded percentile bootstrap, n=1000. Wall time 8.2s.
 
 Methods: `graph` = deterministic graph score; `graph -X` = the same with feature X's weight set to 0 (ablation); `b1 bm25` = BM25 of the error text against commit message, changed file paths and function names (IDF over the candidates, no graph traversal); `b0 latest` = the most recent commit.
 
@@ -10,34 +10,34 @@ Methods: `graph` = deterministic graph score; `graph -X` = the same with feature
 
 | method | n | top-1 | top-1 95% CI | top-3 | function-level | false attribution | median time |
 |---|---|---|---|---|---|---|---|
-| graph | 28 | 89% | 75%-100% | 100% | 89% | 0% | 58 ms |
-| graph -path | 28 | 57% | 39%-75% | 100% | 89% | 11% | 58 ms |
-| graph -history | 28 | 89% | 75%-100% | 100% | 89% | 0% | 66 ms |
-| graph -dependency | 28 | 89% | 75%-100% | 100% | 89% | 0% | 63 ms |
-| b1 bm25 | 28 | 39% | 21%-57% | 79% | 11% | 61% | 14 ms |
-| b0 latest | 28 | 32% | 14%-50% | 54% | 0% | 68% | 4 ms |
+| graph | 28 | 89% | 75%-100% | 100% | 89% | 0% | 43.9 ms |
+| graph -path | 28 | 57% | 39%-75% | 100% | 89% | 11% | 41.8 ms |
+| graph -history | 28 | 89% | 75%-100% | 100% | 89% | 0% | 42.6 ms |
+| graph -dependency | 28 | 89% | 75%-100% | 100% | 89% | 0% | 41.4 ms |
+| b1 bm25 | 28 | 39% | 21%-57% | 79% | 11% | 61% | 7.9 ms |
+| b0 latest | 28 | 32% | 14%-50% | 54% | 0% | 68% | 2.4 ms |
 
 ## test
 
 | method | n | top-1 | top-1 95% CI | top-3 | function-level | false attribution | median time |
 |---|---|---|---|---|---|---|---|
-| graph | 18 | 83% | 61%-100% | 100% | 83% | 0% | 62 ms |
-| graph -path | 18 | 39% | 17%-61% | 100% | 83% | 17% | 60 ms |
-| graph -history | 18 | 83% | 61%-100% | 100% | 83% | 0% | 66 ms |
-| graph -dependency | 18 | 83% | 61%-100% | 100% | 83% | 0% | 58 ms |
-| b1 bm25 | 18 | 44% | 22%-67% | 78% | 17% | 56% | 13 ms |
-| b0 latest | 18 | 28% | 11%-50% | 44% | 0% | 72% | 4 ms |
+| graph | 18 | 83% | 61%-100% | 100% | 83% | 0% | 43.9 ms |
+| graph -path | 18 | 39% | 17%-61% | 100% | 83% | 17% | 41.8 ms |
+| graph -history | 18 | 83% | 61%-100% | 100% | 83% | 0% | 42.4 ms |
+| graph -dependency | 18 | 83% | 61%-100% | 100% | 83% | 0% | 41.1 ms |
+| b1 bm25 | 18 | 44% | 22%-67% | 78% | 17% | 56% | 7.8 ms |
+| b0 latest | 18 | 28% | 11%-50% | 44% | 0% | 72% | 2.3 ms |
 
 ## tune
 
 | method | n | top-1 | top-1 95% CI | top-3 | function-level | false attribution | median time |
 |---|---|---|---|---|---|---|---|
-| graph | 10 | 100% | 100%-100% | 100% | 100% | 0% | 55 ms |
-| graph -path | 10 | 90% | 70%-100% | 100% | 100% | 0% | 53 ms |
-| graph -history | 10 | 100% | 100%-100% | 100% | 100% | 0% | 61 ms |
-| graph -dependency | 10 | 100% | 100%-100% | 100% | 100% | 0% | 66 ms |
-| b1 bm25 | 10 | 30% | 0%-60% | 80% | 0% | 70% | 15 ms |
-| b0 latest | 10 | 40% | 10%-70% | 70% | 0% | 60% | 4 ms |
+| graph | 10 | 100% | 100%-100% | 100% | 100% | 0% | 43.7 ms |
+| graph -path | 10 | 90% | 70%-100% | 100% | 100% | 0% | 44.0 ms |
+| graph -history | 10 | 100% | 100%-100% | 100% | 100% | 0% | 45.7 ms |
+| graph -dependency | 10 | 100% | 100%-100% | 100% | 100% | 0% | 41.9 ms |
+| b1 bm25 | 10 | 30% | 0%-60% | 80% | 0% | 70% | 8.2 ms |
+| b0 latest | 10 | 40% | 10%-70% | 70% | 0% | 60% | 2.4 ms |
 
 ## Per scenario (top-1 correct, by method)
 

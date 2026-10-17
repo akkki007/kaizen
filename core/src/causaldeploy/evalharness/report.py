@@ -140,7 +140,7 @@ def render(ev: Evaluation) -> str:
         ]
         for s in sums[split]:
             ci = f"{_pct(s.top1_ci[0])}-{_pct(s.top1_ci[1])}" if s.top1_ci else "n/a"
-            med = f"{s.median_ms:.0f} ms" if s.median_ms is not None else "n/a"
+            med = f"{_r(s.median_ms, 1)} ms" if s.median_ms is not None else "n/a"
             lines.append(
                 f"| {s.method} | {s.n} | {_pct(s.top1)} | {ci} | {_pct(s.top3)} | "
                 f"{_pct(s.function_level)} | {_pct(s.false_attribution)} | {med} |"
@@ -278,7 +278,7 @@ def _table(rows: list[M.Summary]) -> str:
     body = []
     for s in rows:
         ci = f"{_pct(s.top1_ci[0])}-{_pct(s.top1_ci[1])}" if s.top1_ci else "n/a"
-        med = f"{s.median_ms:.0f}" if s.median_ms is not None else "n/a"
+        med = f"{_r(s.median_ms, 1)}" if s.median_ms is not None else "n/a"
         body.append(
             f"<tr><td>{html.escape(s.method)}</td><td>{s.n}</td><td>{_pct(s.top1)}</td>"
             f"<td>{ci}</td><td>{_pct(s.top3)}</td><td>{_pct(s.function_level)}</td>"

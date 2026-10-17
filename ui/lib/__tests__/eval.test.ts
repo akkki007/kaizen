@@ -39,12 +39,9 @@ describe("evaluation dashboard numbers", () => {
     const page = ev.splits[split].map(splitRow);
     const doc = mdTable(split);
     expect(page.length).toBe(doc.length);
-    // every column but the median time is identical text
+    // every column, median time included, is the same value (both keep 0.1 ms)
     expect(page.map((r) => r.slice(0, 7))).toEqual(doc.map((r) => r.slice(0, 7)));
-    // median: json keeps 0.1 ms, md rounds the unrounded value to whole ms
-    page.forEach((r, i) => {
-      expect(Math.abs(parseFloat(r[7]) - parseFloat(doc[i][7]))).toBeLessThanOrEqual(0.5);
-    });
+    page.forEach((r, i) => expect(parseFloat(r[7])).toBe(parseFloat(doc[i][7])));
   });
 
   it("per-scenario top-1 matches latest.md", () => {
