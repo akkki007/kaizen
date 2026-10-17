@@ -113,7 +113,7 @@ export function SimilarIncidents({ incidentId }: { incidentId: string }) {
                 <>
                   {" · "}
                   <a href={s.fix.pr_url} target="_blank" rel="noreferrer" className="text-link hover:underline">
-                    pull request
+                    fix PR
                   </a>
                 </>
               )}
