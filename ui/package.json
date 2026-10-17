@@ -10,7 +10,9 @@
     "dev:mock": "node scripts/dev-mock.mjs",
     "test": "vitest run",
     "e2e": "playwright test",
-    "e2e:visual": "node -e \"process.env.VISUAL='1';require('child_process').execSync('npx playwright test e2e/visual.spec.ts',{stdio:'inherit',env:process.env})\""  },
+    "e2e:visual": "node -e \"process.env.VISUAL='1';require('child_process').execSync('npx playwright test e2e/visual.spec.ts',{stdio:'inherit',env:process.env})\"",
+    "sync:eval": "node -e \"require('fs').copyFileSync('../docs/results/latest.json','lib/api/fixtures/eval-latest.json')\""
+  },
   "dependencies": {
     "@radix-ui/react-slot": "^1.4.0",
     "@tailwindcss/postcss": "^4.3.3",

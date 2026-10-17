@@ -1,7 +1,8 @@
 // Mock fixtures for the dashboard routes (#93): incident list with filters, service health,
 // deployments, hotspots and the evaluation result. The evaluation result is the real
-// docs/results/latest.json, so the mock dashboard shows exactly what `make eval` produced.
-import latestEval from "../../../docs/results/latest.json";
+// docs/results/latest.json (copied into ui/ so the UI image builds from ui/ alone; `npm run sync:eval`
+// refreshes it and eval.test.ts fails when it drifts), so the mock shows exactly what `make eval` produced.
+import latestEval from "./fixtures/eval-latest.json";
 import type { components } from "./schema";
 
 type IncidentPage = components["schemas"]["IncidentPage"];

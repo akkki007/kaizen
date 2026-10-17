@@ -14,6 +14,7 @@ import { LogoMark } from "@/components/landing/logo";
 import { useIncidentSearch } from "@/lib/api/hooks-dashboard";
 import { EASE, gsap, haptic } from "@/lib/motion";
 import { ACTIVE_STATUSES, ARCHIVE_STATUSES, INCIDENT_STATUSES, SEVERITIES, STATUS_META, isIncidentStatus, type IncidentStatus, type Severity } from "@/lib/status";
+import { applyPatch, baseQuery, settle, type ParamPatch } from "@/lib/url-params";
 import { cn } from "@/lib/utils";
 import { ago, isOpen, serviceColor, type Incident } from "@/lib/workspace";
 
@@ -53,14 +54,20 @@ export default function IncidentsPage() {
   const [newestFirst, setNewestFirst] = useState(true);
   const list = useRef<HTMLUListElement>(null);
 
+  // Updates still in flight (router.replace commits asynchronously): each new one builds on the
+  // newest requested query, so a filter click followed quickly by typing never loses the filter.
+  const inFlight = useRef<string[]>([]);
+  const current = params.toString();
+  useEffect(() => {
+    inFlight.current = settle(inFlight.current, current);
+  }, [current]);
   const setParam = useCallback(
-    (patch: Record<string, string | null>) => {
-      const next = new URLSearchParams(params.toString());
-      for (const [k, v] of Object.entries(patch)) (v === null || v === "" ? next.delete(k) : next.set(k, v));
-      const qs = next.toString();
+    (patch: ParamPatch) => {
+      const qs = applyPatch(baseQuery(inFlight.current, current), patch);
+      inFlight.current = [...inFlight.current, qs];
       router.replace(qs ? `${path}?${qs}` : path, { scroll: false });
     },
-    [params, path, router],
+    [current, path, router],
   );
 
   // Text search follows typing after a short pause.

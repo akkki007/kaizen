@@ -1,0 +1,1541 @@
+{
+  "generated_at": "2026-10-16T19:25:50+00:00",
+  "weights_version": "v1",
+  "methods": [
+    "graph",
+    "graph -path",
+    "graph -history",
+    "graph -dependency",
+    "b1 bm25",
+    "b0 latest"
+  ],
+  "splits": {
+    "all": [
+      {
+        "method": "graph",
+        "n": 28,
+        "top1": 0.8929,
+        "top3": 1.0,
+        "function_level": 0.8929,
+        "false_attribution": 0.0,
+        "median_ms": 58.0,
+        "top1_ci": [
+          0.75,
+          1.0
+        ]
+      },
+      {
+        "method": "graph -path",
+        "n": 28,
+        "top1": 0.5714,
+        "top3": 1.0,
+        "function_level": 0.8929,
+        "false_attribution": 0.1071,
+        "median_ms": 58.4,
+        "top1_ci": [
+          0.3929,
+          0.75
+        ]
+      },
+      {
+        "method": "graph -history",
+        "n": 28,
+        "top1": 0.8929,
+        "top3": 1.0,
+        "function_level": 0.8929,
+        "false_attribution": 0.0,
+        "median_ms": 66.1,
+        "top1_ci": [
+          0.75,
+          1.0
+        ]
+      },
+      {
+        "method": "graph -dependency",
+        "n": 28,
+        "top1": 0.8929,
+        "top3": 1.0,
+        "function_level": 0.8929,
+        "false_attribution": 0.0,
+        "median_ms": 63.2,
+        "top1_ci": [
+          0.75,
+          1.0
+        ]
+      },
+      {
+        "method": "b1 bm25",
+        "n": 28,
+        "top1": 0.3929,
+        "top3": 0.7857,
+        "function_level": 0.1071,
+        "false_attribution": 0.6071,
+        "median_ms": 13.7,
+        "top1_ci": [
+          0.2143,
+          0.5714
+        ]
+      },
+      {
+        "method": "b0 latest",
+        "n": 28,
+        "top1": 0.3214,
+        "top3": 0.5357,
+        "function_level": 0.0,
+        "false_attribution": 0.6786,
+        "median_ms": 4.0,
+        "top1_ci": [
+          0.1429,
+          0.5
+        ]
+      }
+    ],
+    "tune": [
+      {
+        "method": "graph",
+        "n": 10,
+        "top1": 1.0,
+        "top3": 1.0,
+        "function_level": 1.0,
+        "false_attribution": 0.0,
+        "median_ms": 55.0,
+        "top1_ci": [
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "method": "graph -path",
+        "n": 10,
+        "top1": 0.9,
+        "top3": 1.0,
+        "function_level": 1.0,
+        "false_attribution": 0.0,
+        "median_ms": 53.5,
+        "top1_ci": [
+          0.7,
+          1.0
+        ]
+      },
+      {
+        "method": "graph -history",
+        "n": 10,
+        "top1": 1.0,
+        "top3": 1.0,
+        "function_level": 1.0,
+        "false_attribution": 0.0,
+        "median_ms": 61.0,
+        "top1_ci": [
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "method": "graph -dependency",
+        "n": 10,
+        "top1": 1.0,
+        "top3": 1.0,
+        "function_level": 1.0,
+        "false_attribution": 0.0,
+        "median_ms": 65.8,
+        "top1_ci": [
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "method": "b1 bm25",
+        "n": 10,
+        "top1": 0.3,
+        "top3": 0.8,
+        "function_level": 0.0,
+        "false_attribution": 0.7,
+        "median_ms": 15.4,
+        "top1_ci": [
+          0.0,
+          0.6
+        ]
+      },
+      {
+        "method": "b0 latest",
+        "n": 10,
+        "top1": 0.4,
+        "top3": 0.7,
+        "function_level": 0.0,
+        "false_attribution": 0.6,
+        "median_ms": 4.4,
+        "top1_ci": [
+          0.1,
+          0.7
+        ]
+      }
+    ],
+    "test": [
+      {
+        "method": "graph",
+        "n": 18,
+        "top1": 0.8333,
+        "top3": 1.0,
+        "function_level": 0.8333,
+        "false_attribution": 0.0,
+        "median_ms": 62.2,
+        "top1_ci": [
+          0.6111,
+          1.0
+        ]
+      },
+      {
+        "method": "graph -path",
+        "n": 18,
+        "top1": 0.3889,
+        "top3": 1.0,
+        "function_level": 0.8333,
+        "false_attribution": 0.1667,
+        "median_ms": 60.2,
+        "top1_ci": [
+          0.1667,
+          0.6111
+        ]
+      },
+      {
+        "method": "graph -history",
+        "n": 18,
+        "top1": 0.8333,
+        "top3": 1.0,
+        "function_level": 0.8333,
+        "false_attribution": 0.0,
+        "median_ms": 66.3,
+        "top1_ci": [
+          0.6111,
+          1.0
+        ]
+      },
+      {
+        "method": "graph -dependency",
+        "n": 18,
+        "top1": 0.8333,
+        "top3": 1.0,
+        "function_level": 0.8333,
+        "false_attribution": 0.0,
+        "median_ms": 58.2,
+        "top1_ci": [
+          0.6111,
+          1.0
+        ]
+      },
+      {
+        "method": "b1 bm25",
+        "n": 18,
+        "top1": 0.4444,
+        "top3": 0.7778,
+        "function_level": 0.1667,
+        "false_attribution": 0.5556,
+        "median_ms": 13.0,
+        "top1_ci": [
+          0.2222,
+          0.6667
+        ]
+      },
+      {
+        "method": "b0 latest",
+        "n": 18,
+        "top1": 0.2778,
+        "top3": 0.4444,
+        "function_level": 0.0,
+        "false_attribution": 0.7222,
+        "median_ms": 3.6,
+        "top1_ci": [
+          0.1111,
+          0.5
+        ]
+      }
+    ]
+  },
+  "blast_radius": {
+    "precision": 0.97,
+    "recall": 0.96,
+    "n": 25
+  },
+  "fix_verification_rate": null,
+  "memory": [
+    {
+      "variant": 0,
+      "confidence_without": 0.6345,
+      "confidence_with": 0.7718
+    },
+    {
+      "variant": 1,
+      "confidence_without": 0.6802,
+      "confidence_with": 0.8055
+    },
+    {
+      "variant": 2,
+      "confidence_without": 0.6345,
+      "confidence_with": 0.7718
+    }
+  ],
+  "runtime_seconds": 3.0,
+  "scenarios": [
+    {
+      "id": "S1",
+      "variant": 0,
+      "title": "Payment validation refactor throws on a valid input",
+      "split": "tune",
+      "culprit": "02b6f5455535",
+      "results": {
+        "graph": {
+          "top": "02b6f5455535",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "02b6f5455535",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "02b6f5455535",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "02b6f5455535",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "11906936e36c",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "02b6f5455535",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        }
+      }
+    },
+    {
+      "id": "S1",
+      "variant": 1,
+      "title": "Payment validation refactor throws on a valid input",
+      "split": "tune",
+      "culprit": "22d76b1843ef",
+      "results": {
+        "graph": {
+          "top": "22d76b1843ef",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "22d76b1843ef",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "22d76b1843ef",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "22d76b1843ef",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "22d76b1843ef",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "d11ffd03e256",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S1",
+      "variant": 2,
+      "title": "Payment validation refactor throws on a valid input",
+      "split": "tune",
+      "culprit": "9bc0691fdf79",
+      "results": {
+        "graph": {
+          "top": "9bc0691fdf79",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "055cf3205e61",
+          "rank_of_culprit": 2,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "9bc0691fdf79",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "9bc0691fdf79",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "63e326d5ba6e",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "055cf3205e61",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S2",
+      "variant": 0,
+      "title": "Two functions changed in one file, only one is on the failing path",
+      "split": "test",
+      "culprit": "96c0e897d9e9",
+      "results": {
+        "graph": {
+          "top": "96c0e897d9e9",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "68a6503a8c2e",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "96c0e897d9e9",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "96c0e897d9e9",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "e5d4018237a7",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "96c0e897d9e9",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        }
+      }
+    },
+    {
+      "id": "S2",
+      "variant": 1,
+      "title": "Two functions changed in one file, only one is on the failing path",
+      "split": "test",
+      "culprit": "9c67db043580",
+      "results": {
+        "graph": {
+          "top": "9c67db043580",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "9c67db043580",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "9c67db043580",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "9c67db043580",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "9c67db043580",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "2823560e5646",
+          "rank_of_culprit": 4,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S2",
+      "variant": 2,
+      "title": "Two functions changed in one file, only one is on the failing path",
+      "split": "test",
+      "culprit": "3cac57aad248",
+      "results": {
+        "graph": {
+          "top": "3cac57aad248",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "b8052e577887",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "3cac57aad248",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "3cac57aad248",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "8a32eb85b7f9",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "b8052e577887",
+          "rank_of_culprit": 6,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S3",
+      "variant": 0,
+      "title": "A deployment bundles five commits, one is the culprit",
+      "split": "tune",
+      "culprit": "61c3c5e570ab",
+      "results": {
+        "graph": {
+          "top": "61c3c5e570ab",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "61c3c5e570ab",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "61c3c5e570ab",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "61c3c5e570ab",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "ea2fcd68dd7c",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "61c3c5e570ab",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        }
+      }
+    },
+    {
+      "id": "S4",
+      "variant": 0,
+      "title": "Bug in orders, symptom appears in payments",
+      "split": "test",
+      "culprit": "4e5e40c6b6f1",
+      "results": {
+        "graph": {
+          "top": "4ebea482eb27",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -path": {
+          "top": "4ebea482eb27",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "4ebea482eb27",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -dependency": {
+          "top": "4ebea482eb27",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "b1 bm25": {
+          "top": "6b58f0d7f682",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "4e5e40c6b6f1",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        }
+      }
+    },
+    {
+      "id": "S4",
+      "variant": 1,
+      "title": "Bug in orders, symptom appears in payments",
+      "split": "test",
+      "culprit": "3f0c17945e92",
+      "results": {
+        "graph": {
+          "top": "9aa3d3992391",
+          "rank_of_culprit": 2,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -path": {
+          "top": "9aa3d3992391",
+          "rank_of_culprit": 2,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "9aa3d3992391",
+          "rank_of_culprit": 2,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -dependency": {
+          "top": "9aa3d3992391",
+          "rank_of_culprit": 2,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "b1 bm25": {
+          "top": "3f0c17945e92",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "9aa3d3992391",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S4",
+      "variant": 2,
+      "title": "Bug in orders, symptom appears in payments",
+      "split": "test",
+      "culprit": "c7a6354d58d9",
+      "results": {
+        "graph": {
+          "top": "ec6eee1d2006",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -path": {
+          "top": "ec6eee1d2006",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "ec6eee1d2006",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -dependency": {
+          "top": "ec6eee1d2006",
+          "rank_of_culprit": 3,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "b1 bm25": {
+          "top": "a989fcfaa45b",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "ec6eee1d2006",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S5",
+      "variant": 0,
+      "title": "Dependency bump in money-utils breaks formatting for one currency",
+      "split": "tune",
+      "culprit": "e70887a03d6e",
+      "results": {
+        "graph": {
+          "top": "e70887a03d6e",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "e70887a03d6e",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "e70887a03d6e",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "e70887a03d6e",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "75842135069b",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "e70887a03d6e",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        }
+      }
+    },
+    {
+      "id": "S5",
+      "variant": 1,
+      "title": "Dependency bump in money-utils breaks formatting for one currency",
+      "split": "tune",
+      "culprit": "6fb0ebf858ff",
+      "results": {
+        "graph": {
+          "top": "6fb0ebf858ff",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "6fb0ebf858ff",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "6fb0ebf858ff",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "6fb0ebf858ff",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "6fb0ebf858ff",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "2102f432396f",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S5",
+      "variant": 2,
+      "title": "Dependency bump in money-utils breaks formatting for one currency",
+      "split": "tune",
+      "culprit": "6e90514fa0b1",
+      "results": {
+        "graph": {
+          "top": "6e90514fa0b1",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "6e90514fa0b1",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "6e90514fa0b1",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "6e90514fa0b1",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "70d459f6069c",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "6d1302e45575",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S6",
+      "variant": 0,
+      "title": "Environment/config change, no code diff",
+      "split": "test",
+      "culprit": "orders:PAYMENTS_URL@dep-1",
+      "results": {
+        "graph": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "ff4b38f261e8",
+          "rank_of_culprit": 6,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S6",
+      "variant": 1,
+      "title": "Environment/config change, no code diff",
+      "split": "test",
+      "culprit": "orders:PAYMENTS_URL@dep-1",
+      "results": {
+        "graph": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "1fb632f0f76e",
+          "rank_of_culprit": 6,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S6",
+      "variant": 2,
+      "title": "Environment/config change, no code diff",
+      "split": "test",
+      "culprit": "orders:PAYMENTS_URL@dep-1",
+      "results": {
+        "graph": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "no_code_evidence",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "orders:PAYMENTS_URL@dep-1",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "25a2b2b9f5a7",
+          "rank_of_culprit": 6,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S7",
+      "variant": 0,
+      "title": "Old commit, latent bug triggered by a new traffic pattern",
+      "split": "test",
+      "culprit": "b4fbe75dc121",
+      "results": {
+        "graph": {
+          "top": "b4fbe75dc121",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "4d2c0465c238",
+          "rank_of_culprit": 2,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "b4fbe75dc121",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "b4fbe75dc121",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "0d77150b62f7",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "b4fbe75dc121",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        }
+      }
+    },
+    {
+      "id": "S7",
+      "variant": 1,
+      "title": "Old commit, latent bug triggered by a new traffic pattern",
+      "split": "test",
+      "culprit": "38ebe186bf26",
+      "results": {
+        "graph": {
+          "top": "38ebe186bf26",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "b9c851db94d3",
+          "rank_of_culprit": 2,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "38ebe186bf26",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "38ebe186bf26",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "38ebe186bf26",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "5a7a19334f96",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S7",
+      "variant": 2,
+      "title": "Old commit, latent bug triggered by a new traffic pattern",
+      "split": "test",
+      "culprit": "d1448187715e",
+      "results": {
+        "graph": {
+          "top": "d1448187715e",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "bf4c4810765b",
+          "rank_of_culprit": 2,
+          "verdict": "ambiguous",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "d1448187715e",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "d1448187715e",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "5990441d0a9d",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "67ad14dc5ff6",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S8",
+      "variant": 0,
+      "title": "Recurrence of the S1 pattern in a different service",
+      "split": "tune",
+      "culprit": "d11e529f8eed",
+      "results": {
+        "graph": {
+          "top": "d11e529f8eed",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "d11e529f8eed",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "d11e529f8eed",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "d11e529f8eed",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "e11915236622",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "d11e529f8eed",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        }
+      }
+    },
+    {
+      "id": "S8",
+      "variant": 1,
+      "title": "Recurrence of the S1 pattern in a different service",
+      "split": "tune",
+      "culprit": "5e64de43f09a",
+      "results": {
+        "graph": {
+          "top": "5e64de43f09a",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "5e64de43f09a",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "5e64de43f09a",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "5e64de43f09a",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "5e64de43f09a",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "f81fab02a9c9",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S8",
+      "variant": 2,
+      "title": "Recurrence of the S1 pattern in a different service",
+      "split": "tune",
+      "culprit": "0758b87d7d06",
+      "results": {
+        "graph": {
+          "top": "0758b87d7d06",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "0758b87d7d06",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "0758b87d7d06",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "0758b87d7d06",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "2078045ad035",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "937bf5d2e257",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S9",
+      "variant": 0,
+      "title": "Refactor renames and moves the culprit function",
+      "split": "test",
+      "culprit": "65b2340ea580",
+      "results": {
+        "graph": {
+          "top": "65b2340ea580",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "f20297fda7a4",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "65b2340ea580",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "65b2340ea580",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "c0236cdc06f0",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "65b2340ea580",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        }
+      }
+    },
+    {
+      "id": "S9",
+      "variant": 1,
+      "title": "Refactor renames and moves the culprit function",
+      "split": "test",
+      "culprit": "597274c09b3b",
+      "results": {
+        "graph": {
+          "top": "597274c09b3b",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "f16a329060f9",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "597274c09b3b",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "597274c09b3b",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "597274c09b3b",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "f16a329060f9",
+          "rank_of_culprit": 3,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S9",
+      "variant": 2,
+      "title": "Refactor renames and moves the culprit function",
+      "split": "test",
+      "culprit": "9aea1993e997",
+      "results": {
+        "graph": {
+          "top": "9aea1993e997",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "0f87f50919d6",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "graph -history": {
+          "top": "9aea1993e997",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "9aea1993e997",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "f54002a732e2",
+          "rank_of_culprit": 2,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "0f87f50919d6",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S10",
+      "variant": 0,
+      "title": "Culprit commit alongside unrelated flaky endpoint errors",
+      "split": "test",
+      "culprit": "e0df0fbaf441",
+      "results": {
+        "graph": {
+          "top": "e0df0fbaf441",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "e0df0fbaf441",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "e0df0fbaf441",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "e0df0fbaf441",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "cfd8b94a989f",
+          "rank_of_culprit": 4,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "e0df0fbaf441",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        }
+      }
+    },
+    {
+      "id": "S10",
+      "variant": 1,
+      "title": "Culprit commit alongside unrelated flaky endpoint errors",
+      "split": "test",
+      "culprit": "3080e493e9b3",
+      "results": {
+        "graph": {
+          "top": "3080e493e9b3",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "3080e493e9b3",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "3080e493e9b3",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "3080e493e9b3",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "3080e493e9b3",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b0 latest": {
+          "top": "cb00f646251e",
+          "rank_of_culprit": 4,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    },
+    {
+      "id": "S10",
+      "variant": 2,
+      "title": "Culprit commit alongside unrelated flaky endpoint errors",
+      "split": "test",
+      "culprit": "64bde01c6022",
+      "results": {
+        "graph": {
+          "top": "64bde01c6022",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -path": {
+          "top": "64bde01c6022",
+          "rank_of_culprit": 1,
+          "verdict": "ambiguous",
+          "correct": true
+        },
+        "graph -history": {
+          "top": "64bde01c6022",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "graph -dependency": {
+          "top": "64bde01c6022",
+          "rank_of_culprit": 1,
+          "verdict": "confident",
+          "correct": true
+        },
+        "b1 bm25": {
+          "top": "06d9d77915ee",
+          "rank_of_culprit": 5,
+          "verdict": "confident",
+          "correct": false
+        },
+        "b0 latest": {
+          "top": "505fb55e83ea",
+          "rank_of_culprit": 6,
+          "verdict": "confident",
+          "correct": false
+        }
+      }
+    }
+  ],
+  "failures": []
+}

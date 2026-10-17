@@ -29,7 +29,9 @@ function mdTable(heading: string): string[][] {
 
 describe("evaluation dashboard numbers", () => {
   it("serves latest.json unchanged in mock mode", () => {
-    expect(mockEval).toBe(latest);
+    // ui/lib/api/fixtures/eval-latest.json is a copy (the UI image builds from ui/ alone);
+    // if this fails after `make eval`, run `npm run sync:eval`
+    expect(mockEval).toEqual(latest);
     expect(ev.splits.all.length).toBeGreaterThan(0);
   });
 
