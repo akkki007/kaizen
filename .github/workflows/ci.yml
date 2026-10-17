@@ -45,6 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t causaldeploy-core:ci core
+      - run: docker build -t causaldeploy-ui:ci ui
 
   ui:
     runs-on: ubuntu-latest

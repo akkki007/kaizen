@@ -5,6 +5,7 @@ import type { NextConfig } from "next";
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
 
 const config: NextConfig = {
+  output: "standalone", // small production image (ui/Dockerfile)
   // Old routes from before every page moved into the dashboard.
   async redirects() {
     return [

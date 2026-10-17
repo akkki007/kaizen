@@ -17,3 +17,10 @@
 		reverse_proxy gateway:4001
 	}
 }
+
+# The Kaizen web app (sign-in, connect flow, dashboard). The Next.js server proxies /api/v1 and /auth
+# to the API itself, so the session cookie stays first-party on this origin.
+{$CD_UI_DOMAIN} {
+	encode gzip
+	reverse_proxy ui:3000
+}

@@ -8,11 +8,17 @@ services:
     ports: ["80:80", "443:443"]
     environment:
       CD_PUBLIC_DOMAIN: ${CD_PUBLIC_DOMAIN}
+      CD_UI_DOMAIN: ${CD_UI_DOMAIN:-kaizen.akkki.tech}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
     networks: [default, edge]
-    depends_on: [api]
+    depends_on: [api, ui]
+
+  ui:
+    image: ${CD_UI_IMAGE:?set CD_UI_IMAGE}
+    restart: unless-stopped
+    networks: [default]
 
   api:
     image: ${CD_IMAGE:?set CD_IMAGE}
@@ -20,7 +26,11 @@ services:
     env_file: [.env]
     environment: &runtime
       CD_ENV: prod
-      CD_ALLOWED_REPOS: ${CD_ALLOWED_REPOS:-yashchandnani07/shoplite}
+      # Empty = any repository the GitHub App is installed on (users pick theirs in the UI).
+      CD_ALLOWED_REPOS: ${CD_ALLOWED_REPOS-}
+      # The UI origin hosts the sign-in callback, so it is the public base URL.
+      CD_PUBLIC_BASE_URL: https://${CD_UI_DOMAIN:-kaizen.akkki.tech}
+      CD_GITHUB_APP_SLUG: ${CD_GITHUB_APP_SLUG:-causaldeploy-shoplite-demo}
       CD_FALKORDB_HOST: falkordb
       CD_FALKORDB_PORT: "6379"
       CD_POSTGRES_DSN: postgresql://causaldeploy:${POSTGRES_PASSWORD}@postgres:5432/causaldeploy
