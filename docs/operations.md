@@ -188,3 +188,10 @@ code; only the traffic is synthetic, and the API says `simulated: true`. **Reset
 incident state again. `CD_DEMO_LOGIN_ENABLED` adds **Try the demo** on the login page: a
 viewer-only session on `CD_DEMO_REPOS` (it can inject and reset, and cannot propose or approve
 fixes, so nothing touches the real repository).
+
+**Production settings from Secrets Manager.** `deploy.sh` reads these optional JSON keys of the
+`causaldeploy/prod/external` secret on the host at deploy time (the same secret that holds the App
+key) and adds them to `/opt/causaldeploy/.env`: `slack_webhook_url` -> `CD_SLACK_WEBHOOK_URL`,
+`openai_model` -> `CD_OPENAI_MODEL`; `openai_api_key` is already wired by `cd-fetch-env`.
+To enable alerts in production, add `slack_webhook_url` to that secret (AWS console -> Secrets
+Manager -> causaldeploy/prod/external -> Edit) and redeploy (or re-run the deploy workflow).
