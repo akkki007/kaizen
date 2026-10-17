@@ -48,13 +48,13 @@ jobs:
       - run: docker build -t causaldeploy-ui:ci ui
       # container scans: report fixable HIGH/CRITICAL OS or library vulnerabilities. Report-only
       # until a first clean CI run; then set exit-code to "1" to gate merges (docs/security.md)
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: causaldeploy-core:ci
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "0"
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: causaldeploy-ui:ci
           severity: HIGH,CRITICAL
