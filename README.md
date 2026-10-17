@@ -4,12 +4,32 @@ AI agent that connects production failures to the code changes behind them using
 knowledge graph, ranks root causes with explainable evidence, proposes fixes, and verifies them
 before anything ships.
 
+**Try it:** <https://kaizen.akkki.tech> -> **Try the demo** (no GitHub account needed) -> *Live graph*
+-> **Inject a problem**. Walkthrough: [`docs/demo.md`](docs/demo.md).
+
+When a deploy breaks something, Kaizen does not wait for someone to open a dashboard. It detects the
+failure from runtime telemetry, walks the repository graph in FalkorDB (commit -> function -> call
+path -> the function that threw -> endpoint -> service), names the culprit commit and author, and
+**posts the answer to Slack**: who, what, which function, how sure, plus a link to the evidence.
+It then proposes a revert, verifies it in staging, and merges only after a person approves.
+
 - Repository: <https://github.com/akkki007/kaizen> (branch `main`)
 - Plan: [`PLAN.md`](PLAN.md) · Original idea: [`docs/idea.md`](docs/idea.md) ·
   Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Work tracking: GitHub issues #84-#93, milestones M1-M4 (deadline 2026-10-18)
 - Target app everyone works against: <https://github.com/yashchandnani07/shoplite>
   (deployed at <https://shoplite-demo.duckdns.org>)
+
+## What you get
+
+| | |
+|---|---|
+| **Alerts** | Slack message per incident: service/endpoint, culprit commit and author, the function that changed vs the one that threw, confidence, link. Once per incident; optional GitHub issue. |
+| **Live graph** (`/graph`) | Every function, service and recent commit of the repository from FalkorDB. Green when healthy; only the failing function turns red; the suspect commit is amber. Shows the Cypher behind the view and which engine (Postgres / FalkorDB) runs each step. |
+| **Explainable ranking** | Ten graph features (path distance, endpoint, blast radius, PageRank, history...) combined by a fixed formula. The LLM never sets a score; every number has its Cypher next to it, with a "graph off" comparison. |
+| **Connect any repo** | Sign in with GitHub -> install the App -> pick a repository -> Start monitoring. Kaizen imports commits and functions (JavaScript/TypeScript function mapping) and watches deploys. |
+| **Safe fixes** | Revert PR, verification in staging, human approval; nothing merges without it. |
+| **Demo mode** | "Try the demo" (viewer session on ShopLite) and **Inject a problem**: a simulated bad deploy runs through the real detection, graph queries, ranking and Slack alert; the fix flow runs without touching GitHub. Everything simulated is labelled. |
 
 ## Where things stand
 
@@ -25,6 +45,14 @@ before anything ships.
 | #91 Revert/patch remediation, approval gate, verification verdict, memory, similarity | built and tested; live ShopLite verification workflow is external |
 | #92 Evaluation harness, security review, performance budget, docs, demo | eval, review, budgets, docs, demo script built; recording and rehearsals pending |
 | #93 Web UI | incident list/page, suspects with per-feature Cypher, evidence graph, agent trace, fix + verification; in progress |
+
+Beyond the issue list: alerts to Slack, the live graph, the connect flow for any repository, the
+public demo account, and the web app in production at <https://kaizen.akkki.tech>.
+
+Not done yet: a post-deploy GitHub Action / one-click telemetry setup for connected repositories
+(they get an ingest key and a snippet), email alerts, function mapping beyond JavaScript and
+TypeScript, a hosted-model accuracy evaluation (the agent has run on S1-S5 and on production demo
+incidents, not as a measured benchmark), and a repeated real-incident run on ShopLite.
 
 Evidence per acceptance item: [`docs/verification.md`](docs/verification.md). Graph vs.
 baselines: [`docs/results/latest.md`](docs/results/latest.md) (graph 89% top-1, BM25 39%, latest
@@ -121,10 +149,20 @@ Tested on Windows 11 with Docker Desktop, PowerShell and Git Bash.
 - `CD_SESSION_SECRET` is generated per file. Production uses a different one on purpose.
 - Rotating the App key means updating `causaldeploy/prod/external` in AWS Secrets Manager and
   re-issuing this file.
-- `CD_GITHUB_APP_SLUG` enables "Install the App" links (e.g. `causaldeploy-shoplite-demo`).
+- `CD_GITHUB_APP_SLUG` enables "Install the App" links (`kaizen-graphacks`).
+- `CD_SLACK_WEBHOOK_URL` turns on Slack alerts; `CD_OPENAI_API_KEY` + `CD_OPENAI_MODEL` turn on the
+  agent's written explanation (the ranking never depends on it). Both are optional.
+- `CD_DEMO_LOGIN_ENABLED` / `CD_DEMO_INJECT_ENABLED` / `CD_DEMO_REPOS` control the public demo.
+  `CD_ALLOWED_REPOS=*` accepts any repository the App is installed on (production requires an
+  explicit value, so "any" is a deliberate choice).
+- In production these optional keys live in the `causaldeploy/prod/external` secret
+  (`slack_webhook_url`, `openai_api_key`, `openai_model`); see [`docs/operations.md`](docs/operations.md).
 
 ## One-time owner steps
 
+* The App must be **public** (App settings -> Advanced -> Make public) for anyone other than its
+  owner to sign in and install it. Callback URL `https://kaizen.akkki.tech/auth/callback`, Setup URL
+  `https://kaizen.akkki.tech/connect` with "Redirect on update" ticked.
 * "Sign in with GitHub" in the local UI starts at `/auth/login?origin=http://localhost:3000`
   and redirects back to `http://localhost:3000/auth/callback`. Add it under the App's
   **Callback URL** list (GitHub -> Developer settings -> GitHub Apps ->
@@ -135,7 +173,8 @@ Tested on Windows 11 with Docker Desktop, PowerShell and Git Bash.
 
 ## Production
 
-`https://shoplite-demo.duckdns.org` (AWS EC2, us-east-1, Caddy TLS). Deploys happen from `main`
+Web app: <https://kaizen.akkki.tech> · API, webhooks and ShopLite: `https://shoplite-demo.duckdns.org`
+(one AWS EC2 host, us-east-1, Caddy TLS for both names). Deploys happen from `main`
 through GitHub Actions (OIDC + SSM, no stored keys). Runbook, rollback, secrets rotation,
 backups, replay: [`docs/operations.md`](docs/operations.md). Infra as code: `deploy/aws/*.yaml`.
 

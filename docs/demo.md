@@ -1,14 +1,48 @@
-# Demo: scripted walkthrough (3-5 minutes)
+# Demo: scripted walkthrough (3-4 minutes)
 
-Story: a refactor in ShopLite breaks payment validation (S1). Kaizen detects it, names the
-culprit commit and function with evidence, explains it with citations, opens a revert PR that is
-verified in staging and merged only after a person approves, and remembers it. The same kind of
-bug comes back (S8): Kaizen recognises it and reuses the fix. Close with the measured numbers.
+**Story.** A deploy breaks `POST /payments`. Nobody opens a dashboard: Kaizen detects it, walks the
+FalkorDB graph from the stack trace back to the commit that changed that function, and posts the
+answer in Slack with the author and the evidence. Then it proposes the revert, verifies it, a person
+approves, and the graph turns green again.
 
-All numbers on screen and in the narration come from `docs/results/latest.md` (evaluation) and
-`docs/performance.md` (budgets). Do not quote anything else.
+Everything runs on the public demo account (no GitHub account, no real repository changes). The
+traffic of "Inject a problem" is simulated and labelled as such; detection, the graph queries, the
+ranking and the Slack alert are the production code.
 
-## Before the demo (T-30 min)
+## Before recording (T-10 min)
+
+| Step | Check |
+|---|---|
+| 1. Services healthy | `curl https://shoplite-demo.duckdns.org/readyz` -> `{"postgres":true,"redis":true,"falkordb":true}` |
+| 2. Clean slate | open <https://kaizen.akkki.tech>, **Try the demo**, *Live graph* -> **Reset** (no red nodes, no incidents) |
+| 3. Slack | the alerts channel is open in a second window; the last message is old |
+| 4. Hard refresh | `Ctrl+Shift+R` so the latest UI is loaded (clear the site's cache if the old page appears) |
+
+## Script
+
+| Time | Screen | Say |
+|---|---|---|
+| 0:00-0:20 | Login page, **Try the demo** | "Kaizen watches a repository's deploys. This is ShopLite, three Node services. No account needed for the demo." |
+| 0:20-0:50 | *Live graph*: green map of services, functions, commits. Point at "FalkorDB · N functions · N commits · N edges" and open the **Powered by FalkorDB** queries | "Every function and commit is a node in FalkorDB. Calls, changes, endpoints are edges. This whole view is built from these Cypher queries, run live." |
+| 0:50-1:10 | Click **Inject a problem** | "Now I simulate a bad deploy: failing traffic on `POST /payments`. I'm not telling Kaizen which commit did it." |
+| 1:10-1:50 | The right panel steps tick: ingest, detect (Postgres), then three FalkorDB steps; the failing function turns red and pulses, the commit turns amber | "Detection is two failing 30-second windows over the baseline. From here it is the graph: the error maps to the function that threw, the deployment's commits come from the graph, and the ranking uses path distance, blast radius and PageRank. Only the failing function turned red." |
+| 1:50-2:10 | Switch to Slack: the alert | "And nobody had to look: the team gets the culprit commit, the author, the function that changed versus the one that threw, the confidence, and a link." |
+| 2:10-2:40 | Open the incident: suspects with the score breakdown; expand `path` to show its Cypher; toggle **graph off** | "The score is deterministic, not the model, and every number has its query. Without the graph, 'latest commit' or keyword search points elsewhere." |
+| 2:40-3:10 | **Propose the revert (demo)**: diff of the real commit, inverted; staging verification passes; **Approve** | "The fix is a revert, verified before anyone merges. In the demo no pull request is opened; in production this is a real PR and only an approver can merge it." |
+| 3:10-3:30 | Incident resolved; back to *Live graph*: green again | "Resolved, and the fix is written back into the graph so the next similar incident is recognised." |
+| 3:30-4:00 | Numbers table below, or `docs/results/latest.html` | read the measured numbers |
+
+## Real repository (optional second take)
+
+To show it on a repository you own instead of the demo: sign in with GitHub, install the App on it,
+tick it on `/connect` and press **Start monitoring**; the import shows commits, functions, services
+and endpoints as they are read. Live failure detection then needs telemetry from the app (an ingest
+key and the snippet on the repository page).
+
+The earlier full scenario, ShopLite's S1 commit deployed for real with the revert PR on GitHub and the
+S8 recurrence, is still valid; its script follows.
+
+### Real-deploy script: before the demo (T-30 min)
 
 | Step | Command / action | Check |
 |---|---|---|
@@ -22,7 +56,7 @@ All numbers on screen and in the narration come from `docs/results/latest.md` (e
 `demo-reset` refuses `CD_ENV=prod` on purpose. If the demo runs on the production host, use a
 staging copy of the stack, or run only the S1 -> S8 flow without a reset.
 
-## Script
+### Real-deploy script
 
 | Time | Screen | Say |
 |---|---|---|
@@ -61,13 +95,20 @@ From `docs/results/latest.md` (28 scenario variants S1-S10, replay benchmark, we
 
 | Failure | Fallback |
 |---|---|
-| ShopLite deploy or traffic slow | play the recording from 0:50, narrate over it |
+| **Inject** says an incident is already open | press **Reset** on the Live graph page, then inject again |
+| Slack message does not show | the incident page and graph still show the answer; send a test with `POST /api/v1/repos/<repo>/alerts/test` and check `CD_SLACK_WEBHOOK_URL` |
+| Page shows the old UI or a 404 after a deploy | hard refresh; clear the site's cache and flush DNS (`resolvectl flush-caches`) |
+| Fix stays on "verifying" | wait ~5 s; if it does not move, **Reset** and run it again |
+| ShopLite deploy or traffic slow (real-deploy script) | play the recording from 0:50, narrate over it |
 | Incident not opened within 2 min | open a pre-recorded incident in mock mode (`dev:mock`) and continue the script |
 | Verification workflow slow (> 10 min) | show the check run from the rehearsal PR; say verification takes ~N min (measured at rehearsal) |
 | LLM unavailable | the template explanation appears; say so ("the ranking never depends on the model") |
 
 ## Human checklist (not automatable)
 
+- [ ] Slack alert seen in the real channel (rotate the webhook after sharing it anywhere)
+- [ ] Demo run once on <https://kaizen.akkki.tech> right before recording: inject, alert, fix, approve, green graph, then **Reset**
+- [ ] Another person completed Sign in with GitHub -> install -> pick a repo -> Start monitoring on production
 - [ ] Rehearsal 1 end to end on the deployed system; note timings for each step: ______
 - [ ] Rehearsal 2 end to end on the deployed system; timings: ______
 - [ ] Screen recording of a clean run (1080p, 4-5 min), stored with the team and linked here
