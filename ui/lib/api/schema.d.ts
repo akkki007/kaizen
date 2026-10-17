@@ -1388,6 +1388,8 @@ export interface components {
             service: string;
             /** Severity */
             severity?: string | null;
+            /** Simulated */
+            simulated?: boolean | null;
             /** Status */
             status: string;
             suspect?: components["schemas"]["SuspectSummary"] | null;

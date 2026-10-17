@@ -1808,6 +1808,17 @@
             ],
             "title": "Severity"
           },
+          "simulated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simulated"
+          },
           "status": {
             "title": "Status",
             "type": "string"

@@ -14,12 +14,16 @@ const base = {
 describe("answerFromDetail", () => {
   it("names the culprit from the stored ranking, not a canned sentence", () => {
     const a = answerFromDetail("what is main fault", base as never);
-    expect(a).toContain("c0ffee01");
+    expect(a).toContain("c0ffee0 ");
+    expect(a).toContain("`validate`"); // function ids are shortened to their names
+    expect(a).not.toContain("a:validate");
     expect(a).toContain("Refactor validation");
     expect(a).not.toContain("is mapping this incident");
   });
   it("lists the agent trace for step by step", () => {
-    expect(answerFromDetail("step by step explain", base as never)).toContain("1. rank_candidates: ranked 2");
+    const t = answerFromDetail("step by step explain", base as never);
+    expect(t).toContain("1. rank_candidates: ranked 2");
+    expect(t).not.toContain("rank_candidates: rank_candidates");
   });
   it("abstains when no candidate has code evidence", () => {
     const d = { ...base, ranking: { ...base.ranking, verdict: "no_code_evidence" as const } };

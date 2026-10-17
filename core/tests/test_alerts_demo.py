@@ -132,3 +132,28 @@ async def test_try_the_demo_is_a_viewer_session_that_can_inject_but_not_fix(
             assert reimport.status_code == 403  # approver-only actions stay closed
     finally:
         get_settings.cache_clear()
+
+
+async def test_injected_incident_is_labelled_simulated_in_the_api(
+    db: None, builder: GraphBuilder, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests.test_api import create_app, login_as
+
+    builder.s1_payment_validation()
+    store, repo = builder.store, builder.store.repo
+    store.graph.query("MATCH (n) WHERE n:Incident OR n:Error DETACH DELETE n")
+    monkeypatch.setenv("CD_DEMO_INJECT_ENABLED", "1")
+    monkeypatch.setenv("CD_DEMO_REPOS", repo)
+    get_settings.cache_clear()
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=create_app()), base_url="http://t"
+        ) as c:
+            h = login_as(c, "yash", {repo: "approver"})
+            inc = (await c.post(f"/api/v1/repos/{repo}/demo/inject", headers=h)).json()
+            page = (await c.get("/api/v1/incidents")).json()
+            assert [i["simulated"] for i in page["items"]] == [True]
+            detail = (await c.get(f"/api/v1/incidents/{inc['incident_id']}")).json()
+            assert detail["incident"]["simulated"] is True
+    finally:
+        get_settings.cache_clear()

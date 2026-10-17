@@ -21,6 +21,7 @@ export function IncidentFacts({ incident }: { incident: Incident }) {
       </span>,
     ],
     ["Repository", incident.repo],
+    ...(incident.simulated ? ([["Source", <Tag key="sim" tone="amber">Simulated demo traffic</Tag>]] as typeof rows) : []),
     ["Environment", <Tag key="e" tone={incident.env === "production" ? "red" : "neutral"}>{incident.env}</Tag>],
     ["Endpoint", <code key="p" className="font-mono text-[12px]">{incident.endpoint}</code>],
     ["Onset", when(incident.onset_ts)],
