@@ -12,14 +12,15 @@
 ## New teammate
 
 ```bash
-git clone <repo> && cd deploy-agent
+git clone https://github.com/akkki007/kaizen && cd kaizen
 make bootstrap      # .env, services (healthchecked), uv sync, migrations, npm install
-make test           # 70+ tests against the real FalkorDB/Postgres/Redis
+make test           # ~290 tests against the real FalkorDB/Postgres/Redis
 ```
 
 Needs Docker, `uv`, Node 20+. Ask a teammate for the shared `.env` values (GitHub App id, keys,
 webhook secret, OAuth client). Without them everything still runs; GitHub login and clone/backfill are
-the only features that need them.
+the only features that need them. Windows specifics (port 5432 clash, `python -m uv`, mock UI):
+`README.md` -> "Windows". Architecture: [`architecture.md`](architecture.md).
 
 ## Deploy
 
@@ -59,6 +60,53 @@ query timeout 5 s. A restart keeps the graph (volume `falkordb-data`). Postgres 
 Restore notes: an AOF-enabled FalkorDB ignores `dump.rdb` unless AOF is absent, so `restore.sh` boots
 once with AOF off, switches it on, and stops; do the same by hand if you restore manually.
 
+## Replay events
+
+Three kinds of replay, all offline and idempotent:
+
+| What | Command | Notes |
+|---|---|---|
+| Stored GitHub webhook deliveries (`raw_events`) | `cd core && uv run python -m causaldeploy.cli replay [--limit N]` | re-runs normalisation and enqueues jobs with `replay:<delivery>` keys; graph writes are MERGE, so a replay changes nothing that was already applied. Use after a bug fix in `github/webhooks.py` or to rebuild a dropped graph (after `make backfill`). Needs a worker running |
+| Producer events | `POST /api/v1/events` with the recorded batch | duplicates are no-ops: the job key is the event's SHA-256 |
+| LLM replies (agent) | `CD_LLM_REPLAY_MODE=replay` (+ `CD_LLM_REPLAY_DIR`, default `tests/fixtures/llm` relative to `core/`) | serves stored replies keyed on sha256(model, prompt version, redacted messages, tools); zero network, no API key; a miss raises `ReplayMissError` naming the key. `record` calls the model and stores each reply; `off` (default) calls the model |
+| Evaluation runs | `cd core && uv run python -m causaldeploy.evalharness --record ../eval/runs` then `--replay ../eval/runs` | `--record` writes each variant's graph writes to `<dir>/<scenario>-v<n>.jsonl`; `--replay` evaluates the recordings instead of rendering scenarios (no LLM, no network; FalkorDB only). `make eval` regenerates `docs/results/latest.{md,json,html}` |
+
+Production replay of webhooks: `docker compose -f deploy/docker-compose.prod.yml exec worker
+python -m causaldeploy.cli replay --limit 100` on the VM (through SSM, as in Deploy).
+
+## Re-record golden LLM fixtures
+
+The golden agent tests (`core/tests/test_llm_golden.py`, S1-S5 rubric: cites and names the
+culprit, every claim cited, within token/cost/latency budget) run in replay mode in CI. Fixtures
+must be re-recorded when the prompt (`agent/prompts/investigator.v1.md`, its version is stem +
+content hash), the tool schemas or tool outputs change, because the replay key changes. Symptom:
+`ReplayMissError ... re-record with CD_LLM_REPLAY_MODE=record`.
+
+```bash
+cd core
+# CI fixtures (tests/fixtures/llm/golden) from the deterministic scripted investigator (no key, no cost)
+uv run python -m causaldeploy.evalharness.llm_golden --mode record-scripted
+# real model, costs money; writes eval/llm-live and prints the rubric (from the repo root:
+#   CD_OPENAI_API_KEY=... CD_OPENAI_MODEL=gpt-4o-mini make eval-live)
+uv run python -m causaldeploy.evalharness.llm_golden --mode live --dir ../eval/llm-live
+# check
+uv run pytest -q tests/test_llm_golden.py tests/test_agent_harness.py
+```
+
+Review the fixture diff before committing (fixtures hold redacted messages only, never keys).
+To adopt a good live run as the CI fixtures, record with `--mode live --dir tests/fixtures/llm/golden`
+and keep `--model` equal to the model name the tests use.
+
+## Demo reset
+
+`make demo-reset [REPO=owner/name] [YES=1]` (Windows: `.\scripts\demo-reset.ps1 -Repo owner/name -Yes`)
+deletes one repository's incidents, transitions, investigations, remediation runs, LLM calls,
+telemetry and jobs, removes the runtime/memory nodes from its graph (code and history stay;
+`--drop-graph` drops it all), migrates, and seeds the resolved demo history
+(`cli demo-history`). It refuses `CD_ENV=prod` and repositories outside `CD_ALLOWED_REPOS`, and
+asks you to type the repository name unless `--yes`. API keys, installations, raw deliveries and
+the audit log are kept. Script: [`demo.md`](demo.md).
+
 ## Capacity assumptions
 
 One repository graph of ShopLite size (~1k nodes) is a few MB. 50 repositories of 10k functions each
@@ -83,7 +131,7 @@ by month on `ts` and drop partitions for retention instead of deleting rows.
 
 ## PR Guardian
 
-On `pull_request` opened/synchronize/reopened (non-`kaizen/revert-` branches, allowlisted repos
+On `pull_request` opened/synchronize/reopened (not Kaizen's own `kaizen/*` fix branches; allowlisted repos
 only) the `guard_pr` job fetches the PR files, maps hunks to functions via the graph's line
 ranges, and upserts one comment (marker `<!-- kaizen-pr-guardian -->`) with blast radius
 (callers, endpoints, services) and past incidents per changed function. Code: `core/src/causaldeploy/guardian/`.

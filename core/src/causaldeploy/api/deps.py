@@ -102,14 +102,18 @@ async def ingest_repo(request: Request, x_api_key: str | None = Header(default=N
 RepoDep = Depends(ingest_repo)
 CallerDep = Depends(ingest_caller)
 
-# Request bodies are capped for these paths before the route reads them (webhooks are not:
-# GitHub payloads are signed and can legitimately be large).
-LIMITED_PATHS = frozenset({"/api/v1/events"})
+# Request bodies are capped for these paths before the route reads them. Ingest uses
+# `ingest_max_bytes`; the webhook is read *before* its signature can be checked, so an
+# unauthenticated sender must not be able to make the API buffer an unbounded body: it gets
+# GitHub's own documented maximum payload size (25 MB).
+LIMITED_PATHS = frozenset({"/api/v1/events", "/webhooks/github"})
+WEBHOOK_MAX_BYTES = 25 * 1024 * 1024
 
 
 class BodySizeLimit:
-    """413 for bodies over `ingest_max_bytes`: rejects on Content-Length up front and counts
-    the bytes actually received (chunked or lying clients), buffering at most the limit."""
+    """413 for bodies over the path's limit (see LIMITED_PATHS): rejects on Content-Length up
+    front and counts the bytes actually received (chunked or lying clients), buffering at most
+    the limit."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -118,7 +122,11 @@ class BodySizeLimit:
         if scope["type"] != "http" or scope["path"] not in LIMITED_PATHS:
             await self.app(scope, receive, send)
             return
-        limit = get_settings().ingest_max_bytes
+        limit = (
+            WEBHOOK_MAX_BYTES
+            if scope["path"] == "/webhooks/github"
+            else get_settings().ingest_max_bytes
+        )
         declared = dict(scope["headers"]).get(b"content-length")
         if declared is not None:
             try:

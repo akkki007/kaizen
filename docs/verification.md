@@ -1,6 +1,7 @@
-# Verification of issues #84-#87
+# Verification of issues #84-#93
 
-How each acceptance item was checked. "Prod" = https://shoplite-demo.duckdns.org (AWS EC2, us-east-1).
+How each acceptance item was checked. Test names are `core/tests/<file>::<test>`; run them with
+`cd core && uv run pytest -q <file>` (Windows: README "Windows"). "Prod" = https://shoplite-demo.duckdns.org (AWS EC2, us-east-1).
 
 ## #84 Platform & Infrastructure
 
@@ -51,10 +52,136 @@ How each acceptance item was checked. "Prod" = https://shoplite-demo.duckdns.org
 | Evidence-path API | `GET /api/v1/incidents/{id}/evidence-graph`: highlighted path, citation resolver, expansion, repo-scoped |
 | FalkorDB ops | AOF+RDB, memory cap, slow query log + metric, restore drill |
 
+## #88 Runtime telemetry & incident detection
+
+Status: **done** = implemented and proven by the named test or doc; **partial** = part of the
+criterion is proven, the rest named; **external** = lives outside this repo or needs a live run.
+
+| Task / criterion | Status | Evidence |
+|---|---|---|
+| ShopLite reporter (Express middleware, batching, retry, bounded queue, `service/env/sha`) | external | ShopLite repo; Kaizen side accepts and stores `sha` (contracts 1.1.0): `test_detect_rules.py::test_bulk_insert_and_sha_are_persisted` |
+| ✅ Reporter overhead < 2% latency | external | needs a ShopLite load test with/without the middleware |
+| ✅ Telemetry arrives with the deployed SHA | partial | Kaizen persists and prefers it (`test_bulk_insert_and_sha_are_persisted`, `test_error_count_service_edge_and_sha_preference`); live arrival from ShopLite not re-checked |
+| `POST /api/v1/events` batch endpoint, API-key auth, validation, idempotency | done | `test_api.py::test_event_ingest_requires_key_and_dedupes`, `test_api_key_rotation` |
+| Backpressure 429 + Retry-After, size limits | done | `test_incident_api.py::test_rate_limit_counts_events_and_sets_retry_after`, `test_rate_limiter_retry_after_is_when_enough_events_expire`, `test_oversized_batches_and_bodies_are_413` |
+| Retention job | done | `test_retention.py::test_purge_keeps_only_the_retention_window` (daily cron `purge_job`) |
+| ✅ Sustains 500 events/s locally | **partial (not met)** | `docs/performance.md`: API 531 ev/s at saturation, 200 ev/s sustained; worker 18-41 jobs/s. Bottleneck (one job + ~5 DB round trips per event, arq polling) and fix documented |
+| ✅ Invalid/oversized payloads rejected without data loss for valid ones | done | `test_incident_api.py::test_mixed_batch_accepts_valid_items_and_reports_rejected`, `test_oversized_batches_and_bodies_are_413` |
+| Stack parsing (app frames only) | done | `test_detect.py::test_frames_drop_runtime_and_dependency_code` |
+| Fingerprint = type + top app frame + normalised message | done | `test_detect.py::test_fingerprint_is_stable_across_ids_numbers_and_line_drift` |
+| `thrown_in {frame_depth}` mapping at the deployed SHA; Error -> Endpoint, Service; first/last seen, count | done | `test_detect.py::test_error_is_linked_to_the_function_that_threw`, `test_detect_rules.py::test_error_count_service_edge_and_sha_preference` |
+| ✅ S1 errors map to `validatePayment()` | done | `test_detect.py::test_error_is_linked_to_the_function_that_threw`, `test_full_loop.py::test_s1_end_to_end` |
+| ✅ Same bug at different lines across deploys = one fingerprint | done | `test_detect.py::test_fingerprint_is_stable_across_ids_numbers_and_line_drift` |
+| Windows, rolling baseline, error_rate/p95/z, Metric nodes, min sample size | done | `test_detect.py::test_slow_but_not_failing_is_detected_by_p95`, `test_single_spike_and_quiet_traffic_do_not_open_incidents`, `test_detect_rules.py::test_severity_metrics_and_idempotent_detection` |
+| ✅ Baseline excludes the incident window | done | `test_detect_rules.py::test_baseline_comes_only_from_pre_onset_windows` |
+| ✅ Aggregation job idempotent | done | `test_detect_rules.py::test_severity_metrics_and_idempotent_detection`, `test_detect.py::test_end_to_end_ingest_detect_and_open_incident` (second run opens nothing) |
+| Per-service thresholds, consecutive windows, onset, dedupe, cooldown, health checks, `investigate_incident` job | done | `test_detect_rules.py::test_per_service_overrides_are_merged`, `test_cooldown_suppresses_flapping`, `test_consecutive_failed_health_checks_open_an_incident`; job: `test_full_loop.py` |
+| ✅ S1 opens exactly one incident, onset within 1 window | done | `test_detect.py::test_end_to_end_ingest_detect_and_open_incident` (onset = exact failing window) |
+| ✅ S10 noise opens nothing | done | `test_detect_rules.py::test_s10_noisy_but_healthy_traffic_opens_nothing` |
+| State machine, transitions with actor, graph sync, manual acknowledge/close/reopen, root cause confirm/reject | done | `test_lifecycle.py` (4 tests), `test_incident_api.py::test_acknowledge_close_reopen_and_history`, `test_memory.py::test_root_cause_confirm_and_reject`; ADR 0004 |
+| ✅ Invalid transitions rejected; full history queryable | done | `test_lifecycle.py::test_invalid_transition_is_rejected_and_not_recorded`, `test_incident_api.py::test_illegal_transitions_are_409_and_other_repos_404`, `GET /incidents/{id}/history` |
+
+## #89 Investigation & root-cause ranking
+
+| Task / criterion | Status | Evidence |
+|---|---|---|
+| Lookback window, all deployments to the env before onset | done | `test_ranking.py::test_lookback_window_adds_successful_deployments_before_onset`, `test_triggering_deployment_wins_for_a_commit_in_two_deployments` |
+| Multi-commit deployments expanded; non-code candidates (config, dependency) | done | `test_ranking.py::test_s3_candidates_are_exactly_the_five_bundled_commits`, `test_s6_config_change_is_the_top_non_code_candidate`, `test_dependency_change_without_a_code_commit_is_a_candidate` |
+| ✅ S3 yields exactly the 5 bundled commits; S6 yields a config candidate | done | same two tests |
+| Features temporal, path, endpoint, dependency, msg_sim, history, sequence, blast (+ service, centrality, triggered), each `{value, evidence_ids, explanation}` | done | `test_features.py` (one test per feature) |
+| ✅ Feature tests on S1-S5; evidence ids resolve in the graph | done | `test_features.py::test_every_evidence_id_resolves_for_every_candidate` (parametrised over the fixtures) |
+| Versioned weights, deterministic, confidence, margin abstention, `candidate` + `likely_caused_by` edges, investigation record | done | `test_ranking.py::test_weights_are_versioned_and_stamped`, `test_ranking_is_deterministic`, `test_ambiguous_persists_top3_and_a_tentative_cause`, `test_persist_replaces_candidate_edges`, `test_investigation_record_has_inputs_version_and_duration` |
+| ✅ S1-S5 CLI report ranks the true culprit first | done | `test_ranking.py::test_cli_investigate_prints_verdict_candidates_and_explanations` (S1), `test_s1_culprit_is_first_with_every_feature_computed`, `test_s2_function_level_precision_beats_file_level`, `test_s3_picks_the_culprit_out_of_five_where_latest_commit_is_wrong`, `test_s4_cross_service_path_is_found`, `test_s5_dependency_bump_scores_on_the_dependency_feature` on the fixtures. Note: the eval's S4 variants without a stack trace are `ambiguous` (culprit in top 3), see `docs/results/latest.md` |
+| ✅ Ambiguous cases abstain | done | `test_ranking.py::test_ambiguous_persists_top3_and_a_tentative_cause`, `test_endpoint_only_evidence_is_never_confident`, `test_unrelated_change_yields_no_code_evidence`; eval: 0% false attribution |
+| Blast radius / impact report (observed vs potential, originating vs symptomatic, fan-out) | done | `test_graph_queries.py::test_q7_impact_report_s4_originating_vs_symptomatic`, `test_q7_impact_report_shared_dependency_fan_out_s5`; eval blast P 0.97 / R 0.96 |
+| ✅ S4 identifies symptomatic and originating service | done | `test_graph_queries.py::test_q7_impact_report_s4_originating_vs_symptomatic` |
+| Baselines B0 and B1 (BM25 over message, paths, function names), same interface | done | `test_ranking.py::test_b1_keyword_baseline_is_misled_where_graph_is_not`, `test_bm25_idf_is_over_the_candidate_set`, `test_b1_matches_changed_file_paths_and_function_names`, `test_rank_api_returns_features_with_queries_and_methods` |
+| ✅ Baselines run on the same inputs, comparable lists | done | `test_eval.py::test_graph_ranking_beats_both_baselines_without_false_attribution`; `docs/results/latest.md` |
+
+## #90 Agent harness (OpenAI)
+
+| Task / criterion | Status | Evidence |
+|---|---|---|
+| Client wrapper: timeouts, retries with jitter, Retry-After, structured output with fallback | done | `test_llm_client.py` (5 tests) |
+| Tool loop with step/token/cost budgets; `llm_calls` trace; prompt versioning; fake model | done | `test_agent_harness.py::test_token_budget_ends_the_run_with_a_reason_and_a_log_line`, `test_cost_budget_uses_the_price_table`, `test_investigation_records_every_llm_call`, `test_prompt_is_a_packaged_versioned_file`, `test_run_and_calls_carry_the_prompt_version`; `Scripted` fake in `test_agent.py` |
+| ✅ Replay is byte-identical with zero network calls | done | `test_agent_harness.py::test_record_then_replay_is_byte_identical_with_no_network`, `test_replay_mode_builds_a_client_without_an_api_key` |
+| ✅ Budget exceeded -> graceful, logged failure | done | `test_agent_harness.py::test_token_budget_ends_the_run_with_a_reason_and_a_log_line`, `test_agent.py::test_tool_budget_is_enforced` |
+| Read-only tools, pydantic schemas, repo-scoped, size-capped, citable ids | done | `test_mcp.py::test_server_lists_only_read_only_tools`, `test_invalid_input_is_rejected_by_the_input_model`, `test_cap_bounds_items_and_bytes`, `test_tools_return_citable_node_ids`, `test_server_refuses_repositories_outside_the_allowlist` |
+| ✅ "What else could be affected?" answered with tools only | done | `test_agent.py::test_what_else_could_be_affected` |
+| Explanation: evidence bundle, causal chain, confidence, alternatives, validator, template fallback, abstention | done | `test_agent.py::test_explanation_with_causal_chain_alternatives_and_confidence`, `test_two_invalid_answers_fall_back_to_the_template`, `test_ambiguous_ranking_forces_abstention_with_alternatives`, `test_template_abstains_on_an_ambiguous_ranking` |
+| ✅ Fabricated citation rejected | done | `test_agent.py::test_hallucinated_citation_is_rejected_then_corrected`, `test_fabricated_citation_in_causal_chain_or_alternatives_is_rejected` |
+| ✅ S1 explanation mentions function, endpoint, deployment, similar prior incident, all linked | done (scripted model) | `test_full_loop.py::test_s1_end_to_end` (citations validated against the evidence graph); with the real model: `make eval-live` (external, costs money) |
+| Safety: delimiting, redaction, schema validation, no GitHub write tool, adversarial tests, audit | done | `test_agent_harness.py::test_redact_payload_scrubs_every_secret_shape`, `test_prompt_injection_in_repo_data_is_fenced_and_powerless`; `docs/security.md` S-9, S-14 |
+| ✅ Injection does not alter tool use or output | done | `test_agent_harness.py::test_prompt_injection_in_repo_data_is_fenced_and_powerless`, `test_agent.py::test_agent_cannot_override_a_confident_ranking` |
+| ✅ Secrets in logs never in LLM payloads | done | `test_agent_harness.py::test_redact_payload_scrubs_every_secret_shape`, `test_investigation_records_every_llm_call` |
+| Golden scenarios, rubric, regression run, cost/latency assertions | done | `test_llm_golden.py::test_golden_runs_pass_the_rubric_in_replay_mode`, `test_rubric_fails_a_wrong_or_over_budget_run` |
+| ✅ CI runs replay golden tests; manual command runs live evals | partial | replay in CI: done; `make eval-live` exists, a recorded live run is external (needs a key) |
+
+## #91 Remediation, verification & incident memory
+
+| Task / criterion | Status | Evidence |
+|---|---|---|
+| Revert incl. merge/squash, `kaizen/fix-<incident>` branch, PR with explanation, labels, conflict report | done | `test_remediate.py::test_revert_branch_undoes_the_commit_and_never_touches_main`, `test_merge_commit_is_reverted_against_its_mainline`, `test_squash_merge_is_reverted_as_a_single_commit`, `test_revert_conflict_is_reported_not_forced`, `test_full_remediation_flow`, `test_verify.py::test_github_ops_labels_checks_merge_and_close` |
+| ✅ S1 clean revert PR that passes ShopLite tests | external | Kaizen side proven on a local git remote (`test_full_remediation_flow`); live PR on ShopLite pending (App needs `contents: write`, `docs/security.md` S-2) |
+| LLM patch: constraints, worktree, unit tests, diff + rationale | done | `test_remediation_flow.py::test_patch_is_tested_in_a_worktree_and_proposed`; off by default (`test_patching_is_off_by_default`) |
+| ✅ Failing patch rejected, logged, falls back to revert | done | `test_remediation_flow.py::test_a_rejected_patch_falls_back_to_the_revert`, `test_patch_failing_verification_falls_back_then_escalates` |
+| ✅ S1 patch fixes the bug with a regression test | external | needs a real model run on ShopLite |
+| Approval API approve/reject, audit, merge by approver or app with approval, reject feeds memory | done | `test_api.py::test_only_approvers_can_approve_a_remediation`, `test_remediation_flow.py::test_reject_endpoint_closes_the_pr_and_hands_back_to_a_human`, `test_rejecting_a_fix_in_preparation_returns_to_the_diagnosis` |
+| ✅ No code path merges/deploys without an approval record | done | `test_remediation_flow.py::test_app_merge_policy_merges_only_after_approval`, `test_manual_policy_never_merges`; merged-without-approval is audited and does not resolve |
+| Verification workflow (tests, ephemeral staging, traffic replay, failing SHA baseline), `verification_result` + check | partial | Kaizen side (dispatch, routing, check run): `test_remediation_flow.py::test_verification_result_event_is_routed_and_posts_a_check`, `test_remediate.py::test_workflow_and_merge_webhooks_enqueue_verification_and_finalize`. The workflow itself lives in ShopLite: external |
+| ✅ S1 revert passes, unfixed SHA fails | external | ShopLite `verify.yml` live run |
+| ✅ Workflow < 10 min | external | measure at rehearsal (`docs/demo.md` checklist) |
+| Verdict with tolerances and min samples; `Fix -[:verified_by]-> Test`; fallback chain | done | `test_verify.py` (verdict tests), `test_remediation_flow.py::test_failed_verification_event_escalates` |
+| ✅ Verdict reproducible from stored metrics | done | `test_verify.py::test_recompute_from_a_stored_record` |
+| ✅ Failed verification never resolves | done | `test_remediate.py::test_failed_verification_never_resolves_and_escalates` |
+| Memory writer, human confirm/reject, demo-history backfill | done | `test_memory.py::test_root_cause_confirm_and_reject`, `test_demo_history_is_deterministic_and_idempotent`; `make demo-reset` |
+| ✅ Resolved incidents have Incident -> Commit -> Fix -> Test in the graph | done | `test_full_loop.py::test_s1_end_to_end` (`confirmed_cause` / `reverts` / `verified_by` chain + memory timings), `test_remediate.py::test_full_remediation_flow` |
+| Weighted-Jaccard `resembles {similarity, basis}`, prior fix in explanation and PR | done | `test_memory.py::test_error_family_masks_values`, `test_pr_body_cites_the_prior_fix` |
+| ✅ S8 retrieves the S1-like prior incident and its fix, ranked above unrelated ones | done | `test_memory.py::test_recurrence_ranks_the_prior_incident_with_its_fix_first`; eval S8 confidence 0.65 -> 0.78 |
+
+## #92 Evaluation harness, hardening, docs & demo
+
+| Task / criterion | Status | Evidence |
+|---|---|---|
+| Scenario runner: selection, parallelism, timeouts, record/replay, per-method outputs | done | `test_eval.py::test_cli_filters_and_writes_md_json_html`, `test_timeout_turns_a_slow_variant_into_a_listed_failure`, `test_json_report_shape` |
+| Live mode (real GitHub + deploy) | external | live runs against ShopLite; not automated |
+| ✅ Replay runs all scenarios < 10 min, no network/LLM | done | `test_eval.py::test_replay_reproduces_identical_rankings_offline_in_budget`; full `make eval` wall time 3.0 s |
+| Metrics (top-1/3, function-level, time to hypothesis, false attribution, blast P/R, fix verification), bootstrap CI | done | `test_metrics.py` (6 tests) |
+| ✅ Weights versioned; held-out never used for tuning (enforced) | done | `test_fit.py::test_a_test_split_case_never_reaches_the_fitter`, `test_guard_runs_before_any_scoring`, `test_write_refuses_to_overwrite_the_base_weights`; `investigate/weights/v1.json` |
+| Report, ablations, failure analysis under `docs/results/` | done | `docs/results/latest.{md,json,html}`, `fit-latest.md` |
+| ✅ One command regenerates the report | done | `make eval`; `test_eval.py::test_cli_filters_and_writes_md_json_html` |
+| Full-loop E2E in CI with assertions per stage | done | `test_full_loop.py::test_s1_end_to_end` (scripted fake model; the LLM replay cache is exercised by `test_llm_golden.py`) |
+| Live-mode script + checklist | partial | `docs/demo.md` checklist; `make eval-live` for the agent; no scripted live ShopLite loop |
+| ✅ Red when any stage regresses | done | `test_full_loop.py` asserts graph and Postgres state after detect, rank, explain, fix, verify, merge, memory |
+| Threat model, least privilege, CI scanning, sandbox check, rate/size limits | done | `docs/security.md`; new `test_security.py` (7 tests); webhook body cap fixed in `api/deps.py` |
+| ✅ Written review with findings fixed or explicitly accepted | done | `docs/security.md` (14 findings: 2 fixed, 12 accepted with rationale) |
+| Load test ingest (target 500 ev/s) | partial (measured, not met) | `docs/performance.md`; `core/scripts/bench_ingest.py`, `bench_drain.py`, `perf_worker.py` |
+| Detection -> hypothesis < 30 s (excl. LLM) | done | p50 194 ms; `test_perf.py::test_detection_to_ranked_hypothesis_is_within_budget`, `core/scripts/bench_hypothesis.py` |
+| Chaos: worker crash, FalkorDB restart, duplicate webhooks | partial | `test_chaos.py` (4 pass); known gap: error telemetry row duplicated on a graph outage (strict `xfail`, fix described in `docs/performance.md`) |
+| ✅ Budgets measured and recorded in docs | done | `docs/performance.md` |
+| Architecture + data model, graph schema + cookbook, runbook (deploy, backup/restore, rotate keys, replay), ADRs | done | `docs/architecture.md`, `docs/graph.md` (cookbook run against the S1 fixture graph), `docs/operations.md`, `docs/adr/0001`-`0005` |
+| ✅ New teammate can run and deploy from the docs only | partial | `README.md` (incl. Windows), `docs/team-setup.md`, `docs/operations.md`; not yet followed end to end by a second person |
+| Demo script S1 -> S8 with graph-vs-baseline numbers | done | `docs/demo.md` |
+| One-command demo reset | done | `make demo-reset`, `scripts/demo-reset.sh`, `scripts/demo-reset.ps1`, `scripts/demo_reset.py` (refuses `CD_ENV=prod`; exercised against a scratch database from PowerShell and Git Bash) |
+| Screen recording fallback | external | human task (`docs/demo.md` checklist) |
+| Pitch slides with measured results | done | `docs/pitch.md` |
+| ✅ Demo rehearsed twice on the deployed system | external | human task (`docs/demo.md` checklist) |
+| [Stretch] PR risk scoring as a check run | partial | PR Guardian posts a **comment** (`guardian/`, `test_guardian.py::test_function_blamed_in_a_past_incident_is_high_risk`); check-run variant not built |
+| [Stretch] Embedding similarity | not started | v1 weighted Jaccard only |
+| [Stretch] OTLP ingestion, second language analyzer | not started | |
+
+## #93 Web UI
+
+_To be filled after the UI merge._
+
 ## Known gaps (not claimed)
 
-* No web UI (issue #93): login page and dashboards do not exist; the API is complete.
-* Incident detection and ranking are issues #88/#89; no incident is opened automatically yet.
+* Ingest throughput is below the 500 events/s target on a laptop (`docs/performance.md`).
+* A FalkorDB outage during an error telemetry job duplicates the raw telemetry row on retry
+  (`test_chaos.py`, strict xfail).
+* Live items: ShopLite reporter overhead, live revert PR + verification workflow on ShopLite,
+  live LLM eval, demo recording and two rehearsals.
+* The registered GitHub App keeps `contents: read` until the owner updates it (security S-2).
 * Rollback of a prod deploy has not been exercised; backups are not scheduled/shipped to S3 yet.
 * Load generator: no 10-minute baseline or staging replay run.
 * README quickstart has not been followed by a second person.

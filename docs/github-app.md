@@ -4,16 +4,22 @@
 
 | Permission | Level | Why |
 |---|---|---|
-| Contents | read | blobless clone for backfill and diffs (write only when fix branches ship, issue #91) |
-| Pull requests | write | open the remediation PR |
+| Contents | write | clone for backfill and diffs; push `kaizen/fix-*` branches; `PUT /pulls/{n}/merge` (only with `CD_REMEDIATION_MERGE_POLICY=app` after a recorded approval) |
+| Pull requests | write | open / close the remediation PR, add its labels and comments (the issues label/comment endpoints accept `pull_requests: write` for PRs), PR Guardian comment |
 | Deployments | read | map `deployment`/`deployment_status` to graph Deployments |
-| Actions | read/write | read workflow runs as Builds; dispatch the verification workflow |
-| Checks | write | report verification result on the fix PR |
+| Actions | read/write | read workflow runs as Builds and download the verification report artifact; dispatch `verify.yml` |
+| Checks | write | post the "Kaizen verification" check run on the fix commit |
 | Metadata | read | mandatory |
 
+Not requested on purpose: `issues`, `workflows` (a revert that touches `.github/workflows/*` is
+refused by GitHub at push time: the `propose_fix` job fails, is retried and ends `dead`, and a
+person makes that fix), `administration`, `secrets`. Every call the code makes is
+listed in [`security.md`](security.md#github-app-least-privilege).
+
 Subscribed events: `push`, `pull_request`, `deployment`, `deployment_status`, `workflow_run`, `check_run`.
-Handled today: `push` (incremental backfill job), `deployment`, `deployment_status`, `workflow_run`
-(completed). Others are stored raw and ignored.
+Handled: `push` (incremental backfill job), `pull_request` (PR Guardian; merged fix PRs finalize the
+remediation), `deployment`, `deployment_status`, `workflow_run` (completed: Builds and the `verify`
+workflow result), installation events. `check_run` is stored raw and ignored.
 
 ## Configuration
 

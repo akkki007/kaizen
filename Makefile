@@ -1,5 +1,5 @@
 .PHONY: mcp env backfill bootstrap dev deps up down install lint test migrate schemas api worker ui eval seed \
-        backup restore drill
+        backup restore drill demo-reset perf perf-ingest
 
 env:         ## .env from the team GitHub App in AWS Secrets Manager (needs AWS credentials)
 	./scripts/pull-env.sh
@@ -74,3 +74,13 @@ eval-live:   ## agent golden tests (S1-S5 rubric) against the REAL model; needs 
 
 seed:
 	@echo "ShopLite lives in https://github.com/yashchandnani07/shoplite (history seeded, see docs/history.md there)"
+
+demo-reset:  ## clean one repo's incident state, migrate, seed demo history: make demo-reset [REPO=owner/name] [YES=1]
+	./scripts/demo-reset.sh $(or $(REPO),yashchandnani07/shoplite) $(if $(YES),--yes)
+
+perf:        ## performance budget: detection -> ranked hypothesis (< 30 s) + chaos checks (needs `make deps`)
+	cd core && uv run pytest -q tests/test_perf.py tests/test_chaos.py
+
+perf-ingest: ## ingest load test against a LOCAL API + worker: make perf-ingest KEY=cd_... REPO=owner/name [URL=http://localhost:8000] [RATE=500]
+	cd core && uv run python scripts/bench_ingest.py --url $(or $(URL),http://localhost:8000) --key $(KEY) --repo $(REPO) --rate $(or $(RATE),500) --seconds 20 --batch 100
+	cd core && uv run python scripts/bench_drain.py --timeout 120
