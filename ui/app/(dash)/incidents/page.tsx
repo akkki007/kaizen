@@ -323,6 +323,7 @@ function IncidentRow({ incident: i, selected, onSelect, onOpen }: { incident: In
               Elevated failures in <span className="font-mono text-[12.5px]">{i.service}</span>
             </span>
             <SeverityTag severity={i.severity} />
+            {i.simulated && <Tag tone="amber">simulated</Tag>}
             <Tag tone="outline" className="hidden sm:inline-flex">
               {i.env}
             </Tag>

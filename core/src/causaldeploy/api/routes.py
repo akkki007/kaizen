@@ -79,11 +79,32 @@ class IncidentSummary(BaseModel):
     detected_at: datetime
     severity: str | None = None  # sev1..sev3, from the detector
     acknowledged_by: str | None = None
+    simulated: bool | None = (
+        None  # true when created by the demo's "inject a problem"; the traffic was synthetic
+    )
     # top candidate of the latest investigation; None before ranking or when it abstained
     suspect: SuspectSummary | None = None
 
 
-def _summary(r: IncidentRow, suspect: SuspectSummary | None = None) -> IncidentSummary:
+async def simulated_ids(ids: list[str]) -> set[str]:
+    """Incidents the demo created with its simulated traffic (recorded in the audit log)."""
+    if not ids:
+        return set()
+    async with session_scope() as s:
+        rows = (
+            await s.execute(
+                select(AuditLog.detail["incident_id"].as_string()).where(
+                    AuditLog.action == "demo.inject",
+                    AuditLog.detail["incident_id"].as_string().in_(ids),
+                )
+            )
+        ).all()
+    return {r[0] for r in rows}
+
+
+def _summary(
+    r: IncidentRow, suspect: SuspectSummary | None = None, simulated: bool = False
+) -> IncidentSummary:
     return IncidentSummary(
         id=r.id,
         repo=r.repo,
@@ -95,6 +116,7 @@ def _summary(r: IncidentRow, suspect: SuspectSummary | None = None) -> IncidentS
         detected_at=r.detected_at,
         severity=r.severity,
         acknowledged_by=r.acknowledged_by,
+        simulated=simulated or None,
         suspect=suspect,
     )
 
@@ -274,7 +296,8 @@ async def list_incidents(
             .all()
         )
     suspects = await dashboard_views.latest_suspects([r.id for r in rows])
-    items = [_summary(r, suspects.get(r.id)) for r in rows]
+    sim = await simulated_ids([r.id for r in rows])
+    items = [_summary(r, suspects.get(r.id), r.id in sim) for r in rows]
     return IncidentPage(items=items, total=total, limit=limit, offset=offset)
 
 
@@ -397,6 +420,7 @@ async def get_incident_detail(incident_id: str, user: CurrentUser) -> IncidentDe
     summary = _summary(
         row,
         dashboard_views.suspect_from_ranking((inv.result or {}).get("ranking") if inv else None),
+        incident_id in await simulated_ids([incident_id]),
     )
     async with session_scope() as s2:
         rem = (
