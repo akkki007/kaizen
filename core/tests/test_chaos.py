@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from collections.abc import AsyncIterator, Iterator
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -21,7 +22,7 @@ from falkordb import FalkorDB
 from sqlalchemy import func, select
 
 from causaldeploy.api.main import create_app
-from causaldeploy.db.models import JobRecord, RawEvent, Telemetry
+from causaldeploy.db.models import JobRecord, RawEvent, Repository, Telemetry
 from causaldeploy.db.session import session_scope
 from causaldeploy.graph.store import GraphStore
 from causaldeploy.jobs import handlers
@@ -237,6 +238,9 @@ async def test_same_push_under_a_new_delivery_id_queues_no_second_import(
         "after": "8f31c2a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7",
     }
     body = json.dumps(payload).encode()
+    # pushes only keep an already-imported repository current (connect flow, api/onboarding.py)
+    async with session_scope() as s:
+        s.add(Repository(full_name="acme/shoplite", backfilled_at=datetime.now(UTC)))
     for delivery in ("push-a", "push-b"):
         h = {
             "x-github-event": "push",

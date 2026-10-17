@@ -132,7 +132,7 @@ S-2 (fixed) and S-13 (`workflows`, accepted).
 | Secrets in full git history | gitleaks v8.21.2, `.gitleaks.toml` (allowlist: `core/tests/`, the two redactor modules, one old generated report) | any finding |
 | Python runtime dependencies | pip-audit 2.7.3 over `uv export --locked --no-dev` | any known vulnerability |
 | UI runtime dependencies | `npm audit --omit=dev --audit-level=high` | high/critical |
-| Container image | Trivy (`ignore-unfixed`) | fixable HIGH/CRITICAL |
+| Container images (core + ui) | Trivy (`ignore-unfixed`) | fixable HIGH/CRITICAL, **report-only** until a first clean CI run (then set `exit-code: "1"` in `ci.yml`); not run locally (disk) |
 | Updates | Dependabot: uv, npm, GitHub Actions, Dockerfile | n/a |
 
 ## Re-running this review
