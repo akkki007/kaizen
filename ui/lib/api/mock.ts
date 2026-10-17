@@ -1,6 +1,7 @@
 // Mock API mode (NEXT_PUBLIC_API_MOCK=1): the UI runs without the backend. Fixtures mirror the
 // seeded ShopLite incident so the screens look like the real thing. Shapes are checked against
 // the generated OpenAPI types.
+import { mockIncidentFetch } from "./mock-incident";
 import type { components } from "./schema";
 
 type IncidentPage = components["schemas"]["IncidentPage"];
@@ -143,6 +144,8 @@ export const mockFetch: typeof fetch = async (input, init) => {
   const url = new URL(typeof input === "string" ? input : (input as Request).url, "http://mock");
   const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
   await new Promise((r) => setTimeout(r, 250)); // exercise loading states
+  const incidentPage = await mockIncidentFetch(url, method, init, input); // incident page (#93)
+  if (incidentPage) return incidentPage;
   if (url.pathname === "/auth/me") return json(mockUser);
   if (url.pathname === "/auth/install-url") {
     return json({ url: "https://github.com/apps/causaldeploy-shoplite-demo/installations/new" });

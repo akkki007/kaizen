@@ -3,20 +3,48 @@
 import { ArrowUpRight, Link2 } from "lucide-react";
 import { use, useState } from "react";
 import { AskIncident, IncidentFacts } from "@/components/app/incident-brief";
-import { StatusBadge, buttonClass } from "@/components/app/kit";
+import { STATUS, StatusBadge, Tag, buttonClass } from "@/components/app/kit";
 import { useWorkspace } from "@/components/app/shell";
 import { Topbar } from "@/components/app/topbar";
 import { IncidentEvidence } from "@/components/incident-evidence";
 import { IncidentInvestigation, Section } from "@/components/incident-investigation";
 import { LogoMark } from "@/components/landing/logo";
-import { useLlmCost } from "@/lib/api/hooks";
+import { IncidentActions, IncidentTimeline, SimilarIncidents } from "@/components/incident-actions";
+import { IncidentFocusProvider } from "@/components/incident-focus";
+import { IncidentMetricsChart } from "@/components/incident-metrics";
+import { PipelineTracker } from "@/components/incident-pipeline";
+import { useIncidentDetail, useLlmCost, useMe } from "@/lib/api/hooks";
+import { useIncidentHistory, useLiveIncident } from "@/lib/api/hooks-incident";
+import { pipeline } from "@/lib/pipeline";
 import { haptic } from "@/lib/motion";
 import { ago } from "@/lib/workspace";
 
 export default function IncidentPage({ params }: { params: Promise<{ id: string }> }) {
   const id = decodeURIComponent(use(params).id);
+  return (
+    <IncidentFocusProvider>
+      <IncidentView id={id} />
+    </IncidentFocusProvider>
+  );
+}
+
+function IncidentView({ id }: { id: string }) {
   const { ws } = useWorkspace();
-  const incident = ws.incidents.find((i) => i.id === id);
+  const detail = useIncidentDetail(id);
+  const history = useIncidentHistory(id);
+  const me = useMe();
+  // the detail is live (stream/polling); the workspace list is the fallback while it loads
+  const incident = detail.data?.incident ?? ws.incidents.find((i) => i.id === id);
+  const live = useLiveIncident(id, incident?.status);
+  const role = incident ? me.data?.repos[incident.repo] : undefined;
+  const stages = detail.data
+    ? pipeline({
+        status: detail.data.incident.status,
+        investigationStatus: detail.data.investigation.status,
+        remediationStatus: detail.data.remediation?.status ?? null,
+        history: (history.data ?? []).map((t) => t.to_status),
+      })
+    : null;
   const cost = useLlmCost(id);
   const [copied, setCopied] = useState(false);
   const now = Date.now();
@@ -65,6 +93,8 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
         {incident && (
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] text-ink-3">
             <StatusBadge status={incident.status} />
+            {!(incident.status in STATUS) && <Tag tone="neutral">{incident.status.replace("_", " ")}</Tag>}
+            <span className="sr-only" data-testid="incident-status">{incident.status}</span>
             <span>
               {incident.repo} · {incident.env} · onset {ago(now - Date.parse(incident.onset_ts))} ago · detected {ago(now - Date.parse(incident.detected_at))} ago
             </span>
@@ -72,8 +102,20 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
         )}
       </header>
 
+      {stages && (
+        <section aria-labelledby="pipe-title" className="border-b border-line px-6 py-4">
+          <h2 id="pipe-title" className="sr-only">
+            Pipeline
+          </h2>
+          <PipelineTracker stages={stages} mode={live.mode} />
+        </section>
+      )}
+
       <div className="grid flex-1 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 xl:border-r xl:border-line">
+          <Section id="metric-title" title="Around the onset">
+            <IncidentMetricsChart incidentId={id} />
+          </Section>
           <IncidentInvestigation
             incidentId={id}
             evidence={
@@ -111,6 +153,26 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
         </div>
 
         <aside data-enter className="flex flex-col gap-6 border-t border-line px-6 py-5 xl:sticky xl:top-[46px] xl:h-[calc(100dvh-16px-48px)] xl:overflow-y-auto xl:border-t-0" data-lenis-prevent>
+          {incident && (
+            <section aria-labelledby="actions-title">
+              <h2 id="actions-title" className="mb-3 text-[13px] font-semibold">
+                Actions
+              </h2>
+              <IncidentActions incidentId={id} status={incident.status} acknowledgedBy={detail.data?.acknowledged_by ?? null} role={role} />
+            </section>
+          )}
+          <section aria-labelledby="similar-title">
+            <h2 id="similar-title" className="mb-3 text-[13px] font-semibold">
+              Similar incidents
+            </h2>
+            <SimilarIncidents incidentId={id} />
+          </section>
+          <section aria-labelledby="history-title">
+            <h2 id="history-title" className="mb-3 text-[13px] font-semibold">
+              Status history
+            </h2>
+            <IncidentTimeline incidentId={id} />
+          </section>
           {incident && (
             <section aria-labelledby="about-title">
               <h2 id="about-title" className="mb-3 text-[13px] font-semibold">

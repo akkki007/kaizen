@@ -1,10 +1,12 @@
 import asyncio
 import hashlib
 import secrets
+from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -12,6 +14,17 @@ from sqlalchemy.dialects.postgresql import insert
 from causaldeploy.api.auth import CurrentUser, csrf_protect, require_role
 from causaldeploy.api.deps import CallerDep, IngestCaller, charge_events, hash_key
 from causaldeploy.api.errors import envelope
+from causaldeploy.api.incident_views import (
+    IncidentMetrics,
+    NodeDetail,
+    SimilarIncidentView,
+    add_overlay,
+    error_samples,
+    incident_metrics,
+    node_detail,
+    similar_incidents,
+    status_snapshot,
+)
 from causaldeploy.config import get_settings
 from causaldeploy.contracts import Event
 from causaldeploy.db.models import (
@@ -213,12 +226,21 @@ async def _incident_for(user: CurrentUser, incident_id: str) -> IncidentRow:
 
 @v1.get("/incidents/{incident_id}/evidence-graph", response_model=EvidenceGraph)
 async def get_evidence_graph(
-    incident_id: str, user: CurrentUser, expand: str | None = None
+    incident_id: str,
+    user: CurrentUser,
+    expand: str | None = None,
+    overlay: Literal["blast", "history"] | None = None,
 ) -> EvidenceGraph:
+    """Evidence subgraph. `overlay=blast` adds what the culprit's changed functions can reach
+    (callers, endpoints, services); `overlay=history` adds resembling incidents and their fixes.
+    Overlay nodes/edges carry `overlay` and are not citable by explanations."""
     row = await _incident_for(user, incident_id)
-    graph = await asyncio.to_thread(evidence_graph, GraphStore(row.repo), incident_id, expand)
+    store = GraphStore(row.repo)
+    graph = await asyncio.to_thread(evidence_graph, store, incident_id, expand)
     if graph is None:
         raise HTTPException(404, "incident has no evidence in the graph yet")
+    if overlay is not None:
+        graph = await asyncio.to_thread(add_overlay, store, graph, overlay)
     return graph
 
 
@@ -267,6 +289,11 @@ class IncidentDetail(BaseModel):
     ranking: RankResult  # deterministic, recomputed from the graph so it is always current
     investigation: InvestigationView
     remediation: RemediationView | None
+    # people's decisions on the incident (#88/#91), for the incident page
+    severity: str | None = None
+    acknowledged_by: str | None = None
+    confirmed_root_cause: str | None = None  # commit sha
+    root_cause_status: str | None = None  # confirmed | rejected
 
 
 @v1.get("/incidents/{incident_id}", response_model=IncidentDetail)
@@ -345,7 +372,14 @@ async def get_incident_detail(incident_id: str, user: CurrentUser) -> IncidentDe
             prior_fixes=list(r.get("prior_fixes") or []),
         )
     return IncidentDetail(
-        incident=summary, ranking=ranking, investigation=view, remediation=remediation
+        incident=summary,
+        ranking=ranking,
+        investigation=view,
+        remediation=remediation,
+        severity=row.severity,
+        acknowledged_by=row.acknowledged_by,
+        confirmed_root_cause=row.confirmed_root_cause,
+        root_cause_status=row.root_cause_status,
     )
 
 
@@ -671,6 +705,88 @@ async def set_incident_root_cause(
         root_cause_status=updated.root_cause_status or "",
         confirmed_root_cause=updated.confirmed_root_cause,
     )
+
+
+# -- incident page views (#93): read-only -------------------------------------------------
+
+# SSE pacing; module-level so tests can shorten them
+STREAM_POLL_S = 2.0
+STREAM_HEARTBEAT_S = 15.0
+STREAM_MAX_S = 600.0
+
+
+@v1.get("/incidents/{incident_id}/metrics", response_model=IncidentMetrics)
+async def get_incident_metrics(
+    incident_id: str,
+    user: CurrentUser,
+    minutes: Annotated[int, Query(ge=10, le=24 * 60)] = 120,
+) -> IncidentMetrics:
+    """1-minute request/error/p95 buckets for the incident's service/env/endpoint around the
+    onset (2/3 of the window before it), plus the deployments to that env in the window."""
+    row = await _incident_for(user, incident_id)
+    return await incident_metrics(row, minutes)
+
+
+@v1.get("/incidents/{incident_id}/similar", response_model=list[SimilarIncidentView])
+async def get_similar_incidents(incident_id: str, user: CurrentUser) -> list[SimilarIncidentView]:
+    """Incidents this one `resembles` (weighted-Jaccard signature match), best first, with the
+    fix that resolved each one and its confirmed root cause."""
+    row = await _incident_for(user, incident_id)
+    return await similar_incidents(row)
+
+
+@v1.get(
+    "/incidents/{incident_id}/stream",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"text/event-stream": {}}}},
+)
+async def stream_incident_status(
+    incident_id: str, user: CurrentUser, request: Request
+) -> StreamingResponse:
+    """Server-Sent Events: `event: status` with {status, updated_at, remediation_status,
+    investigation_status} on connect and whenever one changes (polled every ~2 s); a heartbeat
+    comment every 15 s; the stream ends after 10 minutes or when the client goes away."""
+    await _incident_for(user, incident_id)
+    loop = asyncio.get_running_loop()
+
+    async def events() -> AsyncIterator[str]:
+        started = last_beat = loop.time()
+        last: str | None = None
+        while loop.time() - started < STREAM_MAX_S:
+            if await request.is_disconnected():
+                return
+            snap = await status_snapshot(incident_id)
+            if snap is None:
+                return
+            body = snap.model_dump_json()
+            if body != last:
+                last = body
+                last_beat = loop.time()
+                yield f"event: status\ndata: {body}\n\n"
+            elif loop.time() - last_beat >= STREAM_HEARTBEAT_S:
+                last_beat = loop.time()
+                yield ": heartbeat\n\n"
+            await asyncio.sleep(STREAM_POLL_S)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@v1.get("/incidents/{incident_id}/nodes/{node_id:path}", response_model=NodeDetail)
+async def get_incident_node(incident_id: str, node_id: str, user: CurrentUser) -> NodeDetail:
+    """Node inspector: capped props and neighbours from the incident's repository graph; a
+    Commit adds message/author and the changed functions with their line ranges, a Function its
+    location and callers/callees, an Error its most recent samples from telemetry."""
+    row = await _incident_for(user, incident_id)
+    detail = await asyncio.to_thread(node_detail, GraphStore(row.repo), node_id)
+    if detail is None:
+        raise HTTPException(404, "node not found in this repository's graph")
+    if detail.label == "Error":
+        detail.error_samples = await error_samples(row.repo, node_id.partition(":")[2])
+    return detail
 
 
 class NewKey(BaseModel):

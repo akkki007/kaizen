@@ -4,15 +4,17 @@ import { Check, ChevronDown, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button, Segmented, Skeleton, Tag } from "@/components/app/kit";
 import { ErrorState } from "@/components/states";
-import { useApproveFix, useBaseline, useIncidentDetail, useMe, useProposeFix, type RankMethod } from "@/lib/api/hooks";
+import { Citation } from "@/components/incident-focus";
+import { IncidentExplanation, type Explanation } from "@/components/incident-explanation";
+import { IncidentRemediation } from "@/components/incident-remediation";
+import { useBaseline, useIncidentDetail, useMe, type RankMethod } from "@/lib/api/hooks";
+import { useRootCause } from "@/lib/api/hooks-incident";
 import type { components } from "@/lib/api/schema";
-import { haptic } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { stepSummary } from "@/lib/workspace";
 
 type Candidate = components["schemas"]["RankedCandidate"];
 type Feature = components["schemas"]["FeatureValue"];
-type Remediation = components["schemas"]["RemediationView"];
 
 const VIEWS = [
   { id: "graph", label: "Graph" },
@@ -26,6 +28,8 @@ const VERDICT_COPY: Record<string, string> = {
   no_code_evidence: "No code evidence: nothing ties these changes to the failure",
   no_candidates: "No candidate commits found for this incident",
 };
+
+const KIND: Record<string, string> = { commit: "commit", config: "config", dependency: "dependency" };
 
 const TONE = { good: "text-green", bad: "text-red", warn: "text-amber", none: "text-ink-2" } as const;
 
@@ -78,16 +82,24 @@ function FeatureRow({ f }: { f: Feature }) {
           <ChevronDown size={11} className={cn("transition-transform", open && "rotate-180")} />
         </button>
       </div>
+      {(f.explanation || (f.evidence_ids ?? []).length > 0) && (
+        <div className="mt-1 flex flex-wrap items-center gap-1 pl-0 text-[12px] text-ink-3 sm:pl-[108px]">
+          {f.explanation && <span className="mr-1">{f.explanation}</span>}
+          {(f.evidence_ids ?? []).map((id) => (
+            <Citation key={id} id={id} />
+          ))}
+        </div>
+      )}
       {open && <pre className="mt-2 overflow-x-auto rounded-md border border-line bg-panel-2 px-3 py-2.5 font-mono text-[11.5px] leading-[1.6] text-ink-2">{f.cypher}</pre>}
     </li>
   );
 }
 
-function Suspect({ c, defaultOpen }: { c: Candidate; defaultOpen: boolean }) {
+function Suspect({ c, defaultOpen, emphasis, footer }: { c: Candidate; defaultOpen: boolean; emphasis?: boolean; footer?: ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   const top = c.rank === 1;
   return (
-    <li className={cn("rounded-lg border", top ? "border-line bg-panel-2" : "border-transparent")}>
+    <li className={cn("rounded-lg border", emphasis ? "border-amber/50 bg-amber/5" : top ? "border-line bg-panel-2" : "border-transparent")} data-rank={c.rank}>
       <button
         type="button"
         aria-expanded={open}
@@ -97,7 +109,8 @@ function Suspect({ c, defaultOpen }: { c: Candidate; defaultOpen: boolean }) {
         <span className="num text-[12px] text-ink-3">#{c.rank}</span>
         <span className="min-w-0">
           <span className="flex min-w-0 items-center gap-2">
-            <code className="font-mono text-[12px] text-link">{c.sha.slice(0, 7)}</code>
+            <Tag tone={c.kind === "commit" ? "outline" : "amber"}>{KIND[c.kind ?? "commit"] ?? c.kind}</Tag>
+            <code className="font-mono text-[12px] text-link">{c.kind === "commit" || !c.kind ? c.sha.slice(0, 7) : c.sha.slice(0, 32)}</code>
             <span className="truncate text-[13px] text-ink">{c.message || "(no message)"}</span>
           </span>
           <span className="mt-0.5 block text-[12px] text-ink-3">
@@ -110,6 +123,7 @@ function Suspect({ c, defaultOpen }: { c: Candidate; defaultOpen: boolean }) {
           {c.features.length > 0 && <small className="num text-[11.5px] text-ink-3">{Math.round(c.confidence * 100)}% conf.</small>}
         </span>
       </button>
+      {open && footer && c.features.length === 0 && <div className="px-3 pb-3">{footer}</div>}
       {open && c.features.length > 0 && (
         <div className="flex flex-col gap-3 px-3 pb-3 pt-1 animate-rise">
           <ul className="flex flex-col gap-2" aria-label={`Score breakdown for ${c.sha.slice(0, 7)}`}>
@@ -121,116 +135,68 @@ function Suspect({ c, defaultOpen }: { c: Candidate; defaultOpen: boolean }) {
             <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-ink-3">
               <span>Path</span>
               {c.evidence.map((e) => (
-                <code key={`${e.changed_function}>${e.thrown_function}`} className="rounded bg-ink/[0.06] px-1.5 py-0.5 font-mono text-ink-2">
-                  {e.changed_function.split(":").pop()} → {e.thrown_function.split(":").pop()}
-                </code>
+                <span key={`${e.changed_function}>${e.thrown_function}`} className="inline-flex items-center gap-1">
+                  <Citation id={`Function:${e.changed_function}`} />
+                  {e.changed_function !== e.thrown_function && (
+                    <>
+                      → <Citation id={`Function:${e.thrown_function}`} />
+                    </>
+                  )}
+                  <Citation id={`Error:${e.error}`} />
+                </span>
               ))}
             </p>
           )}
+          {footer}
         </div>
       )}
     </li>
   );
 }
 
-const REMEDIATION_COPY: Record<string, string> = {
-  proposing: "Preparing the revert branch…",
-  verifying: "Revert PR opened; verifying in staging…",
-  verified: "Fix tested in staging: passed",
-  failed: "Fix tested in staging: failed",
-  needs_manual: "The commit cannot be reverted cleanly; it needs a manual fix",
-  approved: "Approved; waiting for the pull request to be merged",
-  merged: "Merged: incident resolved",
-};
-
-function FixSection({ incidentId, remediation, canAct, hasSuspect }: { incidentId: string; remediation: Remediation | null; canAct: boolean; hasSuspect: boolean }) {
-  const propose = useProposeFix(incidentId);
-  const approve = useApproveFix(incidentId);
-  const v = remediation?.verification as
-    | { passed: boolean; run_url?: string; error_rate_before?: number | null; error_rate_after?: number | null; baseline_error_rate?: number | null }
-    | null
-    | undefined;
-  const pct = (x?: number | null) => (x === null || x === undefined ? "n/a" : `${(x * 100).toFixed(1)}%`);
-  const tone = !remediation ? "none" : remediation.status === "failed" || remediation.status === "needs_manual" ? "bad" : remediation.status === "verified" || remediation.status === "merged" ? "good" : "warn";
-
+/** Approver decision on the top suspect: confirm it as the root cause, or reject it with a reason. */
+function RootCause({ incidentId, sha, decided }: { incidentId: string; sha: string; decided: { sha: string | null; status: string | null } }) {
+  const rc = useRootCause(incidentId);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
+  const status = rc.data ? rc.data.root_cause_status : decided.status;
+  const sameSha = rc.data ? rc.data.sha === sha : decided.sha === sha || decided.status === "rejected";
   return (
-    <Section id="fix-title" title="Fix and verification">
-      {!remediation ? (
-        <div className="flex flex-col items-start gap-3">
-          <p className="text-[13px] text-ink-3">No fix has been proposed for this incident yet.</p>
-          {canAct && hasSuspect && (
-            <Button
-              variant="primary"
-              disabled={propose.isPending}
-              onClick={() => {
-                haptic("confirm");
-                propose.mutate();
-              }}
-            >
-              {propose.isPending ? "Requesting…" : "Open revert PR for the top suspect"}
-            </Button>
-          )}
-          {propose.isSuccess && <p className="text-[13px] text-ink-3">Requested. The pull request will appear here shortly.</p>}
-          {propose.error && <p role="alert" className="text-[13px] text-red">{propose.error.message}</p>}
-        </div>
+    <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3" aria-label="Root cause decision">
+      {status && sameSha ? (
+        <p role="status" className={cn("text-[12.5px]", status === "confirmed" ? "text-green" : "text-amber")}>
+          {status === "confirmed" ? `Confirmed as the root cause.` : "Rejected as the root cause."}
+        </p>
       ) : (
-        <div className="flex flex-col gap-3">
-          <Verdict tone={tone}>{REMEDIATION_COPY[remediation.status] ?? remediation.status}</Verdict>
-          <p className="text-[13px] text-ink-3">
-            Revert of <code className="font-mono text-ink-2">{remediation.sha?.slice(0, 7)}</code> on <code className="font-mono text-ink-2">{remediation.branch}</code>
-            {remediation.pr_url && (
-              <>
-                {" · "}
-                <a href={remediation.pr_url} target="_blank" rel="noreferrer" className="text-link hover:underline">
-                  pull request
-                </a>
-              </>
-            )}
-          </p>
-          {v && (
-            <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-line sm:grid-cols-4 [&>div]:border-line [&>div]:px-4 [&>div]:py-3 [&>div:not(:last-child)]:border-r">
-              <div>
-                <dt className="text-[12px] text-ink-3">Before the fix</dt>
-                <dd className="num mt-1 text-[16px] font-medium text-red">{pct(v.error_rate_before)}</dd>
-              </div>
-              <div>
-                <dt className="text-[12px] text-ink-3">In staging after</dt>
-                <dd className="num mt-1 text-[16px] font-medium text-green">{pct(v.error_rate_after)}</dd>
-              </div>
-              <div>
-                <dt className="text-[12px] text-ink-3">Baseline</dt>
-                <dd className="num mt-1 text-[16px] font-medium">{pct(v.baseline_error_rate)}</dd>
-              </div>
-              {v.run_url && (
-                <div>
-                  <dt className="text-[12px] text-ink-3">Run</dt>
-                  <dd className="mt-1 text-[14px]">
-                    <a href={v.run_url} target="_blank" rel="noreferrer" className="text-link hover:underline">
-                      Actions
-                    </a>
-                  </dd>
-                </div>
-              )}
-            </dl>
-          )}
-          {canAct && remediation.status === "verified" && (
-            <Button
-              variant="primary"
-              className="self-start"
-              disabled={approve.isPending}
-              onClick={() => {
-                haptic("confirm");
-                approve.mutate(remediation.id);
-              }}
-            >
-              {approve.isPending ? "Approving…" : "Approve fix"}
-            </Button>
-          )}
-          {remediation.approved_by && <p className="text-[13px] text-ink-3">Approved by {remediation.approved_by}. A human merges the pull request.</p>}
-          {approve.error && <p role="alert" className="text-[13px] text-red">{approve.error.message}</p>}
-        </div>
+        <p className="text-[12.5px] text-ink-3">Is this the root cause? Your answer trains the ranking and is remembered for similar incidents.</p>
       )}
-    </Section>
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={rc.isPending} onClick={() => rc.mutate({ sha, confirmed: true })}>
+          <Check size={13} /> Confirm root cause
+        </Button>
+        <Button disabled={rc.isPending} onClick={() => setRejecting((r) => !r)} aria-expanded={rejecting}>
+          <X size={13} /> Not the cause
+        </Button>
+      </div>
+      {rejecting && (
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            rc.mutate({ sha, confirmed: false, reason }, { onSuccess: () => setRejecting(false) });
+          }}
+        >
+          <label className="sr-only" htmlFor="rc-reason">
+            Reason
+          </label>
+          <input id="rc-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why not? (optional)" className="h-7 min-w-0 flex-1 rounded-md border border-line bg-panel-2 px-2 text-[12.5px] outline-none focus:border-accent" />
+          <Button type="submit" variant="primary" disabled={rc.isPending}>
+            Reject
+          </Button>
+        </form>
+      )}
+      {rc.error && <p role="alert" className="text-[12.5px] text-red">{rc.error.message}</p>}
+    </div>
   );
 }
 
@@ -274,8 +240,15 @@ export function IncidentInvestigation({ incidentId, evidence }: { incidentId: st
             <Verdict tone={graphTone}>
               {VERDICT_COPY[graph.verdict] ?? graph.verdict}
               {graph.verdict === "confident" || graph.verdict === "ambiguous" ? <span className="text-ink-3"> · margin {graph.margin.toFixed(2)}</span> : null}
+              {graph.weights_version && <span className="text-ink-4"> · weights {graph.weights_version}</span>}
             </Verdict>
-          ) : shown ? (
+          ) : null}
+          {view === "graph" && graph.verdict === "ambiguous" && (
+            <p className="mt-2 rounded-md border border-amber/40 bg-amber/10 px-3 py-2 text-[13px] text-amber" data-testid="abstain">
+              Kaizen abstains: the top {Math.min(3, graph.candidates.length)} suspects are too close to call. Each is shown below with its evidence; confirm the real cause.
+            </p>
+          )}
+          {view !== "graph" && shown ? (
             shown.candidates[0]?.sha === graphTop ? (
               <Verdict tone="good">
                 <Check size={14} aria-hidden /> The baseline picks the same commit as the graph.
@@ -293,7 +266,17 @@ export function IncidentInvestigation({ incidentId, evidence }: { incidentId: st
         {shown && shown.candidates.length > 0 && (
           <ol aria-label="Suspects" className="-mx-3 flex flex-col gap-1">
             {shown.candidates.map((c, i) => (
-              <Suspect key={`${view}-${c.sha}`} c={c} defaultOpen={view === "graph" && i === 0} />
+              <Suspect
+                key={`${view}-${c.sha}`}
+                c={c}
+                defaultOpen={view === "graph" && (i === 0 || (graph.verdict === "ambiguous" && i < 3))}
+                emphasis={view === "graph" && graph.verdict === "ambiguous" && i < 3}
+                footer={
+                  view === "graph" && i === 0 && role === "approver" && (c.kind ?? "commit") === "commit" ? (
+                    <RootCause incidentId={incidentId} sha={c.sha} decided={{ sha: detail.data.confirmed_root_cause ?? null, status: detail.data.root_cause_status ?? null }} />
+                  ) : undefined
+                }
+              />
             ))}
           </ol>
         )}
@@ -302,8 +285,7 @@ export function IncidentInvestigation({ incidentId, evidence }: { incidentId: st
       {evidence}
 
       <Section id="inv-title" title="Agent investigation" aside={<span className="num text-[12px] text-ink-3">{inv.steps.length} tool call{inv.steps.length === 1 ? "" : "s"}</span>}>
-        {inv.status === "not_run" && <p className="text-[13px] text-ink-3">The agent has not run for this incident yet. The ranking above is already computed.</p>}
-        {inv.steps.length > 0 && (
+                {inv.steps.length > 0 && (
           <ol className="relative flex flex-col gap-3 before:absolute before:bottom-2 before:left-[10px] before:top-2 before:w-px before:bg-line" aria-label="Tool calls in order">
             {inv.steps.map((s) => (
               <li key={s.n} className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-3">
@@ -328,36 +310,19 @@ export function IncidentInvestigation({ incidentId, evidence }: { incidentId: st
             ))}
           </ol>
         )}
-        {inv.status === "explanation_invalid" && (
-          <Verdict tone="bad">The agent's explanation failed citation validation and was discarded. The ranking above is unaffected.</Verdict>
-        )}
-        {inv.explanation && (
-          <div className="mt-5 rounded-lg border border-line bg-panel-2 p-4">
-            <h3 className="text-[13px] font-semibold">Explanation</h3>
-            <ul className="mt-2.5 flex flex-col gap-3">
-              {(inv.explanation.claims as { text: string; cited_node_ids: string[] }[]).map((c, i) => (
-                <li key={i}>
-                  <p className="text-[13px] leading-[1.55] text-ink">{c.text}</p>
-                  <p className="mt-1.5 flex flex-wrap gap-1">
-                    {c.cited_node_ids.map((n) => (
-                      <Tag key={n} tone="accent" className="font-mono">
-                        {n}
-                      </Tag>
-                    ))}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div className={inv.steps.length ? "mt-5" : undefined}>
+          <IncidentExplanation status={inv.status} explanation={inv.explanation as Explanation | null} errors={inv.validation_errors} />
+        </div>
       </Section>
 
-      <FixSection
-        incidentId={incidentId}
-        remediation={detail.data.remediation}
-        canAct={role === "approver"}
-        hasSuspect={graph.verdict === "confident" || graph.verdict === "ambiguous"}
-      />
+      <Section id="fix-title" title="Fix and verification">
+        <IncidentRemediation
+          incidentId={incidentId}
+          remediation={detail.data.remediation}
+          canAct={role === "approver"}
+          hasSuspect={graph.verdict === "confident" || graph.verdict === "ambiguous"}
+        />
+      </Section>
     </>
   );
 }

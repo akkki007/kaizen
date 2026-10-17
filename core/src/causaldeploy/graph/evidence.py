@@ -1,6 +1,6 @@
 """Evidence-path subgraph for one incident: exactly the nodes/edges an explanation may cite."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -17,6 +17,7 @@ class EvidenceNode(BaseModel):
     label: str
     props: dict[str, Any]
     highlight: bool = False
+    overlay: Literal["blast", "history"] | None = None  # added by an evidence-graph overlay
 
 
 class EvidenceEdge(BaseModel):
@@ -26,6 +27,7 @@ class EvidenceEdge(BaseModel):
     rel: str
     props: dict[str, Any] = {}
     highlight: bool = False
+    overlay: Literal["blast", "history"] | None = None
 
 
 class EvidenceGraph(BaseModel):
