@@ -4,6 +4,28 @@
  */
 
 export interface paths {
+    "/api/v1/eval/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Eval Latest
+         * @description The latest evaluation result (docs/results/latest.json, written by `make eval`),
+         *     unchanged: generated_at, weights_version, methods, splits {all, tune, test}, blast_radius,
+         *     fix_verification_rate, memory, runtime_seconds, scenarios, failures.
+         */
+        get: operations["eval_latest_api_v1_eval_latest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events": {
         parameters: {
             query?: never;
@@ -36,7 +58,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Incidents */
+        /**
+         * List Incidents
+         * @description Newest first. Filters combine with AND; `status`/`severity` repeat for several values
+         *     (e.g. `?status=resolved&status=closed` is the archive); `since`/`until` bound the onset;
+         *     `q` matches id, repo, service, env or endpoint (case-insensitive substring).
+         */
         get: operations["list_incidents_api_v1_incidents_get"];
         put?: never;
         post?: never;
@@ -94,7 +121,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Evidence Graph */
+        /**
+         * Get Evidence Graph
+         * @description Evidence subgraph. `overlay=blast` adds what the culprit's changed functions can reach
+         *     (callers, endpoints, services); `overlay=history` adds resembling incidents and their fixes.
+         *     Overlay nodes/edges carry `overlay` and are not citable by explanations.
+         */
         get: operations["get_evidence_graph_api_v1_incidents__incident_id__evidence_graph_get"];
         put?: never;
         post?: never;
@@ -133,6 +165,49 @@ export interface paths {
         };
         /** Incident Llm Cost */
         get: operations["incident_llm_cost_api_v1_incidents__incident_id__llm_cost_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/incidents/{incident_id}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Incident Metrics
+         * @description 1-minute request/error/p95 buckets for the incident's service/env/endpoint around the
+         *     onset (2/3 of the window before it), plus the deployments to that env in the window.
+         */
+        get: operations["get_incident_metrics_api_v1_incidents__incident_id__metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/incidents/{incident_id}/nodes/{node_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Incident Node
+         * @description Node inspector: capped props and neighbours from the incident's repository graph; a
+         *     Commit adds message/author and the changed functions with their line ranges, a Function its
+         *     location and callers/callees, an Error its most recent samples from telemetry.
+         */
+        get: operations["get_incident_node_api_v1_incidents__incident_id__nodes__node_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -199,6 +274,49 @@ export interface paths {
          *     likely_caused_by edge gets rejected=true) a suspect commit as the root cause.
          */
         post: operations["set_incident_root_cause_api_v1_incidents__incident_id__root_cause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/incidents/{incident_id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Similar Incidents
+         * @description Incidents this one `resembles` (weighted-Jaccard signature match), best first, with the
+         *     fix that resolved each one and its confirmed root cause.
+         */
+        get: operations["get_similar_incidents_api_v1_incidents__incident_id__similar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/incidents/{incident_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Incident Status
+         * @description Server-Sent Events: `event: status` with {status, updated_at, remediation_status,
+         *     investigation_status} on connect and whenever one changes (polled every ~2 s); a heartbeat
+         *     comment every 15 s; the stream ends after 10 minutes or when the client goes away.
+         */
+        get: operations["stream_incident_status_api_v1_incidents__incident_id__stream_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -352,6 +470,71 @@ export interface paths {
          * @description Start monitoring: record the repository and enqueue its first import. Idempotent.
          */
         post: operations["connect_repo_api_v1_repos__owner___name__connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repos/{owner}/{name}/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Repo Deployments
+         * @description Deployments of the last `hours`, oldest first, with the incidents that followed each.
+         */
+        get: operations["repo_deployments_api_v1_repos__owner___name__deployments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repos/{owner}/{name}/hotspots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Repo Hotspots
+         * @description Functions and dependencies most often blamed: incidents whose likely (not rejected) or
+         *     confirmed cause modified the function / changed the dependency, plus top-ranked
+         *     dependency-change suspects.
+         */
+        get: operations["repo_hotspots_api_v1_repos__owner___name__hotspots_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/services/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Services Health
+         * @description Per service+env: error rate and p95 of the latest complete detection windows against
+         *     the baseline before them; `incident` while an incident is active, `degraded` when the
+         *     current windows are anomalous but no incident is open yet. Without `repo`: every
+         *     repository the user can see.
+         */
+        get: operations["services_health_api_v1_services_health_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -553,6 +736,47 @@ export interface components {
             /** Repo */
             repo: string;
         };
+        /** ChangedFile */
+        ChangedFile: {
+            /** File Id */
+            file_id: string;
+            /** Path */
+            path: string | null;
+            /** Status */
+            status: string | null;
+        };
+        /** ChangedFunction */
+        ChangedFunction: {
+            /** End Line */
+            end_line: number | null;
+            /** Function Id */
+            function_id: string;
+            /** Lines Added */
+            lines_added: number | null;
+            /** Lines Removed */
+            lines_removed: number | null;
+            /** Moved From */
+            moved_from: string | null;
+            /** Path */
+            path: string | null;
+            /** Start Line */
+            start_line: number | null;
+        };
+        /** CommitDetail */
+        CommitDetail: {
+            /** Author */
+            author: string | null;
+            /** Changed Files */
+            changed_files: components["schemas"]["ChangedFile"][];
+            /** Changed Functions */
+            changed_functions: components["schemas"]["ChangedFunction"][];
+            /** Message */
+            message: string | null;
+            /** Sha */
+            sha: string;
+            /** Ts */
+            ts: string | null;
+        };
         /** ConnectResult */
         ConnectResult: {
             /** Job Id */
@@ -565,6 +789,187 @@ export interface components {
              */
             state: "not_started" | "importing" | "ready" | "failed" | "unavailable";
         };
+        /** DependencyHotspot */
+        DependencyHotspot: {
+            /** Incident Ids */
+            incident_ids: string[];
+            /** Incidents */
+            incidents: number;
+            /** Name */
+            name: string;
+        };
+        /** DeploymentIncident */
+        DeploymentIncident: {
+            /** Id */
+            id: string;
+            /**
+             * Onset
+             * Format: date-time
+             */
+            onset: string;
+            /** Severity */
+            severity: string | null;
+            /** Status */
+            status: string;
+            /** Triggered */
+            triggered: boolean;
+        };
+        /** DeploymentMark */
+        DeploymentMark: {
+            /** Id */
+            id: string;
+            /** Sha */
+            sha: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Status */
+            status: string | null;
+        };
+        /** DeploymentView */
+        DeploymentView: {
+            /** Commits */
+            commits: number;
+            /** Env */
+            env: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: string;
+            /** Incidents */
+            incidents: components["schemas"]["DeploymentIncident"][];
+            /** Sha */
+            sha: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Status */
+            status: string;
+        };
+        /** ErrorSample */
+        ErrorSample: {
+            /** Endpoint */
+            endpoint: string | null;
+            /** Error Type */
+            error_type: string | null;
+            /** Message */
+            message: string | null;
+            /** Status Code */
+            status_code: number | null;
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+        };
+        /** EvalBlastRadius */
+        EvalBlastRadius: {
+            /** N */
+            n: number;
+            /** Precision */
+            precision: number | null;
+            /** Recall */
+            recall: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** EvalMemory */
+        EvalMemory: {
+            /** Confidence With */
+            confidence_with: number | null;
+            /** Confidence Without */
+            confidence_without: number | null;
+            /** Variant */
+            variant: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** EvalMethodResult */
+        EvalMethodResult: {
+            /** Correct */
+            correct: boolean;
+            /** Rank Of Culprit */
+            rank_of_culprit: number | null;
+            /** Top */
+            top: string | null;
+            /** Verdict */
+            verdict: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EvalResult
+         * @description docs/results/latest.json as written by evalharness.report.to_json (#92).
+         */
+        EvalResult: {
+            blast_radius: components["schemas"]["EvalBlastRadius"] | null;
+            /** Failures */
+            failures: string[];
+            /** Fix Verification Rate */
+            fix_verification_rate: number | null;
+            /** Generated At */
+            generated_at: string;
+            /** Memory */
+            memory: components["schemas"]["EvalMemory"][];
+            /** Methods */
+            methods: string[];
+            /** Runtime Seconds */
+            runtime_seconds: number;
+            /** Scenarios */
+            scenarios: components["schemas"]["EvalScenario"][];
+            /** Splits */
+            splits: {
+                [key: string]: components["schemas"]["EvalSummaryRow"][];
+            };
+            /** Weights Version */
+            weights_version: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** EvalScenario */
+        EvalScenario: {
+            /** Culprit */
+            culprit: string;
+            /** Id */
+            id: string;
+            /** Results */
+            results: {
+                [key: string]: components["schemas"]["EvalMethodResult"];
+            };
+            /** Split */
+            split: string;
+            /** Title */
+            title: string;
+            /** Variant */
+            variant: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** EvalSummaryRow */
+        EvalSummaryRow: {
+            /** False Attribution */
+            false_attribution: number | null;
+            /** Function Level */
+            function_level: number | null;
+            /** Median Ms */
+            median_ms: number | null;
+            /** Method */
+            method: string;
+            /** N */
+            n: number;
+            /** Top1 */
+            top1: number | null;
+            /** Top1 Ci */
+            top1_ci: number[] | null;
+            /** Top3 */
+            top3: number | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** EvidenceEdge */
         EvidenceEdge: {
             /**
@@ -574,6 +979,8 @@ export interface components {
             highlight: boolean;
             /** Id */
             id: string;
+            /** Overlay */
+            overlay?: ("blast" | "history") | null;
             /**
              * Props
              * @default {}
@@ -608,6 +1015,8 @@ export interface components {
             id: string;
             /** Label */
             label: string;
+            /** Overlay */
+            overlay?: ("blast" | "history") | null;
             /** Props */
             props: {
                 [key: string]: unknown;
@@ -644,6 +1053,49 @@ export interface components {
             /** Weight */
             weight: number;
         };
+        /** FixRef */
+        FixRef: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string | null;
+            /** Pr Url */
+            pr_url: string | null;
+        };
+        /** FunctionDetail */
+        FunctionDetail: {
+            /** Callees */
+            callees: string[];
+            /** Callers */
+            callers: string[];
+            /** End Line */
+            end_line: number | null;
+            /** Path */
+            path: string | null;
+            /** Service */
+            service: string | null;
+            /** Start Line */
+            start_line: number | null;
+        };
+        /** FunctionHotspot */
+        FunctionHotspot: {
+            /** Confirmed */
+            confirmed: number;
+            /** Id */
+            id: string;
+            /** Incident Ids */
+            incident_ids: string[];
+            /** Incidents */
+            incidents: number;
+            /** Last Incident */
+            last_incident: string | null;
+            /** Last Onset */
+            last_onset: string | null;
+            /** Name */
+            name: string;
+            /** Service */
+            service: string;
+        };
         /** GraphStats */
         GraphStats: {
             /**
@@ -672,6 +1124,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** Hotspots */
+        Hotspots: {
+            /** Dependencies */
+            dependencies: components["schemas"]["DependencyHotspot"][];
+            /** Functions */
+            functions: components["schemas"]["FunctionHotspot"][];
+        };
         /** IncidentActionIn */
         IncidentActionIn: {
             /**
@@ -695,10 +1154,48 @@ export interface components {
         };
         /** IncidentDetail */
         IncidentDetail: {
+            /** Acknowledged By */
+            acknowledged_by?: string | null;
+            /** Confirmed Root Cause */
+            confirmed_root_cause?: string | null;
             incident: components["schemas"]["IncidentSummary"];
             investigation: components["schemas"]["InvestigationView"];
             ranking: components["schemas"]["RankResult"];
             remediation: components["schemas"]["RemediationView"] | null;
+            /** Root Cause Status */
+            root_cause_status?: string | null;
+            /** Severity */
+            severity?: string | null;
+        };
+        /** IncidentMetrics */
+        IncidentMetrics: {
+            /** Deployments */
+            deployments: components["schemas"]["DeploymentMark"][];
+            /** Endpoint */
+            endpoint: string;
+            /** Env */
+            env: string;
+            /** Incident Id */
+            incident_id: string;
+            /**
+             * Onset
+             * Format: date-time
+             */
+            onset: string;
+            /** Series */
+            series: components["schemas"]["MetricPoint"][];
+            /** Service */
+            service: string;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Until
+             * Format: date-time
+             */
+            until: string;
         };
         /**
          * IncidentPage
@@ -714,8 +1211,16 @@ export interface components {
             /** Total */
             total: number;
         };
+        /**
+         * IncidentStatus
+         * @description Lifecycle (#88). Transitions are guarded by `causaldeploy.incidents.lifecycle`.
+         * @enum {string}
+         */
+        IncidentStatus: "open" | "investigating" | "identified" | "explained" | "remediating" | "verifying" | "needs_human" | "resolved" | "closed";
         /** IncidentSummary */
         IncidentSummary: {
+            /** Acknowledged By */
+            acknowledged_by?: string | null;
             /**
              * Detected At
              * Format: date-time
@@ -736,8 +1241,11 @@ export interface components {
             repo: string;
             /** Service */
             service: string;
+            /** Severity */
+            severity?: string | null;
             /** Status */
             status: string;
+            suspect?: components["schemas"]["SuspectSummary"] | null;
         };
         /** IncidentTransitionOut */
         IncidentTransitionOut: {
@@ -785,12 +1293,66 @@ export interface components {
             /** Output Tokens */
             output_tokens: number;
         };
+        /** MetricPoint */
+        MetricPoint: {
+            /** Error Rate */
+            error_rate: number;
+            /** Errors */
+            errors: number;
+            /** P95 Ms */
+            p95_ms: number | null;
+            /** Requests */
+            requests: number;
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+        };
+        /** Neighbour */
+        Neighbour: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "out" | "in";
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string | null;
+            /** Rel */
+            rel: string;
+        };
         /** NewKey */
         NewKey: {
             /** Id */
             id: number;
             /** Key */
             key: string;
+        };
+        /** NodeDetail */
+        NodeDetail: {
+            commit?: components["schemas"]["CommitDetail"] | null;
+            /**
+             * Error Samples
+             * @default []
+             */
+            error_samples: components["schemas"]["ErrorSample"][];
+            function?: components["schemas"]["FunctionDetail"] | null;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Neighbours */
+            neighbours: components["schemas"]["Neighbour"][];
+            /** Neighbours Total */
+            neighbours_total: number;
+            /** Props */
+            props: {
+                [key: string]: unknown;
+            };
         };
         /** RankResult */
         RankResult: {
@@ -980,6 +1542,61 @@ export interface components {
             /** Sha */
             sha: string;
         };
+        /** ServiceHealth */
+        ServiceHealth: {
+            /** Baseline Error Rate */
+            baseline_error_rate: number | null;
+            /** Baseline P95 Ms */
+            baseline_p95_ms: number | null;
+            /** Current Windows */
+            current_windows: number;
+            /** Env */
+            env: string;
+            /** Error Rate */
+            error_rate: number;
+            /** Open Incident Id */
+            open_incident_id: string | null;
+            /** P95 Ms */
+            p95_ms: number | null;
+            /** Repo */
+            repo: string;
+            /** Requests */
+            requests: number;
+            /** Service */
+            service: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "degraded" | "incident";
+            /** Window Seconds */
+            window_seconds: number;
+        };
+        /** SimilarIncidentView */
+        SimilarIncidentView: {
+            /** Basis */
+            basis: string[];
+            /** Confirmed Root Cause */
+            confirmed_root_cause: string | null;
+            fix: components["schemas"]["FixRef"] | null;
+            /** Incident Id */
+            incident_id: string;
+            /** Similarity */
+            similarity: number;
+            /** Status */
+            status: string | null;
+        };
+        /** SuspectSummary */
+        SuspectSummary: {
+            /** Confidence */
+            confidence: number;
+            /** Kind */
+            kind: string;
+            /** Message */
+            message: string;
+            /** Sha */
+            sha: string;
+        };
         /** TraceStep */
         TraceStep: {
             /** Args */
@@ -1028,6 +1645,37 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    eval_latest_api_v1_eval_latest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_events_api_v1_events_post: {
         parameters: {
             query?: never;
@@ -1068,6 +1716,13 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                status?: components["schemas"]["IncidentStatus"][] | null;
+                severity?: ("sev1" | "sev2" | "sev3")[] | null;
+                service?: string | null;
+                repo?: string | null;
+                since?: string | null;
+                until?: string | null;
+                q?: string | null;
             };
             header?: never;
             path?: never;
@@ -1174,6 +1829,7 @@ export interface operations {
         parameters: {
             query?: {
                 expand?: string | null;
+                overlay?: ("blast" | "history") | null;
             };
             header?: never;
             path: {
@@ -1258,6 +1914,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LlmCost"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_incident_metrics_api_v1_incidents__incident_id__metrics_get: {
+        parameters: {
+            query?: {
+                minutes?: number;
+            };
+            header?: never;
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentMetrics"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_incident_node_api_v1_incidents__incident_id__nodes__node_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+                node_id: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeDetail"];
                 };
             };
             /** @description Validation Error */
@@ -1371,6 +2096,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RootCauseResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_similar_incidents_api_v1_incidents__incident_id__similar_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimilarIncidentView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_incident_status_api_v1_incidents__incident_id__stream_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
                 };
             };
             /** @description Validation Error */
@@ -1740,6 +2531,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repo_deployments_api_v1_repos__owner___name__deployments_get: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: never;
+            path: {
+                owner: string;
+                name: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repo_hotspots_api_v1_repos__owner___name__hotspots_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                owner: string;
+                name: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Hotspots"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    services_health_api_v1_services_health_get: {
+        parameters: {
+            query?: {
+                repo?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceHealth"][];
                 };
             };
             /** @description Validation Error */

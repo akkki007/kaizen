@@ -120,6 +120,194 @@
         "title": "BackfillStatus",
         "type": "object"
       },
+      "ChangedFile": {
+        "properties": {
+          "file_id": {
+            "title": "File Id",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "file_id",
+          "path",
+          "status"
+        ],
+        "title": "ChangedFile",
+        "type": "object"
+      },
+      "ChangedFunction": {
+        "properties": {
+          "end_line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Line"
+          },
+          "function_id": {
+            "title": "Function Id",
+            "type": "string"
+          },
+          "lines_added": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lines Added"
+          },
+          "lines_removed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lines Removed"
+          },
+          "moved_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moved From"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "start_line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Line"
+          }
+        },
+        "required": [
+          "function_id",
+          "path",
+          "start_line",
+          "end_line",
+          "lines_added",
+          "lines_removed",
+          "moved_from"
+        ],
+        "title": "ChangedFunction",
+        "type": "object"
+      },
+      "CommitDetail": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "changed_files": {
+            "items": {
+              "$ref": "#/components/schemas/ChangedFile"
+            },
+            "title": "Changed Files",
+            "type": "array"
+          },
+          "changed_functions": {
+            "items": {
+              "$ref": "#/components/schemas/ChangedFunction"
+            },
+            "title": "Changed Functions",
+            "type": "array"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          },
+          "ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ts"
+          }
+        },
+        "required": [
+          "sha",
+          "message",
+          "author",
+          "ts",
+          "changed_functions",
+          "changed_files"
+        ],
+        "title": "CommitDetail",
+        "type": "object"
+      },
       "ConnectResult": {
         "properties": {
           "job_id": {
@@ -156,6 +344,591 @@
         "title": "ConnectResult",
         "type": "object"
       },
+      "DependencyHotspot": {
+        "properties": {
+          "incident_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Incident Ids",
+            "type": "array"
+          },
+          "incidents": {
+            "title": "Incidents",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "incidents",
+          "incident_ids"
+        ],
+        "title": "DependencyHotspot",
+        "type": "object"
+      },
+      "DeploymentIncident": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "onset": {
+            "format": "date-time",
+            "title": "Onset",
+            "type": "string"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "triggered": {
+            "title": "Triggered",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "severity",
+          "onset",
+          "triggered"
+        ],
+        "title": "DeploymentIncident",
+        "type": "object"
+      },
+      "DeploymentMark": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "id",
+          "sha",
+          "started_at",
+          "status"
+        ],
+        "title": "DeploymentMark",
+        "type": "object"
+      },
+      "DeploymentView": {
+        "properties": {
+          "commits": {
+            "title": "Commits",
+            "type": "integer"
+          },
+          "env": {
+            "title": "Env",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "incidents": {
+            "items": {
+              "$ref": "#/components/schemas/DeploymentIncident"
+            },
+            "title": "Incidents",
+            "type": "array"
+          },
+          "sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sha",
+          "env",
+          "status",
+          "started_at",
+          "finished_at",
+          "commits",
+          "incidents"
+        ],
+        "title": "DeploymentView",
+        "type": "object"
+      },
+      "ErrorSample": {
+        "properties": {
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint"
+          },
+          "error_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Type"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "status_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Code"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ts",
+          "error_type",
+          "message",
+          "endpoint",
+          "status_code"
+        ],
+        "title": "ErrorSample",
+        "type": "object"
+      },
+      "EvalBlastRadius": {
+        "additionalProperties": true,
+        "properties": {
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "precision": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precision"
+          },
+          "recall": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall"
+          }
+        },
+        "required": [
+          "precision",
+          "recall",
+          "n"
+        ],
+        "title": "EvalBlastRadius",
+        "type": "object"
+      },
+      "EvalMemory": {
+        "additionalProperties": true,
+        "properties": {
+          "confidence_with": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence With"
+          },
+          "confidence_without": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence Without"
+          },
+          "variant": {
+            "title": "Variant",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "variant",
+          "confidence_without",
+          "confidence_with"
+        ],
+        "title": "EvalMemory",
+        "type": "object"
+      },
+      "EvalMethodResult": {
+        "additionalProperties": true,
+        "properties": {
+          "correct": {
+            "title": "Correct",
+            "type": "boolean"
+          },
+          "rank_of_culprit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Of Culprit"
+          },
+          "top": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "top",
+          "rank_of_culprit",
+          "verdict",
+          "correct"
+        ],
+        "title": "EvalMethodResult",
+        "type": "object"
+      },
+      "EvalResult": {
+        "additionalProperties": true,
+        "description": "docs/results/latest.json as written by evalharness.report.to_json (#92).",
+        "properties": {
+          "blast_radius": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvalBlastRadius"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failures": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "fix_verification_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix Verification Rate"
+          },
+          "generated_at": {
+            "title": "Generated At",
+            "type": "string"
+          },
+          "memory": {
+            "items": {
+              "$ref": "#/components/schemas/EvalMemory"
+            },
+            "title": "Memory",
+            "type": "array"
+          },
+          "methods": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Methods",
+            "type": "array"
+          },
+          "runtime_seconds": {
+            "title": "Runtime Seconds",
+            "type": "number"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/EvalScenario"
+            },
+            "title": "Scenarios",
+            "type": "array"
+          },
+          "splits": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/EvalSummaryRow"
+              },
+              "type": "array"
+            },
+            "title": "Splits",
+            "type": "object"
+          },
+          "weights_version": {
+            "title": "Weights Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "generated_at",
+          "weights_version",
+          "methods",
+          "splits",
+          "blast_radius",
+          "fix_verification_rate",
+          "memory",
+          "runtime_seconds",
+          "scenarios",
+          "failures"
+        ],
+        "title": "EvalResult",
+        "type": "object"
+      },
+      "EvalScenario": {
+        "additionalProperties": true,
+        "properties": {
+          "culprit": {
+            "title": "Culprit",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "results": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EvalMethodResult"
+            },
+            "title": "Results",
+            "type": "object"
+          },
+          "split": {
+            "title": "Split",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "variant": {
+            "title": "Variant",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "variant",
+          "title",
+          "split",
+          "culprit",
+          "results"
+        ],
+        "title": "EvalScenario",
+        "type": "object"
+      },
+      "EvalSummaryRow": {
+        "additionalProperties": true,
+        "properties": {
+          "false_attribution": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "False Attribution"
+          },
+          "function_level": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Function Level"
+          },
+          "median_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Ms"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "top1": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top1"
+          },
+          "top1_ci": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top1 Ci"
+          },
+          "top3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top3"
+          }
+        },
+        "required": [
+          "method",
+          "n",
+          "top1",
+          "top3",
+          "function_level",
+          "false_attribution",
+          "median_ms",
+          "top1_ci"
+        ],
+        "title": "EvalSummaryRow",
+        "type": "object"
+      },
       "EvidenceEdge": {
         "properties": {
           "highlight": {
@@ -166,6 +939,21 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "overlay": {
+            "anyOf": [
+              {
+                "enum": [
+                  "blast",
+                  "history"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overlay"
           },
           "props": {
             "additionalProperties": true,
@@ -238,6 +1026,21 @@
           "label": {
             "title": "Label",
             "type": "string"
+          },
+          "overlay": {
+            "anyOf": [
+              {
+                "enum": [
+                  "blast",
+                  "history"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overlay"
           },
           "props": {
             "additionalProperties": true,
@@ -326,6 +1129,181 @@
         "title": "FeatureValue",
         "type": "object"
       },
+      "FixRef": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "pr_url"
+        ],
+        "title": "FixRef",
+        "type": "object"
+      },
+      "FunctionDetail": {
+        "properties": {
+          "callees": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Callees",
+            "type": "array"
+          },
+          "callers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Callers",
+            "type": "array"
+          },
+          "end_line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Line"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service"
+          },
+          "start_line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Line"
+          }
+        },
+        "required": [
+          "path",
+          "service",
+          "start_line",
+          "end_line",
+          "callers",
+          "callees"
+        ],
+        "title": "FunctionDetail",
+        "type": "object"
+      },
+      "FunctionHotspot": {
+        "properties": {
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "incident_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Incident Ids",
+            "type": "array"
+          },
+          "incidents": {
+            "title": "Incidents",
+            "type": "integer"
+          },
+          "last_incident": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Incident"
+          },
+          "last_onset": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Onset"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "service",
+          "incidents",
+          "confirmed",
+          "last_incident",
+          "last_onset",
+          "incident_ids"
+        ],
+        "title": "FunctionHotspot",
+        "type": "object"
+      },
       "GraphStats": {
         "properties": {
           "commits": {
@@ -363,6 +1341,30 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Hotspots": {
+        "properties": {
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyHotspot"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/FunctionHotspot"
+            },
+            "title": "Functions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "functions",
+          "dependencies"
+        ],
+        "title": "Hotspots",
         "type": "object"
       },
       "IncidentActionIn": {
@@ -439,6 +1441,28 @@
       },
       "IncidentDetail": {
         "properties": {
+          "acknowledged_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged By"
+          },
+          "confirmed_root_cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed Root Cause"
+          },
           "incident": {
             "$ref": "#/components/schemas/IncidentSummary"
           },
@@ -457,6 +1481,28 @@
                 "type": "null"
               }
             ]
+          },
+          "root_cause_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root Cause Status"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
           }
         },
         "required": [
@@ -466,6 +1512,68 @@
           "remediation"
         ],
         "title": "IncidentDetail",
+        "type": "object"
+      },
+      "IncidentMetrics": {
+        "properties": {
+          "deployments": {
+            "items": {
+              "$ref": "#/components/schemas/DeploymentMark"
+            },
+            "title": "Deployments",
+            "type": "array"
+          },
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "env": {
+            "title": "Env",
+            "type": "string"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "onset": {
+            "format": "date-time",
+            "title": "Onset",
+            "type": "string"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/MetricPoint"
+            },
+            "title": "Series",
+            "type": "array"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "until": {
+            "format": "date-time",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "onset",
+          "since",
+          "until",
+          "service",
+          "env",
+          "endpoint",
+          "series",
+          "deployments"
+        ],
+        "title": "IncidentMetrics",
         "type": "object"
       },
       "IncidentPage": {
@@ -500,8 +1608,35 @@
         "title": "IncidentPage",
         "type": "object"
       },
+      "IncidentStatus": {
+        "description": "Lifecycle (#88). Transitions are guarded by `causaldeploy.incidents.lifecycle`.",
+        "enum": [
+          "open",
+          "investigating",
+          "identified",
+          "explained",
+          "remediating",
+          "verifying",
+          "needs_human",
+          "resolved",
+          "closed"
+        ],
+        "title": "IncidentStatus",
+        "type": "string"
+      },
       "IncidentSummary": {
         "properties": {
+          "acknowledged_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged By"
+          },
           "detected_at": {
             "format": "date-time",
             "title": "Detected At",
@@ -532,9 +1667,30 @@
             "title": "Service",
             "type": "string"
           },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "suspect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuspectSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -683,6 +1839,91 @@
         "title": "LlmCost",
         "type": "object"
       },
+      "MetricPoint": {
+        "properties": {
+          "error_rate": {
+            "title": "Error Rate",
+            "type": "number"
+          },
+          "errors": {
+            "title": "Errors",
+            "type": "integer"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ts",
+          "requests",
+          "errors",
+          "error_rate",
+          "p95_ms"
+        ],
+        "title": "MetricPoint",
+        "type": "object"
+      },
+      "Neighbour": {
+        "properties": {
+          "direction": {
+            "enum": [
+              "out",
+              "in"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "rel": {
+            "title": "Rel",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "rel",
+          "direction",
+          "name"
+        ],
+        "title": "Neighbour",
+        "type": "object"
+      },
       "NewKey": {
         "properties": {
           "id": {
@@ -699,6 +1940,71 @@
           "key"
         ],
         "title": "NewKey",
+        "type": "object"
+      },
+      "NodeDetail": {
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommitDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error_samples": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ErrorSample"
+            },
+            "title": "Error Samples",
+            "type": "array"
+          },
+          "function": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FunctionDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "neighbours": {
+            "items": {
+              "$ref": "#/components/schemas/Neighbour"
+            },
+            "title": "Neighbours",
+            "type": "array"
+          },
+          "neighbours_total": {
+            "title": "Neighbours Total",
+            "type": "integer"
+          },
+          "props": {
+            "additionalProperties": true,
+            "title": "Props",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "props",
+          "neighbours",
+          "neighbours_total"
+        ],
+        "title": "NodeDetail",
         "type": "object"
       },
       "RankResult": {
@@ -1229,6 +2535,196 @@
         "title": "RootCauseResult",
         "type": "object"
       },
+      "ServiceHealth": {
+        "properties": {
+          "baseline_error_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Error Rate"
+          },
+          "baseline_p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline P95 Ms"
+          },
+          "current_windows": {
+            "title": "Current Windows",
+            "type": "integer"
+          },
+          "env": {
+            "title": "Env",
+            "type": "string"
+          },
+          "error_rate": {
+            "title": "Error Rate",
+            "type": "number"
+          },
+          "open_incident_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Incident Id"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded",
+              "incident"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "window_seconds": {
+            "title": "Window Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repo",
+          "service",
+          "env",
+          "requests",
+          "error_rate",
+          "p95_ms",
+          "baseline_error_rate",
+          "baseline_p95_ms",
+          "status",
+          "open_incident_id",
+          "window_seconds",
+          "current_windows"
+        ],
+        "title": "ServiceHealth",
+        "type": "object"
+      },
+      "SimilarIncidentView": {
+        "properties": {
+          "basis": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Basis",
+            "type": "array"
+          },
+          "confirmed_root_cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed Root Cause"
+          },
+          "fix": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FixRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "similarity": {
+            "title": "Similarity",
+            "type": "number"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "incident_id",
+          "similarity",
+          "basis",
+          "status",
+          "fix",
+          "confirmed_root_cause"
+        ],
+        "title": "SimilarIncidentView",
+        "type": "object"
+      },
+      "SuspectSummary": {
+        "properties": {
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha",
+          "kind",
+          "message",
+          "confidence"
+        ],
+        "title": "SuspectSummary",
+        "type": "object"
+      },
       "TraceStep": {
         "properties": {
           "args": {
@@ -1344,6 +2840,53 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/eval/latest": {
+      "get": {
+        "description": "The latest evaluation result (docs/results/latest.json, written by `make eval`),\nunchanged: generated_at, weights_version, methods, splits {all, tune, test}, blast_radius,\nfix_verification_rate, memory, runtime_seconds, scenarios, failures.",
+        "operationId": "eval_latest_api_v1_eval_latest_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Latest"
+      }
+    },
     "/api/v1/events": {
       "post": {
         "description": "Batched event ingest (commit/deployment/build/telemetry/health/verification_result).\n\nItems are validated one by one: valid events are queued, invalid ones come back in\n`rejected` with their index. 413 above `ingest_max_batch` events (or `ingest_max_bytes`,\nenforced by middleware), 429 + Retry-After when the key's events/minute are used up,\n422 when no item is valid, 403 when an event names another repository.",
@@ -1405,6 +2948,7 @@
     },
     "/api/v1/incidents": {
       "get": {
+        "description": "Newest first. Filters combine with AND; `status`/`severity` repeat for several values\n(e.g. `?status=resolved&status=closed` is the archive); `since`/`until` bound the onset;\n`q` matches id, repo, service, env or endpoint (case-insensitive substring).",
         "operationId": "list_incidents_api_v1_incidents_get",
         "parameters": [
           {
@@ -1428,6 +2972,134 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/IncidentStatus"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "enum": [
+                      "sev1",
+                      "sev2",
+                      "sev3"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "service",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service"
+            }
+          },
+          {
+            "in": "query",
+            "name": "repo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           },
           {
@@ -1628,6 +3300,7 @@
     },
     "/api/v1/incidents/{incident_id}/evidence-graph": {
       "get": {
+        "description": "Evidence subgraph. `overlay=blast` adds what the culprit's changed functions can reach\n(callers, endpoints, services); `overlay=history` adds resembling incidents and their fixes.\nOverlay nodes/edges carry `overlay` and are not citable by explanations.",
         "operationId": "get_evidence_graph_api_v1_incidents__incident_id__evidence_graph_get",
         "parameters": [
           {
@@ -1653,6 +3326,26 @@
                 }
               ],
               "title": "Expand"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overlay",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "blast",
+                    "history"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Overlay"
             }
           },
           {
@@ -1810,6 +3503,139 @@
           }
         },
         "summary": "Incident Llm Cost"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/metrics": {
+      "get": {
+        "description": "1-minute request/error/p95 buckets for the incident's service/env/endpoint around the\nonset (2/3 of the window before it), plus the deployments to that env in the window.",
+        "operationId": "get_incident_metrics_api_v1_incidents__incident_id__metrics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "minutes",
+            "required": false,
+            "schema": {
+              "default": 120,
+              "maximum": 1440,
+              "minimum": 10,
+              "title": "Minutes",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentMetrics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Incident Metrics"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/nodes/{node_id}": {
+      "get": {
+        "description": "Node inspector: capped props and neighbours from the incident's repository graph; a\nCommit adds message/author and the changed functions with their line ranges, a Function its\nlocation and callers/callees, an Error its most recent samples from telemetry.",
+        "operationId": "get_incident_node_api_v1_incidents__incident_id__nodes__node_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Incident Node"
       }
     },
     "/api/v1/incidents/{incident_id}/rank": {
@@ -2071,6 +3897,118 @@
           }
         },
         "summary": "Set Incident Root Cause"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/similar": {
+      "get": {
+        "description": "Incidents this one `resembles` (weighted-Jaccard signature match), best first, with the\nfix that resolved each one and its confirmed root cause.",
+        "operationId": "get_similar_incidents_api_v1_incidents__incident_id__similar_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SimilarIncidentView"
+                  },
+                  "title": "Response Get Similar Incidents Api V1 Incidents  Incident Id  Similar Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Similar Incidents"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/stream": {
+      "get": {
+        "description": "Server-Sent Events: `event: status` with {status, updated_at, remediation_status,\ninvestigation_status} on connect and whenever one changes (polled every ~2 s); a heartbeat\ncomment every 15 s; the stream ends after 10 minutes or when the client goes away.",
+        "operationId": "stream_incident_status_api_v1_incidents__incident_id__stream_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Incident Status"
       }
     },
     "/api/v1/jobs/{job_id}": {
@@ -2910,6 +4848,232 @@
           }
         },
         "summary": "Connect Repo"
+      }
+    },
+    "/api/v1/repos/{owner}/{name}/deployments": {
+      "get": {
+        "description": "Deployments of the last `hours`, oldest first, with the incidents that followed each.",
+        "operationId": "repo_deployments_api_v1_repos__owner___name__deployments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hours",
+            "required": false,
+            "schema": {
+              "default": 72,
+              "maximum": 720,
+              "minimum": 1,
+              "title": "Hours",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeploymentView"
+                  },
+                  "title": "Response Repo Deployments Api V1 Repos  Owner   Name  Deployments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Repo Deployments"
+      }
+    },
+    "/api/v1/repos/{owner}/{name}/hotspots": {
+      "get": {
+        "description": "Functions and dependencies most often blamed: incidents whose likely (not rejected) or\nconfirmed cause modified the function / changed the dependency, plus top-ranked\ndependency-change suspects.",
+        "operationId": "repo_hotspots_api_v1_repos__owner___name__hotspots_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hotspots"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Repo Hotspots"
+      }
+    },
+    "/api/v1/services/health": {
+      "get": {
+        "description": "Per service+env: error rate and p95 of the latest complete detection windows against\nthe baseline before them; `incident` while an incident is active, `degraded` when the\ncurrent windows are anomalous but no incident is open yet. Without `repo`: every\nrepository the user can see.",
+        "operationId": "services_health_api_v1_services_health_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "repo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repo"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceHealth"
+                  },
+                  "title": "Response Services Health Api V1 Services Health Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Services Health"
       }
     },
     "/auth/callback": {
