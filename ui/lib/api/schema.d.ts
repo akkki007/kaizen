@@ -16,6 +16,11 @@ export interface paths {
         /**
          * Post Events
          * @description Batched event ingest (commit/deployment/build/telemetry/health/verification_result).
+         *
+         *     Items are validated one by one: valid events are queued, invalid ones come back in
+         *     `rejected` with their index. 413 above `ingest_max_batch` events (or `ingest_max_bytes`,
+         *     enforced by middleware), 429 + Retry-After when the key's events/minute are used up,
+         *     422 when no item is valid, 403 when an event names another repository.
          */
         post: operations["post_events_api_v1_events_post"];
         delete?: never;
@@ -61,6 +66,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/incidents/{incident_id}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Incident Action
+         * @description acknowledge (viewer+: records who is on it, no status change), close / reopen
+         *     (approver: lifecycle transition to closed / open). Illegal transitions are 409.
+         */
+        post: operations["incident_action_api_v1_incidents__incident_id__actions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/incidents/{incident_id}/evidence-graph": {
         parameters: {
             query?: never;
@@ -70,6 +96,26 @@ export interface paths {
         };
         /** Get Evidence Graph */
         get: operations["get_evidence_graph_api_v1_incidents__incident_id__evidence_graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/incidents/{incident_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Incident History
+         * @description Every status change, oldest first: who made it, why and when.
+         */
+        get: operations["incident_history_api_v1_incidents__incident_id__history_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -420,6 +466,11 @@ export interface components {
             accepted: number;
             /** Job Ids */
             job_ids: string[];
+            /**
+             * Rejected
+             * @default []
+             */
+            rejected: components["schemas"]["RejectedEvent"][];
         };
         /** BackfillJobInfo */
         BackfillJobInfo: {
@@ -567,6 +618,27 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** IncidentActionIn */
+        IncidentActionIn: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "acknowledge" | "close" | "reopen";
+            /** Reason */
+            reason?: string | null;
+        };
+        /** IncidentActionOut */
+        IncidentActionOut: {
+            /** Acknowledged By */
+            acknowledged_by: string | null;
+            /** Id */
+            id: string;
+            /** Severity */
+            severity: string | null;
+            /** Status */
+            status: string;
+        };
         /** IncidentDetail */
         IncidentDetail: {
             incident: components["schemas"]["IncidentSummary"];
@@ -612,6 +684,22 @@ export interface components {
             service: string;
             /** Status */
             status: string;
+        };
+        /** IncidentTransitionOut */
+        IncidentTransitionOut: {
+            /** Actor */
+            actor: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** From Status */
+            from_status: string | null;
+            /** Reason */
+            reason: string;
+            /** To Status */
+            to_status: string;
         };
         /** InvestigationView */
         InvestigationView: {
@@ -689,6 +777,13 @@ export interface components {
             score: number;
             /** Sha */
             sha: string;
+        };
+        /** RejectedEvent */
+        RejectedEvent: {
+            /** Error */
+            error: string;
+            /** Index */
+            index: number;
         };
         /** RemediationView */
         RemediationView: {
@@ -808,9 +903,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                }[];
+                "application/json": unknown[];
             };
         };
         responses: {
@@ -901,6 +994,46 @@ export interface operations {
             };
         };
     };
+    incident_action_api_v1_incidents__incident_id__actions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentActionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_evidence_graph_api_v1_incidents__incident_id__evidence_graph_get: {
         parameters: {
             query?: {
@@ -923,6 +1056,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvidenceGraph"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    incident_history_api_v1_incidents__incident_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentTransitionOut"][];
                 };
             };
             /** @description Validation Error */
