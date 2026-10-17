@@ -319,8 +319,9 @@ export function IncidentInvestigation({ incidentId, evidence }: { incidentId: st
         <IncidentRemediation
           incidentId={incidentId}
           remediation={detail.data.remediation}
-          canAct={role === "approver"}
+          canAct={role === "approver" || !!detail.data.incident.simulated}
           hasSuspect={graph.verdict === "confident" || graph.verdict === "ambiguous"}
+          simulated={!!detail.data.incident.simulated}
         />
       </Section>
     </>
