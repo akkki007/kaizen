@@ -21,7 +21,7 @@ jobs:
         image: redis:7
         ports: ["6379:6379"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - uses: astral-sh/setup-uv@v5
         with: { enable-cache: true }
@@ -37,13 +37,13 @@ jobs:
   restore-drill:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: ./scripts/test-restore.sh
 
   image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker build -t causaldeploy-core:ci core
       - run: docker build -t causaldeploy-ui:ci ui
       # container scans: report fixable HIGH/CRITICAL OS or library vulnerabilities. Report-only
@@ -64,7 +64,7 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       # secrets anywhere in history (keys, tokens, the GitHub App PEM)
       - name: Secret scan (gitleaks)
@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: ui } }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm install
