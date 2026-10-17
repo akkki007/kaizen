@@ -11,6 +11,7 @@ from causaldeploy.contracts import (
 )
 from causaldeploy.detect.errors import (
     derive_service_calls,
+    event_fingerprint,
     link_error,
     request_spans,
     store_telemetry,
@@ -24,6 +25,7 @@ from causaldeploy.jobs.queue import (
     InvestigatePayload,
     MergedPayload,
     ProposeFixPayload,
+    TelemetryBatchPayload,
     VerifyResultPayload,
 )
 
@@ -37,19 +39,49 @@ async def ingest_event(payload: dict[str, Any]) -> None:
         return  # queued before the allowlist existed
     store = GraphStore(event.repo)
     if isinstance(event, TelemetryEvent | HealthEvent):
-        fp = await store_telemetry(event)  # Postgres first: detection reads from there
-        rid = getattr(event, "request_id", None)
-        if rid and getattr(event, "kind", None) == "request":
-            spans = await request_spans(event.repo, rid)
-            if len({svc for svc, _ in spans}) > 1:
-                await asyncio.to_thread(derive_service_calls, store, spans)
-        if fp and isinstance(event, TelemetryEvent):
-            await asyncio.to_thread(link_error, store, event, fp)
+        # Postgres first: detection reads from there. Idempotent, so a retry after a graph
+        # failure below does not store the event twice.
+        fp = await store_telemetry(event)
+        await _telemetry_graph_work(store, event, fp)
         return
     if isinstance(event, VerificationResultEvent):
         await _verification_event(event)
         return
     await asyncio.to_thread(apply_event, store, event)
+
+
+async def ingest_telemetry_batch(payload: dict[str, Any]) -> None:
+    """Graph work for one ingest batch whose telemetry rows the API already stored: link
+    errors to the functions that threw them and derive cross-service calls from request ids.
+    One job per batch instead of one per event (#92 throughput budget)."""
+    p = TelemetryBatchPayload.model_validate(payload)
+    if not get_settings().is_allowed(p.repo):
+        return
+    store = GraphStore(p.repo)
+    for raw in p.events:
+        event = parse_event(raw)
+        if isinstance(event, TelemetryEvent | HealthEvent) and event.repo == p.repo:
+            fp = event_fingerprint(event) if isinstance(event, TelemetryEvent) else None
+            await _telemetry_graph_work(store, event, fp)
+
+
+def needs_graph_work(event: TelemetryEvent | HealthEvent) -> bool:
+    """Only errors (thrown_in links) and requests carrying a request id (service calls)."""
+    if not isinstance(event, TelemetryEvent):
+        return False
+    return event.kind == "error" or (event.kind == "request" and bool(event.request_id))
+
+
+async def _telemetry_graph_work(
+    store: GraphStore, event: TelemetryEvent | HealthEvent, fp: str | None
+) -> None:
+    rid = getattr(event, "request_id", None)
+    if rid and getattr(event, "kind", None) == "request":
+        spans = await request_spans(event.repo, rid)
+        if len({svc for svc, _ in spans}) > 1:
+            await asyncio.to_thread(derive_service_calls, store, spans)
+    if fp and isinstance(event, TelemetryEvent):
+        await asyncio.to_thread(link_error, store, event, fp)
 
 
 async def _verification_event(event: VerificationResultEvent) -> None:
@@ -155,6 +187,7 @@ HANDLERS: dict[str, Handler] = {
     "verify_result": verify_result,
     "remediation_merged": remediation_merged,
     "ingest_event": ingest_event,
+    "ingest_telemetry_batch": ingest_telemetry_batch,
     "backfill_repo": backfill_repo,
     "investigate_incident": investigate_incident,
 }

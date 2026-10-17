@@ -111,11 +111,6 @@ async def test_falkordb_unavailable_job_is_retried_without_duplicate_graph_effec
     assert store.read("MATCH (:Commit)-[r:authored_by]->() RETURN count(r)") == [[1]]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="known gap (docs/performance.md): an error telemetry row is written to Postgres "
-    "before the FalkorDB link; a graph outage retries the job and stores the row again",
-)
 async def test_falkordb_outage_does_not_duplicate_error_telemetry(
     db: None, store: GraphStore, falkordb_down_once: list[int]
 ) -> None:

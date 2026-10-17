@@ -16,6 +16,7 @@ from causaldeploy.observability import inject_trace
 
 JobKind = Literal[
     "ingest_event",
+    "ingest_telemetry_batch",
     "backfill_repo",
     "investigate_incident",
     "propose_fix",
@@ -28,6 +29,13 @@ MAX_ATTEMPTS = 5
 
 class IngestEventPayload(BaseModel):
     event: dict[str, object]
+
+
+class TelemetryBatchPayload(BaseModel):
+    """Graph work for telemetry the API already stored (errors, cross-service requests)."""
+
+    repo: str
+    events: list[dict[str, object]]
 
 
 class BackfillPayload(BaseModel):
@@ -73,6 +81,7 @@ PAYLOADS: dict[str, type[BaseModel]] = {
     "remediation_merged": MergedPayload,
     "investigate_incident": InvestigatePayload,
     "ingest_event": IngestEventPayload,
+    "ingest_telemetry_batch": TelemetryBatchPayload,
     "backfill_repo": BackfillPayload,
 }
 

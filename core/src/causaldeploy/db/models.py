@@ -3,7 +3,18 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -57,9 +68,26 @@ class RawEvent(Base):
 
 class Telemetry(Base):
     __tablename__ = "telemetry"
-    __table_args__ = (Index("ix_telemetry_window", "repo", "service", "ts"),)
+    __table_args__ = (
+        Index("ix_telemetry_window", "repo", "service", "ts"),
+        # one row per event even when an ingest job is retried (ON CONFLICT DO NOTHING)
+        Index(
+            "ux_telemetry_event_key",
+            "event_key",
+            unique=True,
+            postgresql_where=text("event_key IS NOT NULL"),
+        ),
+        # request_spans(): cross-service call derivation looks rows up by request id
+        Index(
+            "ix_telemetry_request_id",
+            "repo",
+            text("(body->>'request_id')"),
+            postgresql_where=text("kind = 'request'"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    event_key: Mapped[str | None] = mapped_column(String(64))  # sha256 of the event
     repo: Mapped[str] = mapped_column(String(255))
     service: Mapped[str] = mapped_column(String(128))
     env: Mapped[str] = mapped_column(String(64))

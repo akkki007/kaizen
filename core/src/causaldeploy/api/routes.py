@@ -28,7 +28,7 @@ from causaldeploy.api.incident_views import (
     status_snapshot,
 )
 from causaldeploy.config import get_settings
-from causaldeploy.contracts import Event
+from causaldeploy.contracts import Event, HealthEvent, TelemetryEvent
 from causaldeploy.contracts.domain import IncidentStatus
 from causaldeploy.db.models import (
     ApiKey,
@@ -42,18 +42,21 @@ from causaldeploy.db.models import (
     Repository,
 )
 from causaldeploy.db.session import session_scope
+from causaldeploy.detect.errors import event_key, store_telemetry_many
 from causaldeploy.github.installations import INSTALL_EVENTS, record_installation
 from causaldeploy.github.webhooks import normalize, verify_signature
 from causaldeploy.graph.evidence import EvidenceGraph, evidence_graph
 from causaldeploy.graph.store import GraphStore
 from causaldeploy.investigate.scorer import Method, RankResult, persist, rank
 from causaldeploy.jobs import queue as jobs_queue
+from causaldeploy.jobs.handlers import needs_graph_work
 from causaldeploy.jobs.queue import (
     BackfillPayload,
     GuardPayload,
     IngestEventPayload,
     MergedPayload,
     ProposeFixPayload,
+    TelemetryBatchPayload,
     VerifyResultPayload,
     enqueue,
 )
@@ -112,7 +115,9 @@ class RejectedEvent(BaseModel):
 
 class AcceptedEvents(BaseModel):
     accepted: int
-    job_ids: list[str]  # one per accepted event, in order
+    # background jobs created: one per non-telemetry event, plus one per batch for telemetry
+    # graph work (telemetry rows themselves are stored before the response)
+    job_ids: list[str]
     rejected: list[RejectedEvent] = []
 
 
@@ -151,12 +156,21 @@ async def post_events(body: list[Any], caller: IngestCaller = CallerDep) -> Any:
         return envelope(422, "no valid events in the batch", [r.model_dump() for r in rejected])
     if any(ev.repo != caller.repo for ev in events):
         raise HTTPException(403, "API key is not scoped to this repository")
+    for ev in events:
+        EVENTS_INGESTED.labels(ev.type).inc()
+    # Telemetry fast path (#92 throughput): the batch is stored with one idempotent INSERT and
+    # its graph work becomes ONE job; other event types stay one job per event.
+    telemetry = [ev for ev in events if isinstance(ev, TelemetryEvent | HealthEvent)]
+    others = [ev for ev in events if not isinstance(ev, TelemetryEvent | HealthEvent)]
+    allowed = settings.is_allowed(caller.repo)
+    if telemetry and allowed:
+        await store_telemetry_many(telemetry)
+    graph_work = [ev for ev in telemetry if needs_graph_work(ev)] if allowed else []
     gate = asyncio.Semaphore(_ENQUEUE_CONCURRENCY)
     # one Redis connection for the whole batch
-    pool = await jobs_queue.get_pool() if events else None
+    pool = await jobs_queue.get_pool() if others or graph_work else None
 
     async def one(ev: Event) -> str:
-        EVENTS_INGESTED.labels(ev.type).inc()
         digest = hashlib.sha256(ev.model_dump_json().encode()).hexdigest()
         async with gate:
             job_id, _ = await enqueue(
@@ -167,8 +181,22 @@ async def post_events(body: list[Any], caller: IngestCaller = CallerDep) -> Any:
             )
         return job_id
 
+    async def batch() -> str:
+        keys = "".join(event_key(ev) for ev in graph_work)
+        job_id, _ = await enqueue(
+            "ingest_telemetry_batch",
+            TelemetryBatchPayload(
+                repo=caller.repo, events=[ev.model_dump(mode="json") for ev in graph_work]
+            ),
+            f"telemetry-batch:{hashlib.sha256(keys.encode()).hexdigest()}",
+            pool=pool,
+        )
+        return job_id
+
     try:
-        ids = list(await asyncio.gather(*(one(ev) for ev in events)))
+        ids = list(await asyncio.gather(*(one(ev) for ev in others)))
+        if graph_work:
+            ids.append(await batch())
     finally:
         if pool is not None:
             await pool.aclose()

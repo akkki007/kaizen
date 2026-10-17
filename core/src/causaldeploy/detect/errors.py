@@ -1,10 +1,12 @@
 """Persist telemetry and link error signatures to code in the graph (thrown_in / observed_on)."""
 
+import hashlib
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import insert
+from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import insert
 
 from causaldeploy.contracts import HealthEvent, TelemetryEvent
 from causaldeploy.db.models import Telemetry
@@ -21,10 +23,16 @@ def event_fingerprint(e: TelemetryEvent) -> str | None:
     return fingerprint(e.error_type, list(e.stack), e.message)
 
 
+def event_key(event: TelemetryEvent | HealthEvent) -> str:
+    """Stable identity of one event: the same digest the ingest API uses as the job key."""
+    return hashlib.sha256(event.model_dump_json().encode()).hexdigest()
+
+
 def telemetry_row(event: TelemetryEvent | HealthEvent) -> dict[str, Any]:
     """The `telemetry` row for one event (fingerprint included for errors)."""
     if isinstance(event, HealthEvent):
         return {
+            "event_key": event_key(event),
             "repo": event.repo,
             "service": event.service,
             "env": event.env,
@@ -38,6 +46,7 @@ def telemetry_row(event: TelemetryEvent | HealthEvent) -> dict[str, Any]:
             "body": {"ok": event.ok},
         }
     return {
+        "event_key": event_key(event),
         "repo": event.repo,
         "service": event.service,
         "env": event.env,
@@ -56,11 +65,20 @@ def telemetry_row(event: TelemetryEvent | HealthEvent) -> dict[str, Any]:
 
 async def store_telemetry_many(events: Sequence[TelemetryEvent | HealthEvent]) -> list[str | None]:
     """Bulk insert: one multi-row INSERT per call (Postgres is the source for detection
-    windows). Returns each event's error fingerprint (None for non-errors), in order."""
+    windows). Idempotent: an event already stored (retried job, re-sent batch) is skipped, so
+    retries never inflate error rates. Returns each event's error fingerprint (None for
+    non-errors), in order."""
     rows = [telemetry_row(e) for e in events]
     if rows:
+        stmt = (
+            insert(Telemetry)
+            .values(rows)
+            .on_conflict_do_nothing(
+                index_elements=["event_key"], index_where=text("event_key IS NOT NULL")
+            )
+        )
         async with session_scope() as s:
-            await s.execute(insert(Telemetry), rows)
+            await s.execute(stmt)
     return [r["fingerprint"] for r in rows]
 
 
