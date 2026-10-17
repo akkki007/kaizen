@@ -122,12 +122,12 @@ export function IncidentRemediation({ incidentId, remediation, canAct, hasSuspec
           of <code className="font-mono text-ink-2">{r.sha?.slice(0, 7)}</code> on <code className="font-mono text-ink-2">{r.branch}</code>
         </span>
         {r.pr_url && (
-          <a href={r.pr_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-link hover:underline">
+          <a href={r.pr_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-link underline underline-offset-2">
             pull request
           </a>
         )}
         {v?.run_url && (
-          <a href={v.run_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-link hover:underline">
+          <a href={v.run_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-link underline underline-offset-2">
             Actions run <ArrowUpRight size={12} />
           </a>
         )}
@@ -217,7 +217,7 @@ export function IncidentRemediation({ incidentId, remediation, canAct, hasSuspec
                 {p.fix_pr_url && (
                   <>
                     {" · "}
-                    <a href={p.fix_pr_url} target="_blank" rel="noreferrer" className="text-link hover:underline">
+                    <a href={p.fix_pr_url} target="_blank" rel="noreferrer" className="text-link underline underline-offset-2">
                       PR
                     </a>
                   </>

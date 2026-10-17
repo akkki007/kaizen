@@ -2,14 +2,13 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers";
 
-// axe-core scan (WCAG 2.x A/AA). Serious and critical violations fail on the pages this suite
-// owns; the incident page is owned elsewhere, so its violations are reported as annotations.
+// axe-core scan (WCAG 2.x A/AA). Serious and critical violations fail the test on every page.
 const PAGES = [
   { path: "/overview", ready: "Service health", enforce: true },
   { path: "/incidents", ready: "Search incidents", enforce: true },
   { path: "/evaluation", ready: "Results by split", enforce: true },
   { path: "/hotspots", ready: "Functions", enforce: true },
-  { path: "/incidents/inc-2", ready: null, enforce: false },
+  { path: "/incidents/inc-2", ready: null, enforce: true },
 ] as const;
 
 for (const p of PAGES) {
