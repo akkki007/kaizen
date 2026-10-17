@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-16T19:25:50+00:00",
+  "generated_at": "2026-10-17T14:14:11+00:00",
   "weights_version": "v1",
   "methods": [
     "graph",
@@ -18,7 +18,7 @@
         "top3": 1.0,
         "function_level": 0.8929,
         "false_attribution": 0.0,
-        "median_ms": 58.0,
+        "median_ms": 43.9,
         "top1_ci": [
           0.75,
           1.0
@@ -31,7 +31,7 @@
         "top3": 1.0,
         "function_level": 0.8929,
         "false_attribution": 0.1071,
-        "median_ms": 58.4,
+        "median_ms": 41.8,
         "top1_ci": [
           0.3929,
           0.75
@@ -44,7 +44,7 @@
         "top3": 1.0,
         "function_level": 0.8929,
         "false_attribution": 0.0,
-        "median_ms": 66.1,
+        "median_ms": 42.6,
         "top1_ci": [
           0.75,
           1.0
@@ -57,7 +57,7 @@
         "top3": 1.0,
         "function_level": 0.8929,
         "false_attribution": 0.0,
-        "median_ms": 63.2,
+        "median_ms": 41.4,
         "top1_ci": [
           0.75,
           1.0
@@ -70,7 +70,7 @@
         "top3": 0.7857,
         "function_level": 0.1071,
         "false_attribution": 0.6071,
-        "median_ms": 13.7,
+        "median_ms": 7.9,
         "top1_ci": [
           0.2143,
           0.5714
@@ -83,7 +83,7 @@
         "top3": 0.5357,
         "function_level": 0.0,
         "false_attribution": 0.6786,
-        "median_ms": 4.0,
+        "median_ms": 2.4,
         "top1_ci": [
           0.1429,
           0.5
@@ -98,7 +98,7 @@
         "top3": 1.0,
         "function_level": 1.0,
         "false_attribution": 0.0,
-        "median_ms": 55.0,
+        "median_ms": 43.7,
         "top1_ci": [
           1.0,
           1.0
@@ -111,7 +111,7 @@
         "top3": 1.0,
         "function_level": 1.0,
         "false_attribution": 0.0,
-        "median_ms": 53.5,
+        "median_ms": 44.0,
         "top1_ci": [
           0.7,
           1.0
@@ -124,7 +124,7 @@
         "top3": 1.0,
         "function_level": 1.0,
         "false_attribution": 0.0,
-        "median_ms": 61.0,
+        "median_ms": 45.7,
         "top1_ci": [
           1.0,
           1.0
@@ -137,7 +137,7 @@
         "top3": 1.0,
         "function_level": 1.0,
         "false_attribution": 0.0,
-        "median_ms": 65.8,
+        "median_ms": 41.9,
         "top1_ci": [
           1.0,
           1.0
@@ -150,7 +150,7 @@
         "top3": 0.8,
         "function_level": 0.0,
         "false_attribution": 0.7,
-        "median_ms": 15.4,
+        "median_ms": 8.2,
         "top1_ci": [
           0.0,
           0.6
@@ -163,7 +163,7 @@
         "top3": 0.7,
         "function_level": 0.0,
         "false_attribution": 0.6,
-        "median_ms": 4.4,
+        "median_ms": 2.4,
         "top1_ci": [
           0.1,
           0.7
@@ -178,7 +178,7 @@
         "top3": 1.0,
         "function_level": 0.8333,
         "false_attribution": 0.0,
-        "median_ms": 62.2,
+        "median_ms": 43.9,
         "top1_ci": [
           0.6111,
           1.0
@@ -191,7 +191,7 @@
         "top3": 1.0,
         "function_level": 0.8333,
         "false_attribution": 0.1667,
-        "median_ms": 60.2,
+        "median_ms": 41.8,
         "top1_ci": [
           0.1667,
           0.6111
@@ -204,7 +204,7 @@
         "top3": 1.0,
         "function_level": 0.8333,
         "false_attribution": 0.0,
-        "median_ms": 66.3,
+        "median_ms": 42.4,
         "top1_ci": [
           0.6111,
           1.0
@@ -217,7 +217,7 @@
         "top3": 1.0,
         "function_level": 0.8333,
         "false_attribution": 0.0,
-        "median_ms": 58.2,
+        "median_ms": 41.1,
         "top1_ci": [
           0.6111,
           1.0
@@ -230,7 +230,7 @@
         "top3": 0.7778,
         "function_level": 0.1667,
         "false_attribution": 0.5556,
-        "median_ms": 13.0,
+        "median_ms": 7.8,
         "top1_ci": [
           0.2222,
           0.6667
@@ -243,7 +243,7 @@
         "top3": 0.4444,
         "function_level": 0.0,
         "false_attribution": 0.7222,
-        "median_ms": 3.6,
+        "median_ms": 2.3,
         "top1_ci": [
           0.1111,
           0.5
@@ -274,7 +274,7 @@
       "confidence_with": 0.7718
     }
   ],
-  "runtime_seconds": 3.0,
+  "runtime_seconds": 8.2,
   "scenarios": [
     {
       "id": "S1",
