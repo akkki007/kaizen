@@ -1641,6 +1641,8 @@ export interface components {
             rejected_by?: string | null;
             /** Sha */
             sha: string | null;
+            /** Simulated */
+            simulated?: boolean | null;
             /** Status */
             status: string;
             /** Verification */

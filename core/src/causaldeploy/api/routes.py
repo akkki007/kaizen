@@ -369,6 +369,7 @@ class RemediationView(BaseModel):
     check_status: str | None = None  # conclusion of the GitHub check run Kaizen posted
     merge: dict[str, Any] | None = None  # "app" merge policy outcome
     prior_fixes: list[dict[str, Any]] = []  # similar resolved incidents and their fixes
+    simulated: bool | None = None  # demo fix: no pull request is opened, nothing is merged
 
 
 class IncidentDetail(BaseModel):
@@ -452,6 +453,7 @@ async def get_incident_detail(incident_id: str, user: CurrentUser) -> IncidentDe
             check_status=((r.get("verification") or {}).get("check") or {}).get("conclusion"),
             merge=r.get("merge"),
             prior_fixes=list(r.get("prior_fixes") or []),
+            simulated=True if r.get("simulated") else None,
         )
     return IncidentDetail(
         incident=summary,
@@ -471,6 +473,23 @@ async def get_incident_detail(incident_id: str, user: CurrentUser) -> IncidentDe
 async def propose_remediation(incident_id: str, user: CurrentUser) -> dict[str, str]:
     """Approver-only: open a revert PR for the top-ranked commit and start verification."""
     row = await _incident_for(user, incident_id)
+    from causaldeploy.demo import remediate as demo_fix
+
+    if await demo_fix.is_simulated(incident_id) and get_settings().is_demo_repo(row.repo):
+        # demo incident: the same flow without touching GitHub, open to the viewer-only demo user
+        require_role(user, row.repo, "viewer")
+        async with session_scope() as s:
+            s.add(
+                AuditLog(
+                    actor=user.login,
+                    action="remediation.propose_simulated",
+                    target=incident_id,
+                    detail={"repo": row.repo},
+                )
+            )
+        if await demo_fix.propose(row.repo, incident_id) is None:
+            raise HTTPException(409, "no suspect to revert for this incident")
+        return {"job_id": "", "status": "simulated"}
     require_role(user, row.repo, "approver")
     async with session_scope() as s:
         live = (
@@ -669,7 +688,10 @@ async def approve_remediation(remediation_id: str, user: CurrentUser) -> dict[st
             ).scalar_one_or_none()
         if run is None or inc is None or inc.repo not in user.repos:
             raise HTTPException(404, "remediation not found")
-        require_role(user, inc.repo, "approver")
+        simulated = bool((run.result or {}).get("simulated")) and get_settings().is_demo_repo(
+            inc.repo
+        )
+        require_role(user, inc.repo, "viewer" if simulated else "approver")
         if run.status != "verified":
             raise HTTPException(
                 409, f"remediation is {run.status}; only verified fixes can be approved"
@@ -689,6 +711,12 @@ async def approve_remediation(remediation_id: str, user: CurrentUser) -> dict[st
         "approved_by": user.login,
         "merge": "manual",
     }
+    if simulated:
+        from causaldeploy.demo import remediate as demo_fix
+
+        await demo_fix.complete(inc.repo, remediation_id, f"{user.login} (simulated merge)")
+        out["merge"] = "simulated"
+        return out
     if get_settings().remediation_merge_policy == "app":
         merged = await remediation.merge_approved(remediation_id)
         out["merge"] = str(merged["status"])  # requested | failed
@@ -727,10 +755,14 @@ async def reject_remediation(
 ) -> RejectResult:
     """Approver-only: reject a fix. Closes its PR, marks the Fix not accepted, and moves the
     incident back (REMEDIATING -> IDENTIFIED/EXPLAINED, VERIFYING -> NEEDS_HUMAN)."""
+    from causaldeploy.demo import remediate as demo_fix
     from causaldeploy.remediate import service as remediation
 
     repo, incident_id = await _remediation_for(user, remediation_id)
-    require_role(user, repo, "approver")
+    sim = await demo_fix.simulated_run(remediation_id) is not None and get_settings().is_demo_repo(
+        repo
+    )
+    require_role(user, repo, "viewer" if sim else "approver")
     try:
         run = await remediation.reject_remediation(remediation_id, user.login, body.reason)
     except remediation.RemediationStateError as e:

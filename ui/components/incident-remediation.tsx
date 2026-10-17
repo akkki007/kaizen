@@ -62,6 +62,13 @@ function MergeOutcome({ rem, approvedMerge }: { rem: Remediation; approvedMerge:
   const merge = rem.merge as { policy?: string; status?: string; error?: string } | null | undefined;
   const policy = merge?.policy ?? (approvedMerge && approvedMerge !== "manual" ? "app" : approvedMerge ? "manual" : null);
   if (!rem.approved_by && rem.status !== "merged") return null;
+  if (rem.simulated) {
+    return (
+      <p className="text-[13px] text-ink-2" data-testid="merge-outcome">
+        Demo mode: the merge is simulated. The incident is resolved and the fix is written to Kaizen&apos;s memory; nothing changed on GitHub.
+      </p>
+    );
+  }
   const status = rem.status === "merged" ? "merged" : (merge?.status ?? approvedMerge);
   return (
     <p className="text-[13px] text-ink-2" data-testid="merge-outcome">
@@ -76,7 +83,7 @@ function MergeOutcome({ rem, approvedMerge }: { rem: Remediation; approvedMerge:
   );
 }
 
-export function IncidentRemediation({ incidentId, remediation, canAct, hasSuspect }: { incidentId: string; remediation: Remediation | null; canAct: boolean; hasSuspect: boolean }) {
+export function IncidentRemediation({ incidentId, remediation, canAct, hasSuspect, simulated = false }: { incidentId: string; remediation: Remediation | null; canAct: boolean; hasSuspect: boolean; simulated?: boolean }) {
   const propose = useProposeFix(incidentId);
   const approve = useApproveRemediation(incidentId);
   const reject = useRejectRemediation(incidentId);
@@ -86,9 +93,10 @@ export function IncidentRemediation({ incidentId, remediation, canAct, hasSuspec
     return (
       <div className="flex flex-col items-start gap-3">
         <p className="text-[13px] text-ink-3">No fix has been proposed for this incident yet.</p>
+        {simulated && <p className="text-[12.5px] text-ink-3" data-testid="demo-fix-note">Demo incident: Kaizen runs the real fix flow (revert, staging check, your approval) but opens no pull request and merges nothing on GitHub.</p>}
         {canAct && hasSuspect && (
           <Button variant="primary" disabled={propose.isPending} onClick={() => (haptic("confirm"), propose.mutate())}>
-            {propose.isPending ? "Requesting…" : "Open revert PR for the top suspect"}
+            {propose.isPending ? "Requesting…" : simulated ? "Propose the revert (demo)" : "Open revert PR for the top suspect"}
           </Button>
         )}
         {propose.isSuccess && <p className="text-[13px] text-ink-3">Requested. The pull request will appear here shortly.</p>}
@@ -111,6 +119,7 @@ export function IncidentRemediation({ incidentId, remediation, canAct, hasSuspec
         {good ? <Check size={14} aria-hidden /> : bad ? <X size={14} aria-hidden /> : null}
         {REMEDIATION_COPY[r.status] ?? r.status}
       </p>
+      {r.simulated && <p className="text-[12.5px] text-amber" data-testid="demo-fix-note">Simulated: no pull request was opened and nothing is merged on GitHub. The revert diff below is the real commit, inverted; the staging result is synthetic.</p>}
       <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-ink-3">
         <Tag tone={r.kind === "revert" ? "neutral" : "accent"}>{r.kind === "revert" ? "Revert" : "Patch"}</Tag>
         {r.labels.map((l) => (

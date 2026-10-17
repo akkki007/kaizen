@@ -63,7 +63,9 @@ export function useIncidentDetail(incidentId: string) {
     enabled: incidentId !== "", // "" would request /incidents/ (the list) and return the wrong shape
     queryFn: async () =>
       unwrap(await api.GET("/api/v1/incidents/{incident_id}", { params: { path: { incident_id: incidentId } } })),
-    refetchInterval: (q) => (q.state.data?.investigation.status === "not_run" ? 4_000 : false),
+    // keep polling while the investigation or a fix is still running
+    refetchInterval: (q) =>
+      q.state.data?.investigation.status === "not_run" || ["proposing", "verifying"].includes(q.state.data?.remediation?.status ?? "") ? 2_500 : false,
     retry: (count, err) => !(err instanceof ApiError && err.status === 404) && count < 2,
   });
 }

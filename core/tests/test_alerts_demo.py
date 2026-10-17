@@ -157,3 +157,63 @@ async def test_injected_incident_is_labelled_simulated_in_the_api(
             assert detail["incident"]["simulated"] is True
     finally:
         get_settings.cache_clear()
+
+
+async def test_demo_user_runs_the_whole_fix_flow_without_touching_github(
+    db: None, builder: GraphBuilder, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import asyncio
+
+    from causaldeploy.demo import remediate as demo_fix
+    from tests.test_api import create_app
+
+    builder.s1_payment_validation()
+    store, repo = builder.store, builder.store.repo
+    store.graph.query("MATCH (n) WHERE n:Incident OR n:Error DETACH DELETE n")
+    for k, v in {
+        "CD_DEMO_INJECT_ENABLED": "1",
+        "CD_DEMO_LOGIN_ENABLED": "1",
+        "CD_DEMO_REPOS": repo,
+    }.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(demo_fix, "VERIFY_DELAY_S", 0.05)
+    get_settings.cache_clear()
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=create_app()), base_url="http://t"
+        ) as c:
+            await c.post("/auth/demo")  # viewer-only demo session
+            h = {"x-csrf-token": c.cookies.get("cd_csrf")}
+            inc = (await c.post(f"/api/v1/repos/{repo}/demo/inject", headers=h)).json()[
+                "incident_id"
+            ]
+            await investigate(repo, inc)
+
+            r = await c.post(f"/api/v1/incidents/{inc}/remediations", headers=h)
+            assert r.status_code == 202 and r.json()["status"] == "simulated"
+            for _ in range(60):  # verification finishes in the background
+                rem = (await c.get(f"/api/v1/incidents/{inc}")).json()["remediation"]
+                if rem["status"] == "verified":
+                    break
+                await asyncio.sleep(0.1)
+            assert rem["status"] == "verified" and rem["simulated"] is True
+            assert rem["pr_url"] is None and rem["verification"]["verdict"]["passed"] is True
+
+            ok = await c.post(f"/api/v1/remediations/{rem['id']}/approve", headers=h)
+            assert ok.status_code == 200 and ok.json()["merge"] == "simulated"
+            detail = (await c.get(f"/api/v1/incidents/{inc}")).json()
+            assert detail["incident"]["status"] == "resolved"
+            assert detail["remediation"]["status"] == "merged"
+            # the graph is green again: nothing failing, nothing suspected
+            g = (await c.get(f"/api/v1/repos/{repo}/code-graph")).json()
+            assert [n["label"] for n in g["nodes"] if n["state"] != "ok"] == []
+    finally:
+        get_settings.cache_clear()
+
+
+def test_invert_patch_swaps_added_and_removed_lines() -> None:
+    from causaldeploy.demo.remediate import invert_patch
+
+    out = invert_patch("a.js", "@@ -1,2 +1,2 @@ f\n keep\n-old\n+new")
+    assert "@@ -1,2 +1,2 @@ f" in out and "-new" in out.splitlines() and "+old" in out.splitlines()
+    assert invert_patch("a.js", "@@ -5,0 +6,1 @@\n+x").splitlines()[3] == "@@ -6,1 +5,0 @@"
