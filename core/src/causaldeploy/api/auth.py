@@ -260,5 +260,30 @@ async def me(user: CurrentUser) -> User:
 @router.get("/install-url")
 async def install_url() -> dict[str, str | None]:
     """Where to install the GitHub App (shown on the login and repositories pages)."""
-    slug = get_settings().github_app_slug.strip()
-    return {"url": f"https://github.com/apps/{slug}/installations/new" if slug else None}
+    s = get_settings()
+    slug = s.github_app_slug.strip()
+    return {
+        "url": f"https://github.com/apps/{slug}/installations/new" if slug else None,
+        "demo": "true" if s.demo_login_enabled and s.demo_repos.strip() else None,
+        "demo_repo": s.demo_repos.split(",")[0].strip() if s.demo_login_enabled else None,
+    }
+
+
+DEMO_LOGIN = "demo"
+
+
+@router.post("/demo")
+async def demo_login(response: Response) -> dict[str, Any]:
+    """ "Try the demo": a viewer session on the demo repositories, no GitHub account needed.
+
+    Viewers cannot propose or approve fixes (so nothing touches the real repository); the demo
+    endpoints let this user inject a simulated problem and reset it.
+    """
+    s = get_settings()
+    repos = [r.strip() for r in s.demo_repos.split(",") if r.strip()]
+    if not s.demo_login_enabled or not repos:
+        raise HTTPException(404, "the demo is not enabled")
+    user = User(login=DEMO_LOGIN, repos=dict.fromkeys(repos, "viewer"))
+    response.set_cookie(SESSION_COOKIE, make_session(user, s), **_cookie_args(s))
+    response.set_cookie(CSRF_COOKIE, secrets.token_urlsafe(24), **_cookie_args(s, http_only=False))
+    return {"login": user.login, "repos": user.repos}

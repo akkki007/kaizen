@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useLayoutEffect, useState } from "react";
 import { Logo } from "@/components/landing/logo";
-import { MOCK } from "@/lib/api/client";
+import { MOCK, api } from "@/lib/api/client";
 import { useInstallUrl } from "@/lib/api/hooks";
 import { EASE, gsap, haptic } from "@/lib/motion";
 
@@ -74,6 +74,14 @@ function LoginInner() {
     window.location.assign(`/auth/login?${qs.toString()}`);
   }
 
+  async function tryDemo() {
+    setLeaving(true);
+    const r = await api.POST("/auth/demo").catch(() => null);
+    if (!r?.response.ok) return void setLeaving(false);
+    const repo = install.data?.demo_repo;
+    window.location.assign(repo ? `/graph?repo=${encodeURIComponent(repo)}` : "/overview");
+  }
+
   return (
     <main className="flex min-h-dvh flex-col bg-panel">
       <header className="flex items-center justify-between px-4 py-4 sm:px-8">
@@ -137,6 +145,18 @@ function LoginInner() {
             {leaving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <GitHubMark />}
             {noRepos ? "I installed it — try again" : "Sign in with GitHub"}
           </button>
+
+          {install.data?.demo && (
+            <button
+              data-in
+              type="button"
+              onClick={tryDemo}
+              disabled={leaving}
+              className="mt-3 inline-flex h-9 w-full items-center justify-center rounded-md border border-line bg-panel-2 text-[13px] font-medium hover:bg-raised disabled:cursor-wait"
+            >
+              Try the demo (no GitHub needed)
+            </button>
+          )}
 
           <p data-in className="mt-4 text-[12px] leading-[1.5] text-ink-4">
             Kaizen reads commit history and deployments. Fixes are only merged after an approver signs off.

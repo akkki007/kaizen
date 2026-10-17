@@ -15,8 +15,13 @@ async def _incident(inc_id: str = "inc-lc1") -> str:
         await s.flush()
         s.add(
             IncidentRow(
-                id=inc_id, repo="o/r", service="payments", env="prod", status="open",
-                onset_ts=now, detected_at=now,
+                id=inc_id,
+                repo="o/r",
+                service="payments",
+                env="prod",
+                status="open",
+                onset_ts=now,
+                detected_at=now,
             )
         )
         await s.flush()

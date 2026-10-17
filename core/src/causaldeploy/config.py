@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     otlp_endpoint: str = ""  # e.g. http://otel-collector:4318; tracing exports only when set
 
     openai_api_key: SecretStr = SecretStr("")
+    # Alerts: where Kaizen tells the team the answer (Slack incoming webhook; GitHub issue opt-in)
+    slack_webhook_url: SecretStr = SecretStr("")
+    alert_github_issues: bool = False
+    # Demo: lets approvers of these repositories inject a simulated bad deploy from the UI
+    demo_inject_enabled: bool = False
+    demo_login_enabled: bool = False  # "Try the demo": read-only session on the demo repositories
+    demo_repos: str = "yashchandnani07/shoplite"
     openai_model: str = ""  # configuration, intentionally not hard-coded
 
     # LLM harness (#90): transport, budgets, pricing, replay cache
@@ -190,6 +197,11 @@ class Settings(BaseSettings):
         allowed = {r.strip().lower() for r in self.allowed_repos.split(",") if r.strip()}
         return not allowed or "*" in allowed or repo.lower() in allowed
 
+    def is_demo_repo(self, repo: str) -> bool:
+        return self.demo_inject_enabled and repo.lower() in {
+            r.strip().lower() for r in self.demo_repos.split(",") if r.strip()
+        }
+
     def secret_values(self) -> list[str]:
         return [
             v.get_secret_value()
@@ -199,6 +211,7 @@ class Settings(BaseSettings):
                 self.github_oauth_client_secret,
                 self.session_secret,
                 self.openai_api_key,
+                self.slack_webhook_url,
             )
             if v.get_secret_value()
         ]

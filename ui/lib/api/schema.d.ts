@@ -400,6 +400,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repos/{owner}/{name}/alerts/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Alert
+         * @description Send a test message to the configured Slack webhook.
+         */
+        post: operations["test_alert_api_v1_repos__owner___name__alerts_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repos/{owner}/{name}/api-keys": {
         parameters: {
             query?: never;
@@ -456,6 +476,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repos/{owner}/{name}/code-graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Code Graph */
+        get: operations["code_graph_api_v1_repos__owner___name__code_graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repos/{owner}/{name}/connect": {
         parameters: {
             query?: never;
@@ -470,6 +507,40 @@ export interface paths {
          * @description Start monitoring: record the repository and enqueue its first import. Idempotent.
          */
         post: operations["connect_repo_api_v1_repos__owner___name__connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repos/{owner}/{name}/demo/inject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Inject Problem */
+        post: operations["inject_problem_api_v1_repos__owner___name__demo_inject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repos/{owner}/{name}/demo/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Demo */
+        post: operations["reset_demo_api_v1_repos__owner___name__demo_reset_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -558,6 +629,29 @@ export interface paths {
         get: operations["callback_auth_callback_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/demo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Demo Login
+         * @description "Try the demo": a viewer session on the demo repositories, no GitHub account needed.
+         *
+         *     Viewers cannot propose or approve fixes (so nothing touches the real repository); the demo
+         *     endpoints let this user inject a simulated problem and reset it.
+         */
+        post: operations["demo_login_auth_demo_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -761,6 +855,21 @@ export interface components {
             path: string | null;
             /** Start Line */
             start_line: number | null;
+        };
+        /** CodeGraph */
+        CodeGraph: {
+            /** Demo Enabled */
+            demo_enabled: boolean;
+            /** Edges */
+            edges: components["schemas"]["GraphEdge"][];
+            /** Nodes */
+            nodes: components["schemas"]["GraphNode"][];
+            /** Queries */
+            queries: {
+                [key: string]: string;
+            };
+            /** Repo */
+            repo: string;
         };
         /** CommitDetail */
         CommitDetail: {
@@ -1096,6 +1205,42 @@ export interface components {
             /** Service */
             service: string;
         };
+        /** GraphEdge */
+        GraphEdge: {
+            /** Rel */
+            rel: string;
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+        };
+        /** GraphNode */
+        GraphNode: {
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Id */
+            id: string;
+            /** Incident Id */
+            incident_id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "service" | "function" | "commit";
+            /** Label */
+            label: string;
+            /** Parent */
+            parent?: string | null;
+            /**
+             * State
+             * @default ok
+             * @enum {string}
+             */
+            state: "ok" | "failing" | "suspect";
+        };
         /** GraphStats */
         GraphStats: {
             /**
@@ -1262,6 +1407,23 @@ export interface components {
             reason: string;
             /** To Status */
             to_status: string;
+        };
+        /** InjectResult */
+        InjectResult: {
+            /** Commit */
+            commit: string;
+            /** Commit Message */
+            commit_message: string;
+            /** Endpoint */
+            endpoint: string;
+            /** Function */
+            function: string;
+            /** Incident Id */
+            incident_id: string;
+            /** Service */
+            service: string;
+            /** Simulated */
+            simulated: boolean;
         };
         /** InvestigationView */
         InvestigationView: {
@@ -2319,6 +2481,45 @@ export interface operations {
             };
         };
     };
+    test_alert_api_v1_repos__owner___name__alerts_test_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                owner: string;
+                name: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_repo_keys_api_v1_repos__owner___name__api_keys_get: {
         parameters: {
             query?: never;
@@ -2507,6 +2708,40 @@ export interface operations {
             };
         };
     };
+    code_graph_api_v1_repos__owner___name__code_graph_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                owner: string;
+                name: string;
+            };
+            cookie?: {
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeGraph"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     connect_repo_api_v1_repos__owner___name__connect_post: {
         parameters: {
             query?: never;
@@ -2531,6 +2766,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inject_problem_api_v1_repos__owner___name__demo_inject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                owner: string;
+                name: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InjectResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_demo_api_v1_repos__owner___name__demo_reset_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                owner: string;
+                name: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -2682,6 +2993,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    demo_login_auth_demo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

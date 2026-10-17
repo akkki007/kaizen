@@ -164,3 +164,27 @@ Owner step (recommended): in the GitHub App settings set **Setup URL** to
 `https://shoplite-demo.duckdns.org/connect` and tick **Redirect on update**, so GitHub sends users
 back to the flow right after installing. The flow works without it (the user returns manually).
 To monitor repositories beyond the allowlist, widen `CD_ALLOWED_REPOS` (empty = any installed repo).
+
+## Alerts and the live demo
+
+**Alerts.** When an investigation names a suspect (confident or ambiguous), Kaizen posts to Slack:
+service and endpoint, the commit and author, the function that changed and the function that
+threw, the confidence, and a link to the evidence. It sends once per incident and never fails the
+investigation if Slack is down.
+- Create a free Slack workspace -> a Slack app with **Incoming Webhooks** -> copy the webhook URL.
+- Put it in the host's secrets as `CD_SLACK_WEBHOOK_URL` (never commit it). Check with
+  `POST /api/v1/repos/{owner}/{name}/alerts/test` (approver) or by injecting a problem.
+- `CD_ALERT_GITHUB_ISSUES=true` also opens a GitHub issue per incident (needs the App to have
+  Issues: write).
+
+**Live graph and demo** (`/graph`). The page draws the repository's functions, services and recent
+commits from FalkorDB: green while healthy, red on the function that failed, amber on the
+suspect commit, with the Cypher behind the view and the engine (Postgres or FalkorDB) of every
+step. `CD_DEMO_INJECT_ENABLED` adds **Inject a problem**: it records a deployment containing the
+latest change to a function that serves an endpoint, then sends the telemetry a failing service
+would send (healthy windows, then 70% 5xx with a stack throwing in that function) through the
+normal ingest path. Detection, the graph queries, ranking and the alert are the production
+code; only the traffic is synthetic, and the API says `simulated: true`. **Reset** removes the
+incident state again. `CD_DEMO_LOGIN_ENABLED` adds **Try the demo** on the login page: a
+viewer-only session on `CD_DEMO_REPOS` (it can inject and reset, and cannot propose or approve
+fixes, so nothing touches the real repository).

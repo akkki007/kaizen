@@ -19,6 +19,7 @@ from causaldeploy.investigate.scorer import RankResult, persist, rank
 
 log = logging.getLogger(__name__)
 
+
 async def investigate(repo: str, incident_id: str) -> RankResult:
     store = GraphStore(repo)
     await lifecycle.advance(
@@ -68,6 +69,10 @@ async def investigate(repo: str, incident_id: str) -> RankResult:
         await lifecycle.advance(
             incident_id, S.OPEN, only_from=[S.INVESTIGATING], reason=f"ranking {result.verdict}"
         )
+    if named:
+        from causaldeploy.alerts.notify import alert_incident
+
+        await alert_incident(repo, incident_id, result)
     if run:
         from causaldeploy.agent.persist import write_trace
 

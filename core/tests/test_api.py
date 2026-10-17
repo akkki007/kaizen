@@ -749,7 +749,11 @@ async def test_callback_denied_or_rejected_redirects_to_login(
 async def test_install_url(client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     from causaldeploy.config import get_settings
 
-    assert (await client.get("/auth/install-url")).json() == {"url": None}
+    assert (await client.get("/auth/install-url")).json() == {
+        "url": None,
+        "demo": None,
+        "demo_repo": None,
+    }
     monkeypatch.setenv("CD_GITHUB_APP_SLUG", "causaldeploy-shoplite-demo")
     get_settings.cache_clear()
     try:
