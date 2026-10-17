@@ -13,6 +13,8 @@ test.describe("GitHub sign-in flow (mock)", () => {
   test("shows the sign-in button and redirects to dashboard on click", async ({ page }) => {
     await expect(page.getByRole("button", { name: /Sign in with GitHub/i })).toBeVisible();
     await page.getByRole("button", { name: /Sign in with GitHub/i }).click();
+    await expect(page).toHaveURL("/connect"); // sign-in lands on the connect step
+    await page.getByRole("link", { name: "Go to dashboard" }).click();
     await expect(page).toHaveURL("/overview");
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   });
@@ -21,6 +23,8 @@ test.describe("GitHub sign-in flow (mock)", () => {
     // Sign in first
     await page.goto("/login");
     await page.getByRole("button", { name: /Sign in with GitHub/i }).click();
+    await expect(page).toHaveURL("/connect"); // sign-in lands on the connect step
+    await page.getByRole("link", { name: "Go to dashboard" }).click();
     await expect(page).toHaveURL("/overview");
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
@@ -39,6 +43,8 @@ test.describe("GitHub sign-in flow (mock)", () => {
     // Sign in first
     await page.goto("/login");
     await page.getByRole("button", { name: /Sign in with GitHub/i }).click();
+    await expect(page).toHaveURL("/connect"); // sign-in lands on the connect step
+    await page.getByRole("link", { name: "Go to dashboard" }).click();
     await expect(page).toHaveURL("/overview");
 
     // Go to the approver repo - create key visible

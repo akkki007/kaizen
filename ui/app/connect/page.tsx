@@ -2,7 +2,6 @@
 
 import { ArrowRight, Check, CircleAlert, Loader2, Lock } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { Logo } from "@/components/landing/logo";
@@ -71,7 +70,7 @@ function Choose({ repos, user }: { repos: RepoOnboarding[]; user: User }) {
   const install = useInstallUrl();
   const choices = repos.filter(selectable);
   const [picked, setPicked] = useState<string[] | null>(null);
-  const chosen = picked ?? (choices.length === 1 ? [choices[0].repo] : []);
+  const chosen = picked ?? [];
   const toggle = (repo: string) =>
     setPicked((cur) => {
       const base = cur ?? chosen;
@@ -81,7 +80,7 @@ function Choose({ repos, user }: { repos: RepoOnboarding[]; user: User }) {
   return (
     <section aria-labelledby="choose-title">
       <h1 id="choose-title" className="text-[22px] font-semibold tracking-[-0.02em]">
-        Which repository should Kaizen watch?
+        {choices.length === 0 ? "Your repositories" : "Which repository should Kaizen watch?"}
       </h1>
       <p className="mt-2 text-[13.5px] leading-[1.55] text-ink-2">
         Signed in as <b>{user.login}</b>. Kaizen reads the commit history and deployments of what you pick. It never
@@ -93,6 +92,16 @@ function Choose({ repos, user }: { repos: RepoOnboarding[]; user: User }) {
           const note = r.state === "failed" ? (r.detail ?? "The last import failed. Try again.") : why(r);
           return (
             <li key={r.repo}>
+              {r.state === "ready" ? (
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <Check className="size-4 text-green" strokeWidth={2.4} aria-hidden />
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{r.repo}</span>
+                  <StateBadge r={r} />
+                  <Link href="/overview" className="text-[12.5px] font-medium underline" aria-label={`Open ${r.repo}`}>
+                    Open
+                  </Link>
+                </div>
+              ) : (
               <label
                 className={cn(
                   "flex items-center gap-3 px-4 py-3",
@@ -118,10 +127,12 @@ function Choose({ repos, user }: { repos: RepoOnboarding[]; user: User }) {
                 </span>
                 <StateBadge r={r} />
               </label>
+              )}
             </li>
           );
         })}
       </ul>
+      {choices.length > 0 && (
       <button
         type="button"
         disabled={chosen.length === 0 || connect.isPending}
@@ -132,6 +143,15 @@ function Choose({ repos, user }: { repos: RepoOnboarding[]; user: User }) {
         {chosen.length <= 1 ? "Start monitoring" : `Start monitoring ${chosen.length} repositories`}
         {!connect.isPending && <ArrowRight className="size-4" aria-hidden />}
       </button>
+      )}
+      {repos.some((r) => r.state === "ready") && (
+        <Link
+          href="/overview"
+          className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md border border-line bg-panel-2 text-[13.5px] font-medium hover:bg-raised"
+        >
+          Go to dashboard
+        </Link>
+      )}
       <p className="mt-4 text-[12.5px] text-ink-3">
         Don&apos;t see your repository?{" "}
         {install.data?.url && (
@@ -177,7 +197,7 @@ function Learned({ r }: { r: RepoOnboarding }) {
   );
 }
 
-function Progress({ repos }: { repos: RepoOnboarding[] }) {
+function Progress({ repos, onBack }: { repos: RepoOnboarding[]; onBack: () => void }) {
   const active = repos.filter((r) => r.state === "importing" || r.state === "ready");
   const allReady = active.length > 0 && active.every((r) => r.state === "ready");
   return (
@@ -214,6 +234,13 @@ function Progress({ repos }: { repos: RepoOnboarding[] }) {
           >
             Open dashboard <ArrowRight className="size-4" aria-hidden />
           </Link>
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex h-10 w-full items-center justify-center rounded-md border border-line bg-panel-2 text-[13.5px] font-medium hover:bg-raised"
+          >
+            Connect another repository
+          </button>
           {active.some((r) => !r.has_api_key && r.role === "approver") && (
             <p className="text-[12.5px] leading-[1.55] text-ink-3">
               To catch live failures, also send your app&apos;s errors to Kaizen: open{" "}
@@ -265,24 +292,20 @@ function Install() {
 }
 
 function Flow({ user }: { user: User }) {
-  const router = useRouter();
-  const manage = useSearchParams().has("manage");
   const q = useOnboarding();
   const signOut = useSignOut();
   const repos = useMemo(() => q.data ?? [], [q.data]);
   const hasRepos = repos.length > 0;
   const importing = repos.some((r) => r.state === "importing");
   const ready = repos.some((r) => r.state === "ready");
-  // Returning users go straight to the dashboard; "manage" (or a pending import) keeps them here.
+  // Importing (or just started) shows progress; otherwise the repository list is always shown, so
+  // the user chooses what to monitor every time instead of being sent to a default.
   const [sawImport, setSawImport] = useState(false);
   useEffect(() => {
     if (importing) setSawImport(true);
   }, [importing]);
-  useEffect(() => {
-    if (q.data && ready && !importing && !manage && !sawImport) router.replace("/overview");
-  }, [q.data, ready, importing, manage, sawImport, router]);
 
-  const showProgress = importing || sawImport || (manage && ready && !repos.some(selectable));
+  const showProgress = importing || sawImport;
   const active: 0 | 1 | 2 = !hasRepos ? 0 : showProgress ? 2 : 1;
 
   return (
@@ -316,7 +339,7 @@ function Flow({ user }: { user: User }) {
           ) : !hasRepos ? (
             <Install />
           ) : showProgress ? (
-            <Progress repos={repos} />
+            <Progress repos={repos} onBack={() => setSawImport(false)} />
           ) : (
             <Choose repos={repos} user={user} />
           )}
