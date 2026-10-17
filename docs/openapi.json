@@ -809,6 +809,54 @@
         "title": "RankedCandidate",
         "type": "object"
       },
+      "RejectBody": {
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RejectBody",
+        "type": "object"
+      },
+      "RejectResult": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "incident_status": {
+            "title": "Incident Status",
+            "type": "string"
+          },
+          "reject_reason": {
+            "title": "Reject Reason",
+            "type": "string"
+          },
+          "rejected_by": {
+            "title": "Rejected By",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "rejected_by",
+          "reject_reason",
+          "incident_status"
+        ],
+        "title": "RejectResult",
+        "type": "object"
+      },
       "RejectedEvent": {
         "properties": {
           "error": {
@@ -851,6 +899,28 @@
             ],
             "title": "Branch"
           },
+          "check_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Status"
+          },
+          "diff": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -858,6 +928,37 @@
           "kind": {
             "title": "Kind",
             "type": "string"
+          },
+          "labels": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "merge": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merge"
+          },
+          "pr_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Number"
           },
           "pr_url": {
             "anyOf": [
@@ -869,6 +970,48 @@
               }
             ],
             "title": "Pr Url"
+          },
+          "prior_fixes": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Prior Fixes",
+            "type": "array"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "reject_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reject Reason"
+          },
+          "rejected_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected By"
           },
           "sha": {
             "anyOf": [
@@ -985,6 +1128,73 @@
           "state"
         ],
         "title": "RepoOnboarding",
+        "type": "object"
+      },
+      "RootCauseBody": {
+        "properties": {
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "sha": {
+            "maxLength": 64,
+            "minLength": 7,
+            "title": "Sha",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha",
+          "confirmed"
+        ],
+        "title": "RootCauseBody",
+        "type": "object"
+      },
+      "RootCauseResult": {
+        "properties": {
+          "confirmed_root_cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed Root Cause"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "root_cause_status": {
+            "title": "Root Cause Status",
+            "type": "string"
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "sha",
+          "root_cause_status",
+          "confirmed_root_cause"
+        ],
+        "title": "RootCauseResult",
         "type": "object"
       },
       "TraceStep": {
@@ -1733,6 +1943,104 @@
         "summary": "Propose Remediation"
       }
     },
+    "/api/v1/incidents/{incident_id}/root-cause": {
+      "post": {
+        "description": "Approver-only: confirm (Incident-[:confirmed_cause]->Commit) or reject (the\nlikely_caused_by edge gets rejected=true) a suspect commit as the root cause.",
+        "operationId": "set_incident_root_cause_api_v1_incidents__incident_id__root_cause_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Csrf"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RootCauseBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RootCauseResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Incident Root Cause"
+      }
+    },
     "/api/v1/jobs/{job_id}": {
       "get": {
         "operationId": "get_job_api_v1_jobs__job_id__get",
@@ -1842,6 +2150,7 @@
     },
     "/api/v1/remediations/{remediation_id}/approve": {
       "post": {
+        "description": "Approver-only, verified fixes only. With CD_REMEDIATION_MERGE_POLICY=app Kaizen then\nmerges the PR via the API (the merge webhook resolves the incident); with \"manual\" (the\ndefault) a person merges on GitHub.",
         "operationId": "approve_remediation_api_v1_remediations__remediation_id__approve_post",
         "parameters": [
           {
@@ -1929,6 +2238,104 @@
           }
         },
         "summary": "Approve Remediation"
+      }
+    },
+    "/api/v1/remediations/{remediation_id}/reject": {
+      "post": {
+        "description": "Approver-only: reject a fix. Closes its PR, marks the Fix not accepted, and moves the\nincident back (REMEDIATING -> IDENTIFIED/EXPLAINED, VERIFYING -> NEEDS_HUMAN).",
+        "operationId": "reject_remediation_api_v1_remediations__remediation_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "remediation_id",
+            "required": true,
+            "schema": {
+              "title": "Remediation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Csrf"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "cd_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cd Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RejectResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Remediation"
       }
     },
     "/api/v1/repos/{owner}/{name}/api-keys": {

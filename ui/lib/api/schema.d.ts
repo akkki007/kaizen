@@ -184,6 +184,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/incidents/{incident_id}/root-cause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Incident Root Cause
+         * @description Approver-only: confirm (Incident-[:confirmed_cause]->Commit) or reject (the
+         *     likely_caused_by edge gets rejected=true) a suspect commit as the root cause.
+         */
+        post: operations["set_incident_root_cause_api_v1_incidents__incident_id__root_cause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -227,8 +248,34 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve Remediation */
+        /**
+         * Approve Remediation
+         * @description Approver-only, verified fixes only. With CD_REMEDIATION_MERGE_POLICY=app Kaizen then
+         *     merges the PR via the API (the merge webhook resolves the incident); with "manual" (the
+         *     default) a person merges on GitHub.
+         */
         post: operations["approve_remediation_api_v1_remediations__remediation_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/remediations/{remediation_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Remediation
+         * @description Approver-only: reject a fix. Closes its PR, marks the Fix not accepted, and moves the
+         *     incident back (REMEDIATING -> IDENTIFIED/EXPLAINED, VERIFYING -> NEEDS_HUMAN).
+         */
+        post: operations["reject_remediation_api_v1_remediations__remediation_id__reject_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -778,6 +825,24 @@ export interface components {
             /** Sha */
             sha: string;
         };
+        /** RejectBody */
+        RejectBody: {
+            /** Reason */
+            reason: string;
+        };
+        /** RejectResult */
+        RejectResult: {
+            /** Id */
+            id: string;
+            /** Incident Status */
+            incident_status: string;
+            /** Reject Reason */
+            reject_reason: string;
+            /** Rejected By */
+            rejected_by: string;
+            /** Status */
+            status: string;
+        };
         /** RejectedEvent */
         RejectedEvent: {
             /** Error */
@@ -791,12 +856,40 @@ export interface components {
             approved_by: string | null;
             /** Branch */
             branch: string | null;
+            /** Check Status */
+            check_status?: string | null;
+            /** Diff */
+            diff?: string | null;
             /** Id */
             id: string;
             /** Kind */
             kind: string;
+            /**
+             * Labels
+             * @default []
+             */
+            labels: string[];
+            /** Merge */
+            merge?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pr Number */
+            pr_number?: number | null;
             /** Pr Url */
             pr_url: string | null;
+            /**
+             * Prior Fixes
+             * @default []
+             */
+            prior_fixes: {
+                [key: string]: unknown;
+            }[];
+            /** Rationale */
+            rationale?: string | null;
+            /** Reject Reason */
+            reject_reason?: string | null;
+            /** Rejected By */
+            rejected_by?: string | null;
             /** Sha */
             sha: string | null;
             /** Status */
@@ -843,6 +936,26 @@ export interface components {
              *     }
              */
             stats: components["schemas"]["GraphStats"];
+        };
+        /** RootCauseBody */
+        RootCauseBody: {
+            /** Confirmed */
+            confirmed: boolean;
+            /** Reason */
+            reason?: string | null;
+            /** Sha */
+            sha: string;
+        };
+        /** RootCauseResult */
+        RootCauseResult: {
+            /** Confirmed Root Cause */
+            confirmed_root_cause: string | null;
+            /** Incident Id */
+            incident_id: string;
+            /** Root Cause Status */
+            root_cause_status: string;
+            /** Sha */
+            sha: string;
         };
         /** TraceStep */
         TraceStep: {
@@ -1208,6 +1321,46 @@ export interface operations {
             };
         };
     };
+    set_incident_root_cause_api_v1_incidents__incident_id__root_cause_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                incident_id: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RootCauseBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RootCauseResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_job_api_v1_jobs__job_id__get: {
         parameters: {
             query?: never;
@@ -1299,6 +1452,46 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_remediation_api_v1_remediations__remediation_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                remediation_id: string;
+            };
+            cookie?: {
+                cd_csrf?: string | null;
+                cd_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RejectResult"];
                 };
             };
             /** @description Validation Error */

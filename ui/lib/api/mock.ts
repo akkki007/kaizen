@@ -83,8 +83,8 @@ const mockDetail = (id: string): components["schemas"]["IncidentDetail"] => {
   return {
     incident: inc,
     remediation: {
-      id: "rem-1", kind: "revert", status: "verified", sha: "9f2c1ab", branch: "kaizen/revert-9f2c1ab",
-      pr_url: "https://github.com/yashchandnani07/shoplite/pull/14", approved_by: null,
+      id: "rem-1", kind: "revert", status: "verified", sha: "9f2c1ab", branch: "kaizen/fix-" + id,
+      pr_url: "https://github.com/yashchandnani07/shoplite/pull/14", approved_by: null, labels: ["kaizen", "incident:" + id], prior_fixes: [],
       verification: { passed: true, run_url: "https://github.com/yashchandnani07/shoplite/actions/runs/1", error_rate_before: 0.42, error_rate_after: 0.004, baseline_error_rate: 0.005 },
     },
     ranking: mockRanking(id),
