@@ -31,6 +31,10 @@ services:
       CD_ALLOWED_REPOS: ${CD_ALLOWED_REPOS:-*}
       # The UI origin hosts the sign-in callback, so it is the public base URL.
       CD_PUBLIC_BASE_URL: https://${CD_UI_DOMAIN:-kaizen.akkki.tech}
+      # Public demo on the shoplite repository: "Try the demo" login (viewer only) and the
+      # inject-a-problem button. Set both to "false" to turn the demo off.
+      CD_DEMO_LOGIN_ENABLED: ${CD_DEMO_LOGIN_ENABLED:-true}
+      CD_DEMO_INJECT_ENABLED: ${CD_DEMO_INJECT_ENABLED:-true}
       CD_GITHUB_APP_SLUG: ${CD_GITHUB_APP_SLUG:-kaizen-graphacks}
       CD_FALKORDB_HOST: falkordb
       CD_FALKORDB_PORT: "6379"

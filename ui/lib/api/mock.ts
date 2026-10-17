@@ -129,6 +129,37 @@ const mockOnboarding = (): Onboarding[] => {
   return [shoplite, docs];
 };
 
+// Code graph fixture for the Live graph page: mock "inject" flips one function red and one commit amber.
+let injected = false;
+const mockCodeGraph = (repo: string): components["schemas"]["CodeGraph"] => {
+  const fn = (svc: string, name: string, detail = "") => ({ id: `${svc}:${name}`, kind: "function" as const, label: name, parent: `svc:${svc}`, state: "ok" as "ok" | "failing" | "suspect", incident_id: null as string | null, detail });
+  const nodes: components["schemas"]["GraphNode"][] = [
+    { id: "svc:payments", kind: "service", label: "payments", parent: null, state: "ok", incident_id: null, detail: "" },
+    { id: "svc:orders", kind: "service", label: "orders", parent: null, state: "ok", incident_id: null, detail: "" },
+    fn("payments", "handlePayment", "src/routes.js · serves POST /payments"),
+    fn("payments", "validatePayment", "src/payment/validation.js"),
+    fn("payments", "toCents"),
+    fn("orders", "createOrder", "src/app.js · serves POST /orders"),
+    fn("orders", "listOrders"),
+    { id: "commit:c0ffee1", kind: "commit", label: "c0ffee1", parent: null, state: "ok", incident_id: null, detail: "Refactor payment validation" },
+    { id: "commit:a11ce22", kind: "commit", label: "a11ce22", parent: null, state: "ok", incident_id: null, detail: "docs: update README" },
+  ];
+  if (injected) {
+    nodes.find((n) => n.id === "payments:validatePayment")!.state = "failing";
+    nodes.find((n) => n.id === "payments:validatePayment")!.incident_id = "inc-3";
+    nodes.find((n) => n.id === "commit:c0ffee1")!.state = "suspect";
+  }
+  const edges = [
+    { source: "payments:handlePayment", target: "payments:validatePayment", rel: "calls" },
+    { source: "payments:handlePayment", target: "payments:toCents", rel: "calls" },
+    { source: "orders:createOrder", target: "payments:handlePayment", rel: "calls" },
+    { source: "orders:createOrder", target: "orders:listOrders", rel: "calls" },
+    { source: "commit:c0ffee1", target: "payments:validatePayment", rel: "modifies" },
+    { source: "commit:a11ce22", target: "orders:listOrders", rel: "modifies" },
+  ];
+  return { repo, nodes, edges, demo_enabled: true, queries: { functions: "MATCH (f:Function)-[:belongs_to]->(s:Service) RETURN f.id, f.name, f.path, s.id", failing: "MATCH (i:Incident)-[:evidenced_by]->(:Error)-[:thrown_in]->(f:Function) WHERE i.status <> 'resolved' RETURN DISTINCT f.id, i.id" } };
+};
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
@@ -140,13 +171,25 @@ export const mockFetch: typeof fetch = async (input, init) => {
   if (incidentPage) return incidentPage;
   if (url.pathname === "/auth/me") return json(mockUser);
   if (url.pathname === "/auth/install-url") {
-    return json({ url: "https://github.com/apps/causaldeploy-shoplite-demo/installations/new" });
+    return json({ url: "https://github.com/apps/kaizen-graphacks/installations/new", demo: "true", demo_repo: "yashchandnani07/shoplite" });
+  }
+  if (url.pathname === "/auth/demo" && method === "POST") {
+    return json({ login: "demo", repos: { "yashchandnani07/shoplite": "viewer" } });
   }
   if (url.pathname === "/api/v1/onboarding") return json(mockOnboarding());
   if (url.pathname.endsWith("/connect") && method === "POST") {
     connectedAt = Date.now();
     polls = 0;
     return json({ repo: url.pathname.split("/").slice(4, 6).join("/"), state: "importing", job_id: "job-connect-1" }, 202);
+  }
+  if (url.pathname.endsWith("/code-graph")) return json(mockCodeGraph(url.pathname.split("/").slice(4, 6).join("/")));
+  if (url.pathname.endsWith("/demo/inject") && method === "POST") {
+    injected = true;
+    return json({ incident_id: "inc-3", simulated: true, service: "payments", endpoint: "POST /payments", function: "payments:validatePayment", commit: "c0ffee1", commit_message: "Refactor payment validation" });
+  }
+  if (url.pathname.endsWith("/demo/reset") && method === "POST") {
+    injected = false;
+    return json({ rows_removed: 4 });
   }
   if (url.pathname === "/auth/logout") return json({ status: "logged_out" });
   const dash = dashboardMock(url, method);
