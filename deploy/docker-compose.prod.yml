@@ -35,6 +35,8 @@ services:
       # inject-a-problem button. Set both to "false" to turn the demo off.
       CD_DEMO_LOGIN_ENABLED: ${CD_DEMO_LOGIN_ENABLED:-true}
       CD_DEMO_INJECT_ENABLED: ${CD_DEMO_INJECT_ENABLED:-true}
+      # The agent runs only when CD_OPENAI_API_KEY is set (key `openai_api_key` in the external secret)
+      CD_OPENAI_MODEL: ${CD_OPENAI_MODEL:-gpt-4o-mini}
       CD_GITHUB_APP_SLUG: ${CD_GITHUB_APP_SLUG:-kaizen-graphacks}
       CD_FALKORDB_HOST: falkordb
       CD_FALKORDB_PORT: "6379"
