@@ -172,7 +172,38 @@ criterion is proven, the rest named; **external** = lives outside this repo or n
 
 ## #93 Web UI
 
-_To be filled after the UI merge._
+UI checks: `tsc`, Vitest (40 tests), `npm run build`, Playwright 30/30 in mock mode
+(`PW_PROD=1 VISUAL=1 npx playwright test --workers=1` on Windows; CI runs `npx playwright test`).
+Backend views: `test_incident_views.py`, `test_dashboard_views.py`.
+
+| Task / criterion | Status | Evidence |
+|---|---|---|
+| Scaffold, design system, typed API client, mock mode | done | `ui/lib/api/client.ts`, `mock*.ts`; CI regenerates the client and fails on drift (`ci.yml`) |
+| ✅ UI runs against the mock API and the real API | done | mock: whole Playwright suite; real: `next.config.ts` rewrites `/api/v1` + `/auth` to `API_URL` |
+| Sign-in with GitHub and repository onboarding | partial (tracked in #97) | mocked login, error states, 401 redirect, viewer vs approver: `signin.spec.ts`; real GitHub login needs the App callback URL registered (owner step) |
+| Dashboard: service health, incident list, deployments timeline | done | `GET /services/health`, `/repos/{o}/{n}/deployments`; `test_service_health_ok_degraded_and_incident`, `test_deployments_with_correlated_incidents`; e2e "overview shows live service health and the deployment timeline with incident markers" |
+| ✅ Seeded incident visible within seconds | done | 5 s polling; e2e "a newly seeded incident appears within seconds, without a reload" |
+| Incident list: status, severity, onset, suspected cause; filters + archive | done | `test_incident_list_carries_severity_ack_and_latest_suspect`, `test_incident_list_filters`; e2e "incident list: filters, archive and navigation to the detail page" |
+| Ranked candidates with per-feature score bars, confidence / abstention | done | e2e "shows ranked suspects with the score breakdown…"; Vitest "abstains when no candidate has code evidence" |
+| ✅ Every claim in the explanation links to evidence | done | claims, causal-chain steps, alternatives and feature evidence ids are citation buttons; Vitest "resolves node and edge citations, rejects unknown ids" |
+| Pipeline stage tracker updating live (SSE) | done | `GET /incidents/{id}/stream` (`test_stream_emits_first_status_and_changes`) with polling fallback; e2e "pipeline tracker shows all six stages and advances live without a reload"; Vitest "walks the S1 flow from detection to memory" |
+| ✅ Page usable on S1 end-to-end without refresh | done (mock) | e2e pipeline + approve → approved without reload. SSE through the Next.js rewrite against a live backend not yet exercised (polling fallback covers it) |
+| Metric charts around onset with deployment markers | done | `GET /incidents/{id}/metrics` (`test_metrics_buckets_error_rate_and_deployments`); `incident-metrics.tsx`, Vitest "scales to a nice maximum and breaks the line at gaps" |
+| Evidence graph: type colours/shapes, winning path, blast + history overlays, node inspector | done | Vitest "has a distinct colour and shape for each of the 12 node types", "adds overlay-only nodes and edges…"; `test_blast_overlay_marks_reachable_code_and_keeps_the_base_graph`, `test_node_inspector_commit_function_error` |
+| ✅ Clicking a citation focuses the node/edge | done | e2e "clicking a citation focuses its node in the graph and opens the inspector" |
+| Keyboard navigation of the graph | done | e2e "graph keyboard navigation: arrows move, Enter inspects, Escape clears" |
+| Performance with ~500 nodes | done (model) | Vitest "builds a 500-node model quickly and indexes it" (model build, not a render benchmark) |
+| ✅ Readable at demo screen resolution | partial | distinct colour + shape per type with a legend; not yet checked on a projector by a person |
+| Remediation view: diff, rationale, revert vs patch, approve/reject with confirmation, verification before/after, PR/Actions links | done | e2e "approving a verified fix asks for confirmation and ends in the approved state", "rejecting a fix requires a reason", "fix section shows the staging verification result…"; Vitest diff parser tests |
+| ✅ Approving from the UI results in the PR approved/merged per policy | done (API) | approve → `merge: manual|requested|failed` per `remediation_merge_policy` (`test_app_merge_policy_merges_only_after_approval`, `test_manual_policy_never_merges`); live merge on ShopLite is external |
+| History & memory browser: archive, resembles panel with basis + previous fix, hotspots | done | `GET /incidents/{id}/similar` (`test_similar_lists_resembling_incidents_with_their_fix`), `GET /repos/{o}/{n}/hotspots` (`test_hotspots_count_blamed_functions_and_dependencies`); e2e "hotspots lists blamed functions…" |
+| ✅ S8 page shows prior incident + reused fix prominently | done (mock) | e2e "S8 shows the resolved S1 incident and the fix it reuses"; Vitest "S8 resembles the resolved S1 incident and reuses its fix" |
+| Evaluation dashboard | done | `GET /eval/latest` (`test_eval_latest_serves_the_harness_json_unchanged`); e2e "evaluation page renders latest.json…" |
+| ✅ Matches `make eval` output exactly | done | `eval.test.ts` compares every split row (median time included), per-scenario table and misses with `docs/results/latest.md` |
+| Playwright: login (mocked), incident flow, approval flow | done | `signin.spec.ts`, `incident.spec.ts`, `incident-flow.spec.ts`, `dashboard.spec.ts` |
+| axe checks on key pages | done | `a11y.spec.ts` enforces no serious/critical WCAG 2.1 AA violations on overview, incidents, incident page, hotspots, evaluation |
+| Visual regression on the incident page | partial | `visual.spec.ts` (opt-in, `npm run e2e:visual`); Windows baseline committed; Linux baseline not generated (command in `ui/README.md`) |
+| ✅ E2E suite green in CI | pending CI | green locally (30/30); CI runs `npx playwright test` on ubuntu, where the opt-in visual spec is skipped |
 
 ## Known gaps (not claimed)
 
