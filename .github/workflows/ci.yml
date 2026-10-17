@@ -75,7 +75,7 @@ jobs:
         run: |
           uv export --locked --no-dev --no-hashes --no-emit-project > /tmp/requirements.txt
           uvx pip-audit==2.7.3 --strict -r /tmp/requirements.txt
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 22 }
       - name: npm audit (runtime dependencies)
         working-directory: ui
@@ -86,7 +86,7 @@ jobs:
     defaults: { run: { working-directory: ui } }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 22 }
       - run: npm install
       - name: Generated API client is current (no manual edits)
