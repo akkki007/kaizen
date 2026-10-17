@@ -36,7 +36,7 @@ const mockGraph = (id: string): components["schemas"]["EvidenceGraph"] => ({
     { id: "Incident:" + id, label: "Incident", props: { id }, highlight: true },
     { id: "Endpoint:POST /payments", label: "Endpoint", props: { name: "POST /payments" }, highlight: true },
     { id: "Function:toCents", label: "Function", props: { name: "toCents", file: "money-utils/src/index.js" }, highlight: true },
-    { id: "Commit:9f2c1ab", label: "Commit", props: { sha: "9f2c1ab", message: "Round amounts in toCents" }, highlight: true },
+    { id: "Commit:9f2c1ab", label: "Commit", props: { kind: "commit" as const, node_id: "Commit:9f2c1ab", sha: "9f2c1ab", message: "Round amounts in toCents" }, highlight: true },
     { id: "Deployment:d-41", label: "Deployment", props: { id: "d-41", env: "production" }, highlight: true },
     { id: "Function:validateAmount", label: "Function", props: { name: "validateAmount" }, highlight: false },
   ],
@@ -62,20 +62,22 @@ const features = (v: Record<string, number>) =>
     weight: WEIGHTS[name],
     contribution: Math.round(WEIGHTS[name] * (v[name] ?? 0) * 10000) / 10000,
     query: `feature.${name}`,
+    explanation: `${name} = ${(v[name] ?? 0).toFixed(2)}`,
+    evidence_ids: [] as string[],
     cypher: `// ${name}\nMATCH (c:Commit {sha: $sha})-[:modifies_fn]->(f:Function)\nWITH f, shortestPath((f)-[:calls*1..6]->(g)) AS p\nRETURN 1.0 / (1 + min(length(p)))`,
   }));
 
 const mockRanking = (id: string, method: "graph" | "b0" | "b1" = "graph"): RankResult => {
   const graph = [
-    { sha: "9f2c1ab", message: "Round amounts in toCents", author: "bruno", deployment: "d-41", rank: 1, score: 0.78, confidence: 0.86,
+    { kind: "commit" as const, node_id: "Commit:9f2c1ab", sha: "9f2c1ab", message: "Round amounts in toCents", author: "bruno", deployment: "d-41", rank: 1, score: 0.78, confidence: 0.86,
       features: features({ temporal: 0.9, path: 1, endpoint: 1, service: 1, dependency: 0, msg_sim: 0.2, history: 0.5, sequence: 1, centrality: 0.8, blast: 0.3 }),
       evidence: [{ changed_function: "money-utils:lib/index.js:toCents", thrown_function: "payments:src/app.js:POST /payments", error: "fp-7c1" }] },
-    { sha: "4be0d77", message: "docs: update README", author: "alice", deployment: "d-41", rank: 2, score: 0.21, confidence: 0.09, features: features({ temporal: 0.9, sequence: 1 }), evidence: [] },
-    { sha: "a11c9e0", message: "chore: bump express", author: "dana", deployment: "d-41", rank: 3, score: 0.12, confidence: 0.05, features: features({ temporal: 0.9 }), evidence: [] },
+    { kind: "commit" as const, node_id: "Commit:4be0d77", sha: "4be0d77", message: "docs: update README", author: "alice", deployment: "d-41", rank: 2, score: 0.21, confidence: 0.09, features: features({ temporal: 0.9, sequence: 1 }), evidence: [] },
+    { kind: "commit" as const, node_id: "Commit:a11c9e0", sha: "a11c9e0", message: "chore: bump express", author: "dana", deployment: "d-41", rank: 3, score: 0.12, confidence: 0.05, features: features({ temporal: 0.9 }), evidence: [] },
   ];
-  if (method === "graph") return { incident_id: id, method, verdict: "confident", margin: 0.57, candidates: graph };
+  if (method === "graph") return { incident_id: id, method, verdict: "confident", margin: 0.57, weights_version: "v1", candidates: graph };
   const base = [...graph].reverse().map((c, i) => ({ ...c, rank: i + 1, score: 1 - i * 0.4, confidence: 0, features: [], evidence: [] }));
-  return { incident_id: id, method, verdict: "confident", margin: 0, candidates: base };
+  return { incident_id: id, method, verdict: "confident", margin: 0, weights_version: "v1", candidates: base };
 };
 
 const mockDetail = (id: string): components["schemas"]["IncidentDetail"] => {

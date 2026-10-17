@@ -628,6 +628,13 @@ export interface components {
             contribution: number;
             /** Cypher */
             cypher: string;
+            /** Evidence Ids */
+            evidence_ids?: string[];
+            /**
+             * Explanation
+             * @default
+             */
+            explanation: string;
             /** Name */
             name: string;
             /** Query */
@@ -803,6 +810,11 @@ export interface components {
              * @enum {string}
              */
             verdict: "confident" | "ambiguous" | "no_code_evidence" | "no_candidates";
+            /**
+             * Weights Version
+             * @default
+             */
+            weights_version: string;
         };
         /** RankedCandidate */
         RankedCandidate: {
@@ -816,8 +828,19 @@ export interface components {
             evidence: components["schemas"]["EvidencePair"][];
             /** Features */
             features: components["schemas"]["FeatureValue"][];
+            /**
+             * Kind
+             * @default commit
+             * @enum {string}
+             */
+            kind: "commit" | "config" | "dependency";
             /** Message */
             message: string;
+            /**
+             * Node Id
+             * @default
+             */
+            node_id: string;
             /** Rank */
             rank: number;
             /** Score */
