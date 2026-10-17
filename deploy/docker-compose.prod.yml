@@ -26,8 +26,9 @@ services:
     env_file: [.env]
     environment: &runtime
       CD_ENV: prod
-      # Empty = any repository the GitHub App is installed on (users pick theirs in the UI).
-      CD_ALLOWED_REPOS: ${CD_ALLOWED_REPOS-}
+      # "*" = any repository the GitHub App is installed on (users pick theirs in the UI).
+      # Production refuses to start with this empty, so opening it up stays an explicit choice.
+      CD_ALLOWED_REPOS: ${CD_ALLOWED_REPOS:-*}
       # The UI origin hosts the sign-in callback, so it is the public base URL.
       CD_PUBLIC_BASE_URL: https://${CD_UI_DOMAIN:-kaizen.akkki.tech}
       CD_GITHUB_APP_SLUG: ${CD_GITHUB_APP_SLUG:-causaldeploy-shoplite-demo}

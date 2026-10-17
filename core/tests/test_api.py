@@ -823,3 +823,11 @@ async def test_connect_marks_ready_when_imported_and_respects_the_allowlist(
         assert await jobs_count() == 0
     finally:
         get_settings.cache_clear()
+
+
+def test_wildcard_allowlist_admits_any_repository() -> None:
+    from causaldeploy.config import Settings
+
+    assert Settings.model_construct(allowed_repos="*").is_allowed("any/repo")
+    assert not Settings.model_construct(allowed_repos="a/b").is_allowed("any/repo")
+    assert Settings.model_construct(allowed_repos="a/b, *").is_allowed("x/y")

@@ -97,7 +97,7 @@ class Settings(BaseSettings):
         if not repo:
             return False
         allowed = {r.strip().lower() for r in self.allowed_repos.split(",") if r.strip()}
-        return not allowed or repo.lower() in allowed
+        return not allowed or "*" in allowed or repo.lower() in allowed
 
     def secret_values(self) -> list[str]:
         return [
