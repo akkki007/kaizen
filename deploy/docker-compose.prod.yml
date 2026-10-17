@@ -31,7 +31,7 @@ services:
       CD_ALLOWED_REPOS: ${CD_ALLOWED_REPOS:-*}
       # The UI origin hosts the sign-in callback, so it is the public base URL.
       CD_PUBLIC_BASE_URL: https://${CD_UI_DOMAIN:-kaizen.akkki.tech}
-      CD_GITHUB_APP_SLUG: ${CD_GITHUB_APP_SLUG:-causaldeploy-shoplite-demo}
+      CD_GITHUB_APP_SLUG: ${CD_GITHUB_APP_SLUG:-kaizen-graphacks}
       CD_FALKORDB_HOST: falkordb
       CD_FALKORDB_PORT: "6379"
       CD_POSTGRES_DSN: postgresql://causaldeploy:${POSTGRES_PASSWORD}@postgres:5432/causaldeploy
