@@ -165,6 +165,8 @@ const json = (body: unknown, status = 200) =>
 
 export const mockFetch: typeof fetch = async (input, init) => {
   const url = new URL(typeof input === "string" ? input : (input as Request).url, "http://mock");
+  // the real API redirects/serves a trailing slash as the collection, so the mock does too
+  if (url.pathname.length > 1 && url.pathname.endsWith("/")) url.pathname = url.pathname.slice(0, -1);
   const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
   await new Promise((r) => setTimeout(r, 250)); // exercise loading states
   const incidentPage = await mockIncidentFetch(url, method, init, input); // incident page (#93)
