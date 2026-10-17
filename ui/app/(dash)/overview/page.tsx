@@ -2,12 +2,16 @@
 
 import { ArrowUpRight, Clock3, FolderGit2, ShieldCheck, Siren } from "lucide-react";
 import Link from "next/link";
-import { useLayoutEffect, useRef, type CSSProperties } from "react";
-import { CountUp, EmptyLine, SectionHead, ServiceDot, Sparkline, StatusGlyph, Tag, buttonClass } from "@/components/app/kit";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { CountUp, EmptyLine, SectionHead, Segmented, ServiceDot, SeverityTag, Sparkline, StatusGlyph, Tag, buttonClass } from "@/components/app/kit";
 import { avatarUrl, useWorkspace } from "@/components/app/shell";
 import { workspaceTabs } from "@/components/app/tabs";
 import { Topbar } from "@/components/app/topbar";
+import { DeployTimeline } from "@/components/dashboard/deploy-timeline";
+import { HealthCards } from "@/components/dashboard/health-cards";
+import { SuspectLine } from "@/components/dashboard/suspect";
 import { LogoMark } from "@/components/landing/logo";
+import { useDeployments, useServicesHealth } from "@/lib/api/hooks-dashboard";
 import { useInstallUrl } from "@/lib/api/hooks";
 import { EASE, gsap } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -136,6 +140,9 @@ export default function OverviewPage() {
         </div>
       </section>
 
+      <LiveHealth />
+      <Deployments />
+
       {/* Body */}
       <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 lg:border-r lg:border-line">
@@ -230,13 +237,19 @@ function IncidentRows({ items, now }: { items: Incident[]; now: number }) {
         <li key={i.id}>
           <Link
             href={`/incidents/${encodeURIComponent(i.id)}`}
-            className="group grid h-[42px] grid-cols-[16px_64px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-6 text-[13px] transition-colors hover:bg-hover sm:grid-cols-[16px_64px_minmax(0,1fr)_150px_44px]"
+            className="group grid min-h-[42px] grid-cols-[16px_64px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-6 py-1.5 text-[13px] transition-colors hover:bg-hover sm:grid-cols-[16px_64px_minmax(0,1fr)_150px_44px]"
           >
             <StatusGlyph status={i.status} />
             <code className="truncate font-mono text-[12px] text-ink-3">{i.id}</code>
-            <span className="truncate text-ink">
-              Elevated failures in <span className="font-mono text-[12.5px]">{i.service}</span>
-              <span className="ml-2 text-ink-3">{i.endpoint}</span>
+            <span className="min-w-0">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-ink">
+                  Elevated failures in <span className="font-mono text-[12.5px]">{i.service}</span>
+                  <span className="ml-2 text-ink-3">{i.endpoint}</span>
+                </span>
+                <SeverityTag severity={i.severity} />
+              </span>
+              <SuspectLine suspect={i.suspect} className="text-[12px]" />
             </span>
             <span className="hidden items-center gap-2 truncate text-ink-2 sm:flex">
               <ServiceDot color={serviceColor(i.service)} />
@@ -247,5 +260,66 @@ function IncidentRows({ items, now }: { items: Incident[]; now: number }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Error rate and p95 per service against the baseline, refreshed every 5 s. */
+function LiveHealth() {
+  const q = useServicesHealth();
+  const bad = q.data?.filter((h) => h.status !== "ok").length ?? 0;
+  return (
+    <section data-enter aria-labelledby="ov-health" className="border-b border-line">
+      <SectionHead id="ov-health" title="Service health" count={q.data ? `${bad} of ${q.data.length} need attention` : undefined} extra={<code className="font-mono text-[12px] text-ink-3">live, vs baseline</code>} />
+      <HealthCards items={q.data} loading={q.isPending} error={q.error} />
+    </section>
+  );
+}
+
+const WINDOWS = [
+  { id: "24", label: "24h" },
+  { id: "72", label: "72h" },
+  { id: "168", label: "7d" },
+] as const;
+
+/** Deployments of one repository on a time axis with the incidents that followed them. */
+function Deployments() {
+  const { ws } = useWorkspace();
+  const [repo, setRepo] = useState<string | undefined>(undefined);
+  const [hours, setHours] = useState<"24" | "72" | "168">("72");
+  const current = repo ?? ws.repos[0]?.name;
+  const q = useDeployments(current, Number(hours));
+  if (!current) return null;
+  return (
+    <section data-enter aria-labelledby="ov-deploys" className="border-b border-line">
+      <div className="flex min-h-11 flex-wrap items-center gap-2 border-b border-line px-6 py-1.5">
+        <h2 id="ov-deploys" className="text-[13px] font-semibold">
+          Deployments and incidents
+        </h2>
+        {ws.repos.length > 1 && (
+          <label className="flex items-center gap-1.5 text-[12px] text-ink-3">
+            <span className="sr-only">Repository</span>
+            <select value={current} onChange={(e) => setRepo(e.target.value)} className="h-7 rounded-md border border-line bg-panel-2 px-1.5 text-[12.5px] text-ink">
+              {ws.repos.map((r) => (
+                <option key={r.name} value={r.name}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <span className="ml-auto">
+          <Segmented label="Time window" options={WINDOWS} value={hours} onChange={setHours} />
+        </span>
+      </div>
+      {q.isError ? (
+        <p role="alert" className="px-6 py-4 text-[13px] text-red">Could not load deployments: {q.error.message}</p>
+      ) : !q.data ? (
+        <p role="status" className="px-6 py-4 text-[13px] text-ink-3">Loading deployments…</p>
+      ) : q.data.length === 0 ? (
+        <p className="px-6 py-4 text-[13px] text-ink-3">No deployments in this window.</p>
+      ) : (
+        <DeployTimeline deployments={q.data} hours={Number(hours)} />
+      )}
+    </section>
   );
 }

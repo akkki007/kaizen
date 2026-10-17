@@ -1,4 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+// The login page's message (Next's route announcer is also role=alert).
+const loginAlert = (page: Page) => page.getByRole("alert").and(page.locator("[data-kind]"));
 
 // These tests run against the mock server (NEXT_PUBLIC_API_MOCK=1).
 // mockUser: login="demo", repos: { "yashchandnani07/shoplite": "approver", "acme/docs-site": "viewer" }
@@ -64,26 +67,26 @@ test.describe("GitHub sign-in flow (mock)", () => {
 test.describe("Login page error states (mock)", () => {
   test("shows 'cancelled' error when GitHub access is denied", async ({ page }) => {
     await page.goto("/login?error=denied");
-    await expect(page.getByRole("alert")).toContainText("Sign-in was cancelled");
+    await expect(loginAlert(page)).toContainText("Sign-in was cancelled");
     await expect(page.getByRole("button", { name: /Sign in with GitHub/i })).toBeVisible();
   });
 
   test("shows 'expired' error for stale sign-in link", async ({ page }) => {
     await page.goto("/login?error=expired");
-    await expect(page.getByRole("alert")).toContainText("That sign-in link expired");
+    await expect(loginAlert(page)).toContainText("That sign-in link expired");
     await expect(page.getByRole("button", { name: /Sign in with GitHub/i })).toBeVisible();
   });
 
   test("shows 'no_repos' error with install link", async ({ page }) => {
     await page.goto("/login?error=no_repos");
-    await expect(page.getByRole("alert")).toContainText("No repositories yet");
-    await expect(page.getByRole("alert").locator("a[href*='github.com/apps/']")).toBeVisible();
+    await expect(loginAlert(page)).toContainText("No repositories yet");
+    await expect(loginAlert(page).locator("a[href*='github.com/apps/']")).toBeVisible();
     await expect(page.getByRole("button", { name: /I installed it/i })).toBeVisible();
   });
 
   test("shows generic error for invalid callback", async ({ page }) => {
     await page.goto("/login?error=invalid");
-    await expect(page.getByRole("alert")).toContainText("That sign-in link is not valid");
+    await expect(loginAlert(page)).toContainText("That sign-in link is not valid");
     await expect(page.getByRole("button", { name: /Sign in with GitHub/i })).toBeVisible();
   });
 });

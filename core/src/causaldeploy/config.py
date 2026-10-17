@@ -1,5 +1,6 @@
 import base64
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -79,6 +80,10 @@ class Settings(BaseSettings):
     # off: call the model; record: call it and store each reply; replay: stored replies only
     llm_replay_mode: Literal["off", "record", "replay"] = "off"
     llm_replay_dir: str = "tests/fixtures/llm"  # relative to core/
+    # what GET /api/v1/eval/latest serves: the JSON `make eval` writes
+    eval_results_path: str = str(
+        Path(__file__).resolve().parents[3] / "docs" / "results" / "latest.json"
+    )
 
     # Investigation tunables (PLAN.md §8)
     lookback_hours: int = Field(24, ge=1)

@@ -1,10 +1,10 @@
 // Mock API mode (NEXT_PUBLIC_API_MOCK=1): the UI runs without the backend. Fixtures mirror the
 // seeded ShopLite incident so the screens look like the real thing. Shapes are checked against
 // the generated OpenAPI types.
+import { dashboardMock, mockApproved, mockIncidents } from "./mock-dashboard";
 import { mockIncidentFetch } from "./mock-incident";
 import type { components } from "./schema";
 
-type IncidentPage = components["schemas"]["IncidentPage"];
 type User = components["schemas"]["User"];
 
 const NOW = Date.now();
@@ -15,16 +15,7 @@ export const mockUser: User = {
   repos: { "yashchandnani07/shoplite": "approver", "acme/docs-site": "viewer" },
 };
 
-export const mockIncidents: IncidentPage = {
-  total: 3,
-  limit: 50,
-  offset: 0,
-  items: [
-    { id: "inc-3", repo: "yashchandnani07/shoplite", service: "orders", env: "production", endpoint: "POST /orders", status: "open", onset_ts: ago(14), detected_at: ago(11) },
-    { id: "inc-2", repo: "yashchandnani07/shoplite", service: "payments", env: "production", endpoint: "POST /payments", status: "investigating", onset_ts: ago(190), detected_at: ago(186) },
-    { id: "inc-1", repo: "yashchandnani07/shoplite", service: "payments", env: "production", endpoint: "POST /payments", status: "resolved", onset_ts: ago(2900), detected_at: ago(2896) },
-  ],
-};
+export { mockIncidents };
 
 const mockKeys: { id: number; label: string; created_at: string; revoked_at: string | null }[] = [
   { id: 1, label: "production agent", created_at: ago(5000), revoked_at: null },
@@ -86,8 +77,9 @@ const mockDetail = (id: string): components["schemas"]["IncidentDetail"] => {
   return {
     incident: inc,
     remediation: {
-      id: "rem-1", kind: "revert", status: "verified", sha: "9f2c1ab", branch: "kaizen/fix-" + id,
-      pr_url: "https://github.com/yashchandnani07/shoplite/pull/14", approved_by: null, labels: ["kaizen", "incident:" + id], prior_fixes: [],
+      id: "rem-1", kind: "revert", sha: "9f2c1ab", branch: "kaizen/fix-" + id,
+      ...(mockApproved.has("rem-1") ? { status: "approved", approved_by: mockUser.login } : { status: "verified", approved_by: null }),
+      pr_url: "https://github.com/yashchandnani07/shoplite/pull/14", labels: ["kaizen", "incident:" + id], prior_fixes: [],
       verification: { passed: true, run_url: "https://github.com/yashchandnani07/shoplite/actions/runs/1", error_rate_before: 0.42, error_rate_after: 0.004, baseline_error_rate: 0.005 },
     },
     ranking: mockRanking(id),
@@ -157,7 +149,8 @@ export const mockFetch: typeof fetch = async (input, init) => {
     return json({ repo: url.pathname.split("/").slice(4, 6).join("/"), state: "importing", job_id: "job-connect-1" }, 202);
   }
   if (url.pathname === "/auth/logout") return json({ status: "logged_out" });
-  if (url.pathname === "/api/v1/incidents") return json(mockIncidents);
+  const dash = dashboardMock(url, method);
+  if (dash) return dash;
   if (url.pathname.endsWith("/backfill") && method === "POST") {
     return json({ job_id: "job-bf-2", status: "queued" }, 202);
   }
@@ -170,6 +163,7 @@ export const mockFetch: typeof fetch = async (input, init) => {
     });
   }
   if (/\/remediations\/[^/]+\/approve$/.test(url.pathname) && method === "POST") {
+    mockApproved.add(url.pathname.split("/")[4]);
     return json({ id: "rem-1", status: "approved", approved_by: "demo" });
   }
   if (/\/api\/v1\/incidents\/[^/]+\/remediations$/.test(url.pathname) && method === "POST") {

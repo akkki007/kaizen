@@ -11,7 +11,9 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
+from causaldeploy.api import dashboard_views
 from causaldeploy.api.auth import CurrentUser, csrf_protect, require_role
+from causaldeploy.api.dashboard_views import SuspectSummary
 from causaldeploy.api.deps import CallerDep, IngestCaller, charge_events, hash_key
 from causaldeploy.api.errors import envelope
 from causaldeploy.api.incident_views import (
@@ -27,6 +29,7 @@ from causaldeploy.api.incident_views import (
 )
 from causaldeploy.config import get_settings
 from causaldeploy.contracts import Event
+from causaldeploy.contracts.domain import IncidentStatus
 from causaldeploy.db.models import (
     ApiKey,
     AuditLog,
@@ -71,6 +74,26 @@ class IncidentSummary(BaseModel):
     status: str
     onset_ts: datetime
     detected_at: datetime
+    severity: str | None = None  # sev1..sev3, from the detector
+    acknowledged_by: str | None = None
+    # top candidate of the latest investigation; None before ranking or when it abstained
+    suspect: SuspectSummary | None = None
+
+
+def _summary(r: IncidentRow, suspect: SuspectSummary | None = None) -> IncidentSummary:
+    return IncidentSummary(
+        id=r.id,
+        repo=r.repo,
+        service=r.service,
+        env=r.env,
+        endpoint=r.endpoint,
+        status=r.status,
+        onset_ts=r.onset_ts,
+        detected_at=r.detected_at,
+        severity=r.severity,
+        acknowledged_by=r.acknowledged_by,
+        suspect=suspect,
+    )
 
 
 class IncidentPage(BaseModel):
@@ -177,19 +200,43 @@ async def list_incidents(
     user: CurrentUser,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
+    status: Annotated[list[IncidentStatus] | None, Query()] = None,
+    severity: Annotated[list[Literal["sev1", "sev2", "sev3"]] | None, Query()] = None,
+    service: Annotated[str | None, Query(max_length=128)] = None,
+    repo: Annotated[str | None, Query(max_length=255)] = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
 ) -> IncidentPage:
+    """Newest first. Filters combine with AND; `status`/`severity` repeat for several values
+    (e.g. `?status=resolved&status=closed` is the archive); `since`/`until` bound the onset;
+    `q` matches id, repo, service, env or endpoint (case-insensitive substring)."""
     from sqlalchemy import func
 
-    scope = IncidentRow.repo.in_(list(user.repos))
+    conds: list[Any] = [IncidentRow.repo.in_(list(user.repos))]
+    if status:
+        conds.append(IncidentRow.status.in_([str(x) for x in status]))
+    if severity:
+        conds.append(IncidentRow.severity.in_(severity))
+    if service:
+        conds.append(IncidentRow.service == service)
+    if repo:
+        conds.append(IncidentRow.repo == repo)
+    if since:
+        conds.append(IncidentRow.onset_ts >= since)
+    if until:
+        conds.append(IncidentRow.onset_ts <= until)
+    if q and q.strip():
+        conds.append(dashboard_views.text_filter(q.strip()))
     async with session_scope() as s:
         total = (
-            await s.execute(select(func.count()).select_from(IncidentRow).where(scope))
+            await s.execute(select(func.count()).select_from(IncidentRow).where(*conds))
         ).scalar_one()
         rows = (
             (
                 await s.execute(
                     select(IncidentRow)
-                    .where(scope)
+                    .where(*conds)
                     .order_by(IncidentRow.detected_at.desc())
                     .limit(limit)
                     .offset(offset)
@@ -198,19 +245,8 @@ async def list_incidents(
             .scalars()
             .all()
         )
-    items = [
-        IncidentSummary(
-            id=r.id,
-            repo=r.repo,
-            service=r.service,
-            env=r.env,
-            endpoint=r.endpoint,
-            status=r.status,
-            onset_ts=r.onset_ts,
-            detected_at=r.detected_at,
-        )
-        for r in rows
-    ]
+    suspects = await dashboard_views.latest_suspects([r.id for r in rows])
+    items = [_summary(r, suspects.get(r.id)) for r in rows]
     return IncidentPage(items=items, total=total, limit=limit, offset=offset)
 
 
@@ -330,15 +366,9 @@ async def get_incident_detail(incident_id: str, user: CurrentUser) -> IncidentDe
         steps=steps,
         validation_errors=(agent or {}).get("validation_errors", []),
     )
-    summary = IncidentSummary(
-        id=row.id,
-        repo=row.repo,
-        service=row.service,
-        env=row.env,
-        endpoint=row.endpoint,
-        status=row.status,
-        onset_ts=row.onset_ts,
-        detected_at=row.detected_at,
+    summary = _summary(
+        row,
+        dashboard_views.suspect_from_ranking((inv.result or {}).get("ranking") if inv else None),
     )
     async with session_scope() as s2:
         rem = (
@@ -1063,3 +1093,67 @@ async def create_api_key(repo: str, label: str = "") -> str:
         await s.execute(insert(Repository).values(full_name=repo).on_conflict_do_nothing())
         s.add(ApiKey(repo=repo, key_hash=hash_key(key), label=label))
     return key
+
+
+# -- dashboard (#93): read-only views --------------------------------------------------------
+
+
+def _visible_repo(user: CurrentUser, repo: str) -> str:
+    """404 (not 403) for a repository the user cannot see: do not reveal that it exists."""
+    if repo not in user.repos:
+        raise HTTPException(404, "repository not found")
+    return repo
+
+
+@v1.get("/services/health", response_model=list[dashboard_views.ServiceHealth])
+async def services_health(
+    user: CurrentUser, repo: Annotated[str | None, Query(max_length=255)] = None
+) -> list[dashboard_views.ServiceHealth]:
+    """Per service+env: error rate and p95 of the latest complete detection windows against
+    the baseline before them; `incident` while an incident is active, `degraded` when the
+    current windows are anomalous but no incident is open yet. Without `repo`: every
+    repository the user can see."""
+    repos = [_visible_repo(user, repo)] if repo else sorted(user.repos)
+    out: list[dashboard_views.ServiceHealth] = []
+    for name in repos:
+        out += await dashboard_views.services_health(name)
+    return out
+
+
+@v1.get("/repos/{owner}/{name}/deployments", response_model=list[dashboard_views.DeploymentView])
+async def repo_deployments(
+    owner: str,
+    name: str,
+    user: CurrentUser,
+    hours: Annotated[int, Query(ge=1, le=24 * 30)] = 72,
+) -> list[dashboard_views.DeploymentView]:
+    """Deployments of the last `hours`, oldest first, with the incidents that followed each."""
+    repo = _visible_repo(user, f"{owner}/{name}")
+    return await dashboard_views.deployments(repo, hours)
+
+
+@v1.get("/repos/{owner}/{name}/hotspots", response_model=dashboard_views.Hotspots)
+async def repo_hotspots(
+    owner: str,
+    name: str,
+    user: CurrentUser,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> dashboard_views.Hotspots:
+    """Functions and dependencies most often blamed: incidents whose likely (not rejected) or
+    confirmed cause modified the function / changed the dependency, plus top-ranked
+    dependency-change suspects."""
+    repo = _visible_repo(user, f"{owner}/{name}")
+    return await dashboard_views.hotspots(repo, limit)
+
+
+@v1.get("/eval/latest", response_model=dashboard_views.EvalResult)
+async def eval_latest(user: CurrentUser) -> dashboard_views.EvalResult:
+    """The latest evaluation result (docs/results/latest.json, written by `make eval`),
+    unchanged: generated_at, weights_version, methods, splits {all, tune, test}, blast_radius,
+    fix_verification_rate, memory, runtime_seconds, scenarios, failures."""
+    try:
+        return await asyncio.to_thread(dashboard_views.eval_latest)
+    except dashboard_views.EvalMissing as e:
+        raise HTTPException(404, str(e)) from e
+    except dashboard_views.EvalInvalid as e:
+        raise HTTPException(500, str(e)) from e

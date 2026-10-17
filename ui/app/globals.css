@@ -17,8 +17,8 @@
   --line-soft: #efede9;
   --ink: #1d1c1a;
   --ink-2: #57544e;
-  --ink-3: #85817a;
-  --ink-4: #aaa69e;
+  --ink-3: #66625a; /* text tokens: >= 4.5:1 on bg and panel (WCAG AA) */
+  --ink-4: #716d66;
   --hover: rgb(29 28 26 / 0.04);
   --sel: color-mix(in srgb, var(--accent) 11%, var(--panel));
   --accent: #4b5bd6;
@@ -43,8 +43,8 @@
   --line-soft: #1e1f24;
   --ink: #ececef;
   --ink-2: #a3a4ab;
-  --ink-3: #74757d;
-  --ink-4: #54555c;
+  --ink-3: #8f9098;
+  --ink-4: #82838b;
   --hover: rgb(255 255 255 / 0.028);
   --sel: #23263d;
   --accent: #7d84f6;

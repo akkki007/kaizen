@@ -1,4 +1,5 @@
 import type { components } from "@/lib/api/schema";
+import { isActiveStatus } from "./status";
 
 export type Incident = components["schemas"]["IncidentSummary"];
 export type Role = "viewer" | "approver";
@@ -10,7 +11,8 @@ const COLORS = ["#ef8f45", "#a48cf0", "#5aa9e6", "#e5689a", "#4fb7a8", "#d6a03c"
 const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 export const serviceColor = (name: string) => COLORS[hash(name) % COLORS.length];
 
-export const isOpen = (i: Incident) => i.status !== "resolved";
+/** Still being worked on: anything but resolved or closed (lib/status.ts). */
+export const isOpen = (i: Incident) => isActiveStatus(i.status);
 
 export type Service = { name: string; color: string; total: number; open: number };
 export type Repo = { name: string; role: Role; open: number; total: number; last: number | null; daily: number[] };

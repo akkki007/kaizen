@@ -1,28 +1,48 @@
 "use client";
 
-import { ArrowDownUp, ArrowUpRight, Link2, X } from "lucide-react";
+import { ArrowDownUp, ArrowUpRight, Link2, Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AskIncident, CauseSummary, IncidentFacts } from "@/components/app/incident-brief";
-import { IconButton, Kbd, ServiceDot, StatusBadge, StatusGlyph, Tag, buttonClass } from "@/components/app/kit";
+import { IconButton, Kbd, ServiceDot, SeverityTag, StatusBadge, StatusGlyph, Tag, buttonClass } from "@/components/app/kit";
+import { SuspectLine } from "@/components/dashboard/suspect";
 import { useWorkspace } from "@/components/app/shell";
 import { workspaceTabs } from "@/components/app/tabs";
 import { Topbar } from "@/components/app/topbar";
 import { LogoMark } from "@/components/landing/logo";
+import { useIncidentSearch } from "@/lib/api/hooks-dashboard";
 import { EASE, gsap, haptic } from "@/lib/motion";
+import { ACTIVE_STATUSES, ARCHIVE_STATUSES, INCIDENT_STATUSES, SEVERITIES, STATUS_META, isIncidentStatus, type IncidentStatus, type Severity } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { ago, isOpen, serviceColor, type Incident } from "@/lib/workspace";
 
-type StatusFilter = "open" | "all" | "resolved";
+type View = "all" | "active" | "archive";
+
+/** `?status=` is a view (all / active / archive) or one lifecycle status; old links used open/resolved. */
+function parseStatus(raw: string | null): { view: View; status: IncidentStatus | null } {
+  if (raw === "open" || raw === "active") return { view: "active", status: null };
+  if (raw === "resolved" || raw === "archive") return { view: "archive", status: null };
+  if (raw && isIncidentStatus(raw)) return { view: "all", status: raw };
+  return { view: "all", status: null };
+}
+
+const dayStart = (d: string) => new Date(`${d}T00:00:00`).toISOString();
+const dayEnd = (d: string) => new Date(`${d}T23:59:59.999`).toISOString();
 
 export default function IncidentsPage() {
   const { ws } = useWorkspace();
   const router = useRouter();
   const path = usePathname();
   const params = useSearchParams();
-  const status = (params.get("status") as StatusFilter | null) ?? "all";
+  const { view, status } = parseStatus(params.get("status"));
   const service = params.get("service");
+  const severity = (params.get("severity") ?? "").split(",").filter((x): x is Severity => (SEVERITIES as readonly string[]).includes(x));
+  const since = params.get("since") ?? "";
+  const until = params.get("until") ?? "";
+  const qParam = params.get("q") ?? "";
+  const [text, setText] = useState(qParam);
+  useEffect(() => setText(qParam), [qParam]);
   // Selection is local so rapid j/k presses never wait on the URL; the URL follows for deep links.
   const urlSelected = params.get("selected");
   const [selectedId, setSelectedId] = useState(urlSelected);
@@ -36,19 +56,36 @@ export default function IncidentsPage() {
   const setParam = useCallback(
     (patch: Record<string, string | null>) => {
       const next = new URLSearchParams(params.toString());
-      for (const [k, v] of Object.entries(patch)) (v === null ? next.delete(k) : next.set(k, v));
+      for (const [k, v] of Object.entries(patch)) (v === null || v === "" ? next.delete(k) : next.set(k, v));
       const qs = next.toString();
       router.replace(qs ? `${path}?${qs}` : path, { scroll: false });
     },
     [params, path, router],
   );
 
+  // Text search follows typing after a short pause.
+  useEffect(() => {
+    if (text === qParam) return;
+    const t = window.setTimeout(() => setParam({ q: text.trim() || null, selected: null }), 300);
+    return () => window.clearTimeout(t);
+  }, [text, qParam, setParam]);
+
+  const statuses = status ? [status] : view === "active" ? ACTIVE_STATUSES : view === "archive" ? ARCHIVE_STATUSES : undefined;
+  const search = useIncidentSearch({
+    status: statuses,
+    severity,
+    service: service ?? undefined,
+    since: since ? dayStart(since) : undefined,
+    until: until ? dayEnd(until) : undefined,
+    q: qParam,
+  });
   const byService = service ? ws.incidents.filter((i) => i.service === service) : ws.incidents;
-  const counts = { all: byService.length, open: byService.filter(isOpen).length, resolved: byService.filter((i) => !isOpen(i)).length };
+  const counts: Record<View, number> = { all: byService.length, active: byService.filter(isOpen).length, archive: byService.filter((i) => !isOpen(i)).length };
+  const filtered = view !== "all" || status || severity.length || since || until || qParam;
   const items = useMemo(() => {
-    const filtered = byService.filter((i) => (status === "open" ? isOpen(i) : status === "resolved" ? !isOpen(i) : true));
-    return newestFirst ? filtered : [...filtered].reverse();
-  }, [byService, status, newestFirst]);
+    const got = search.data?.items ?? [];
+    return newestFirst ? got : [...got].reverse();
+  }, [search.data, newestFirst]);
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
   const select = useCallback(
@@ -101,26 +138,29 @@ export default function IncidentsPage() {
 
       {/* Filters */}
       <div data-enter className="sticky top-[46px] z-10 flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-line bg-panel/90 px-4 backdrop-blur-md scrollbar-none sm:px-6">
-        <div role="radiogroup" aria-label="Status" className="flex items-center gap-0.5">
-          {(["all", "open", "resolved"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              role="radio"
-              aria-checked={status === s}
-              onClick={() => {
-                haptic("tap");
-                setParam({ status: s === "all" ? null : s, selected: null });
-              }}
-              className={cn(
-                "inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[12.5px] capitalize transition-colors",
-                status === s ? "border-line bg-raised font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink",
-              )}
-            >
-              {s}
-              <span className="num text-ink-3">{counts[s]}</span>
-            </button>
-          ))}
+        <div role="radiogroup" aria-label="Lifecycle" className="flex items-center gap-0.5">
+          {(["all", "active", "archive"] as const).map((v) => {
+            const on = !status && view === v;
+            return (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => {
+                  haptic("tap");
+                  setParam({ status: v === "all" ? null : v, selected: null });
+                }}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[12.5px] capitalize transition-colors",
+                  on ? "border-line bg-raised font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink",
+                )}
+              >
+                {v}
+                <span className="num text-ink-3">{counts[v]}</span>
+              </button>
+            );
+          })}
         </div>
         <span className="mx-1 h-4 w-px shrink-0 bg-line" aria-hidden="true" />
         <ul className="flex items-center gap-0.5" aria-label="Filter by service">
@@ -160,12 +200,83 @@ export default function IncidentsPage() {
           <ArrowDownUp size={13} /> {newestFirst ? "Newest first" : "Oldest first"}
         </button>
       </div>
+      <form
+        data-enter
+        aria-label="Incident filters"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setParam({ q: text.trim() || null, selected: null });
+        }}
+        className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2 text-[12.5px] sm:px-6"
+      >
+        <label className="flex h-7 min-w-[180px] flex-1 items-center gap-2 rounded-md border border-line bg-panel-2 px-2 focus-within:border-ink-4 sm:max-w-xs">
+          <Search size={13} className="text-ink-3" aria-hidden="true" />
+          <span className="sr-only">Search incidents</span>
+          <input type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search id, service, endpoint" className="h-full flex-1 bg-transparent outline-none placeholder:text-ink-4" />
+        </label>
+        <label className="flex items-center gap-1.5 text-ink-3">
+          Status
+          <select
+            aria-label="Status"
+            value={status ?? ""}
+            onChange={(e) => setParam({ status: e.target.value || (view === "all" ? null : view), selected: null })}
+            className="h-7 rounded-md border border-line bg-panel-2 px-1.5 text-ink"
+          >
+            <option value="">Any</option>
+            {INCIDENT_STATUSES.map((st) => (
+              <option key={st} value={st}>
+                {STATUS_META[st].label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <fieldset className="flex items-center gap-0.5">
+          <legend className="sr-only">Severity</legend>
+          {SEVERITIES.map((sev) => {
+            const on = severity.includes(sev);
+            return (
+              <button
+                key={sev}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setParam({ severity: (on ? severity.filter((x) => x !== sev) : [...severity, sev]).join(",") || null, selected: null })}
+                className={cn("inline-flex h-7 items-center rounded-md border px-2 font-medium uppercase transition-colors", on ? "border-line bg-raised text-ink" : "border-transparent text-ink-3 hover:text-ink")}
+              >
+                {sev}
+              </button>
+            );
+          })}
+        </fieldset>
+        <label className="flex items-center gap-1.5 text-ink-3">
+          From
+          <input type="date" value={since} max={until || undefined} onChange={(e) => setParam({ since: e.target.value || null, selected: null })} className="h-7 rounded-md border border-line bg-panel-2 px-1.5 text-ink" />
+        </label>
+        <label className="flex items-center gap-1.5 text-ink-3">
+          To
+          <input type="date" value={until} min={since || undefined} onChange={(e) => setParam({ until: e.target.value || null, selected: null })} className="h-7 rounded-md border border-line bg-panel-2 px-1.5 text-ink" />
+        </label>
+        {filtered && (
+          <button type="button" onClick={() => setParam({ status: null, severity: null, since: null, until: null, q: null, selected: null })} className={buttonClass("ghost")}>
+            <X size={12} aria-hidden="true" /> Clear filters
+          </button>
+        )}
+        <span className="num ml-auto text-ink-3" aria-live="polite">
+          {search.data ? `${search.data.total} ${search.data.total === 1 ? "incident" : "incidents"}` : search.isError ? "" : "Loading"}
+        </span>
+      </form>
 
       <div className={cn("grid flex-1", selected && "xl:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]")}>
         <div className="relative flex min-w-0 flex-col">
-          {items.length === 0 ? (
+          {search.isError ? (
+            <p role="alert" className="px-6 py-6 text-[13px] text-red">Could not load incidents: {search.error.message}</p>
+          ) : !search.data ? (
+            <p role="status" className="px-6 py-6 text-[13px] text-ink-3">Loading incidents</p>
+          ) : items.length === 0 ? (
             <div className="px-6 py-16 text-center">
-              <p className="text-[14px] font-medium">No {status === "all" ? "" : `${status} `}incidents{service ? ` in ${service}` : ""}</p>
+              <p className="text-[14px] font-medium">
+                No {status ? `${STATUS_META[status].label.toLowerCase()} ` : view === "all" ? "" : `${view} `}incidents{service ? ` in ${service}` : ""}
+                {filtered ? " match these filters" : ""}
+              </p>
               <p className="mt-1 text-[13px] text-ink-3">When error rate or latency leaves its baseline, the incident shows up here within seconds.</p>
             </div>
           ) : (
@@ -204,7 +315,8 @@ function IncidentRow({ incident: i, selected, onSelect, onOpen }: { incident: In
             <span className="truncate text-[13px] font-medium text-ink">
               Elevated failures in <span className="font-mono text-[12.5px]">{i.service}</span>
             </span>
-            <Tag tone={i.env === "production" ? "red" : "neutral"} className="hidden sm:inline-flex">
+            <SeverityTag severity={i.severity} />
+            <Tag tone="outline" className="hidden sm:inline-flex">
               {i.env}
             </Tag>
           </span>
@@ -215,6 +327,7 @@ function IncidentRow({ incident: i, selected, onSelect, onOpen }: { incident: In
             <span className="hidden sm:inline">·</span>
             <span className="hidden truncate sm:inline">{i.repo}</span>
           </span>
+          <SuspectLine suspect={i.suspect} className="mt-0.5 text-[12px]" />
         </span>
         <span className="flex items-center gap-3 pt-[1px] text-[12px] text-ink-3">
           <span className="hidden items-center gap-1.5 md:flex">

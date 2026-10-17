@@ -44,4 +44,7 @@ test("fix section shows the staging verification result and lets an approver app
   await expect(page.getByText("42.0%")).toBeVisible();
   await expect(page.getByRole("link", { name: "pull request" })).toHaveAttribute("href", /pull\/14/);
   await page.getByRole("button", { name: "Approve fix" }).click();
+  // the approval is recorded and the page shows the new state, not just a click
+  await expect(page.getByText("Approved by demo")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve fix" })).toHaveCount(0);
 });

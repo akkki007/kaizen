@@ -1,9 +1,9 @@
 "use client";
 
-import { CircleAlert, CircleCheck, CircleDot, ScanSearch } from "lucide-react";
 import Link from "next/link";
 import { useId, useLayoutEffect, useRef, type ComponentProps, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { gsap, haptic } from "@/lib/motion";
+import { STATUS_META, isIncidentStatus, severityMeta, statusMeta, type IncidentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 /* ───────── Buttons ───────── */
@@ -76,29 +76,36 @@ export function ServiceDot({ color, className }: { color: string; className?: st
 
 /* ───────── Incident status ───────── */
 
-export type StatusKind = "open" | "investigating" | "identified" | "resolved";
+// Labels, tones and icons for every lifecycle status live in lib/status.ts.
+export type StatusKind = IncidentStatus;
 
-export const STATUS: Record<StatusKind, { label: string; tone: TagTone; text: string; Icon: typeof CircleAlert }> = {
-  open: { label: "Open", tone: "red", text: "text-red", Icon: CircleAlert },
-  investigating: { label: "Investigating", tone: "amber", text: "text-amber", Icon: ScanSearch },
-  identified: { label: "Cause found", tone: "accent", text: "text-link", Icon: CircleDot },
-  resolved: { label: "Resolved", tone: "green", text: "text-green", Icon: CircleCheck },
-};
+export const STATUS = STATUS_META;
 
-export const statusOf = (s: string): StatusKind => (s in STATUS ? (s as StatusKind) : "open");
+export const statusOf = (s: string): StatusKind => (isIncidentStatus(s) ? s : "open");
 
 export function StatusGlyph({ status, size = 15 }: { status: string; size?: number }) {
-  const s = STATUS[statusOf(status)];
-  return <s.Icon size={size} strokeWidth={1.8} className={cn("shrink-0", s.text)} aria-label={s.label} />;
+  const s = statusMeta(status);
+  return <s.Icon size={size} strokeWidth={1.8} className={cn("shrink-0", s.text)} aria-label={s.label} role="img" />;
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const s = STATUS[statusOf(status)];
+  const s = statusMeta(status);
   return (
-    <span className={cn("inline-flex h-[22px] items-center gap-1.5 rounded-full border px-2 text-[11.5px] font-medium", s.text)} style={{ borderColor: "color-mix(in srgb, currentColor 35%, transparent)" }}>
-      <s.Icon size={12} strokeWidth={2} />
+    <span title={s.description} className={cn("inline-flex h-[22px] items-center gap-1.5 rounded-full border px-2 text-[11.5px] font-medium", s.text)} style={{ borderColor: "color-mix(in srgb, currentColor 35%, transparent)" }}>
+      <s.Icon size={12} strokeWidth={2} aria-hidden="true" />
       {s.label}
     </span>
+  );
+}
+
+/** Severity as a small tag; nothing for incidents without one. */
+export function SeverityTag({ severity, className }: { severity: string | null | undefined; className?: string }) {
+  const m = severityMeta(severity);
+  if (!m) return null;
+  return (
+    <Tag tone={m.tone} className={className}>
+      <span title={m.description}>{m.label}</span>
+    </Tag>
   );
 }
 
