@@ -65,7 +65,7 @@ criterion is proven, the rest named; **external** = lives outside this repo or n
 | `POST /api/v1/events` batch endpoint, API-key auth, validation, idempotency | done | `test_api.py::test_event_ingest_requires_key_and_dedupes`, `test_api_key_rotation` |
 | Backpressure 429 + Retry-After, size limits | done | `test_incident_api.py::test_rate_limit_counts_events_and_sets_retry_after`, `test_rate_limiter_retry_after_is_when_enough_events_expire`, `test_oversized_batches_and_bodies_are_413` |
 | Retention job | done | `test_retention.py::test_purge_keeps_only_the_retention_window` (daily cron `purge_job`) |
-| ✅ Sustains 500 events/s locally | done | `docs/performance.md`: telemetry fast path (one idempotent INSERT per batch, one graph job per batch, migration 0004): 500 ev/s at p50 19 ms and 2 000 ev/s at p50 22 ms per batch on a laptop; `test_ingest_batch.py` |
+| ✅ Sustains 500 events/s locally | done | `docs/performance.md`: telemetry fast path (one idempotent INSERT per batch, one graph job per batch, migration 0004): 496 ev/s at a 500/s target (p50 315 ms per batch) and a ~880 ev/s ceiling on a laptop, every row verified stored; `test_ingest_batch.py` |
 | ✅ Invalid/oversized payloads rejected without data loss for valid ones | done | `test_incident_api.py::test_mixed_batch_accepts_valid_items_and_reports_rejected`, `test_oversized_batches_and_bodies_are_413` |
 | Stack parsing (app frames only) | done | `test_detect.py::test_frames_drop_runtime_and_dependency_code` |
 | Fingerprint = type + top app frame + normalised message | done | `test_detect.py::test_fingerprint_is_stable_across_ids_numbers_and_line_drift` |
@@ -155,7 +155,7 @@ criterion is proven, the rest named; **external** = lives outside this repo or n
 | ✅ Red when any stage regresses | done | `test_full_loop.py` asserts graph and Postgres state after detect, rank, explain, fix, verify, merge, memory |
 | Threat model, least privilege, CI scanning, sandbox check, rate/size limits | done | `docs/security.md`; new `test_security.py` (7 tests); webhook body cap fixed in `api/deps.py` |
 | ✅ Written review with findings fixed or explicitly accepted | done | `docs/security.md` (14 findings: 2 fixed, 12 accepted with rationale) |
-| Load test ingest (target 500 ev/s) | done (500 and 2 000 ev/s sustained after the fast path) | `docs/performance.md`; `core/scripts/bench_ingest.py`, `bench_drain.py`, `perf_worker.py` |
+| Load test ingest (target 500 ev/s) | done (496 ev/s at the 500/s target, ~880 ev/s ceiling, rows verified) | `docs/performance.md`; `core/scripts/bench_ingest.py`, `bench_drain.py`, `perf_worker.py` |
 | Detection -> hypothesis < 30 s (excl. LLM) | done | p50 194 ms; `test_perf.py::test_detection_to_ranked_hypothesis_is_within_budget`, `core/scripts/bench_hypothesis.py` |
 | Chaos: worker crash, FalkorDB restart, duplicate webhooks | done | `test_chaos.py` (5 pass, incl. `test_falkordb_outage_does_not_duplicate_error_telemetry`: idempotent telemetry inserts via `event_key`) |
 | ✅ Budgets measured and recorded in docs | done | `docs/performance.md` |

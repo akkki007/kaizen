@@ -2,7 +2,7 @@
 
 | Budget | Target | Measured (this machine) | Status |
 |---|---|---|---|
-| Ingest throughput (API accept + store) | 500 events/s | After the fast path (migration 0004): **500 events/s** sustained, p50 19 ms / p95 31 ms per 100-event batch; **2 000 events/s** sustained, p50 22 ms / p95 35 ms per 200-event batch. Before: 531 events/s at saturation with p50 18 s | **Met** |
+| Ingest throughput (API accept + store) | 500 events/s | After the fast path (migration 0004), with every row verified in Postgres afterwards: **496 events/s** sustained at a 500/s target, p50 315 ms / p95 431 ms per 100-event batch (10 000 of 10 000 rows stored); ceiling **~880 events/s** (1 000/s target, 200-event batches: p50 4.1 s, 20 000 of 20 000 stored) with one uvicorn process. Before: 531 events/s at saturation with p50 18 s | **Met** (about 1.75x headroom) |
 | Ingest throughput (worker processing) | 500 events/s | Telemetry no longer needs a job per event: rows are stored by the API; only errors / cross-service requests need graph work, **one job per batch** (a 100-event batch = at most 1 job). Before: 18 jobs/s default worker, 41 jobs/s tuned, one job per event | **Met** for request telemetry; error-heavy batches cost one graph job per batch (not separately load-tested) |
 | Detection -> ranked hypothesis (excl. LLM) | < 30 s | p50 194 ms, max 7.3 s (cold first run) over 5 runs | **Met** (`tests/test_perf.py` asserts it) |
 | Chaos: worker crash, FalkorDB outage, duplicate webhooks | no lost or duplicated effects | all 5 chaos tests pass (the graph-outage duplicate is fixed by idempotent telemetry inserts) | **Met** |
@@ -73,8 +73,13 @@ Items 1 and 2 are implemented: `POST /api/v1/events` stores telemetry/health wit
 `INSERT ... ON CONFLICT (event_key) DO NOTHING` and enqueues one `ingest_telemetry_batch` job for
 the batch's graph work (`core/tests/test_ingest_batch.py`); migration 0004 adds
 `telemetry.event_key` (unique) and the request-id index. Re-measured on the same laptop
-(request telemetry, `scripts/bench_ingest.py`): 500 events/s at p50 19 ms and 2 000 events/s at
-p50 22 ms per batch, every batch 202. The profile above describes the code before that change.
+(request telemetry, `scripts/bench_ingest.py`, rows counted in Postgres before and after each
+run): 496 events/s at a 500/s target (p50 315 ms per 100-event batch) and a ceiling of ~880
+events/s with one API process. The profile above describes the code before that change.
+
+Measurement note: the repository under test must be in `CD_ALLOWED_REPOS` (or the allowlist
+empty). Events for other repositories are accepted with 202 and deliberately not stored, so a
+benchmark against a non-allowed repo measures nothing. Count the stored rows, not the 202s.
 
 Detection is unaffected: it reads windows from Postgres (`ix_telemetry_window`), not from jobs.
 
