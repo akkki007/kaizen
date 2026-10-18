@@ -129,34 +129,129 @@ const mockOnboarding = (): Onboarding[] => {
   return [shoplite, docs];
 };
 
-// Code graph fixture for the Live graph page: mock "inject" flips one function red and one commit amber.
+// Code graph fixture for the Graph map page: a ShopLite-sized repository (8 services, ~80 functions) so the
+// map is exercised at scale. Mock "inject" flips payments:validatePayment red and commit c0ffee1 amber.
 let injected = false;
+type MockFn = [name: string, detail: string, calls?: string[]];
+const MOCK_SERVICES: Record<string, MockFn[]> = {
+  gateway: [
+    ["route", "src/gateway/router.js · serves GET /", ["authenticate", "rateLimit", "proxy"]],
+    ["authenticate", "src/gateway/auth.js", ["auth:verifyToken"]],
+    ["rateLimit", "src/gateway/limits.js", ["readBucket"]],
+    ["readBucket", "src/gateway/limits.js"],
+    ["proxy", "src/gateway/proxy.js", ["orders:createOrder", "catalog:listProducts", "search:query"]],
+  ],
+  auth: [
+    ["login", "src/auth/routes.js · serves POST /login", ["findUser", "checkPassword", "issueToken"]],
+    ["findUser", "src/auth/users.js"],
+    ["checkPassword", "src/auth/password.js", ["hashPassword"]],
+    ["hashPassword", "src/auth/password.js"],
+    ["issueToken", "src/auth/tokens.js", ["signJwt"]],
+    ["signJwt", "src/auth/tokens.js"],
+    ["verifyToken", "src/auth/tokens.js", ["decodeJwt"]],
+    ["decodeJwt", "src/auth/tokens.js"],
+    ["loginTest", "test/auth/login.test.js", ["login"]],
+  ],
+  orders: [
+    ["createOrder", "src/app.js · serves POST /orders", ["validateCart", "reserveItems", "payments:handlePayment", "saveOrder", "notifications:sendReceipt"]],
+    ["listOrders", "src/orders/list.js · serves GET /orders", ["loadOrders", "formatOrder"]],
+    ["validateCart", "src/orders/cart.js", ["inventory:checkStock"]],
+    ["reserveItems", "src/orders/reserve.js", ["inventory:reserve"]],
+    ["saveOrder", "src/orders/store.js", ["writeOrderRow"]],
+    ["writeOrderRow", "src/orders/store.js"],
+    ["loadOrders", "src/orders/store.js"],
+    ["formatOrder", "src/orders/format.js", ["formatMoney"]],
+    ["formatMoney", "src/orders/format.js"],
+    ["createOrderTest", "test/orders/create.test.js", ["createOrder"]],
+  ],
+  payments: [
+    ["handlePayment", "src/routes.js · serves POST /payments", ["validatePayment", "chargeCard", "recordLedger"]],
+    ["refundPayment", "src/payment/refund.js · serves POST /refunds", ["loadCharge", "issueRefund", "recordLedger"]],
+    ["paymentStatus", "src/payment/status.js · serves GET /payments/:id", ["loadCharge"]],
+    ["validatePayment", "src/payment/validation.js", ["toCents", "checkCurrency", "fraudScore"]],
+    ["toCents", "src/payment/money.js", ["roundHalfEven"]],
+    ["roundHalfEven", "src/payment/money.js"],
+    ["checkCurrency", "src/payment/currency.js", ["loadRates"]],
+    ["loadRates", "src/payment/currency.js"],
+    ["fraudScore", "src/payment/fraud.js", ["velocityCheck", "geoCheck"]],
+    ["velocityCheck", "src/payment/fraud.js"],
+    ["geoCheck", "src/payment/fraud.js"],
+    ["chargeCard", "src/payment/stripe.js", ["createIntent", "confirmIntent"]],
+    ["createIntent", "src/payment/stripe.js", ["stripeRequest"]],
+    ["confirmIntent", "src/payment/stripe.js", ["stripeRequest"]],
+    ["stripeRequest", "src/payment/stripe.js", ["retryWithBackoff"]],
+    ["retryWithBackoff", "src/lib/retry.js"],
+    ["recordLedger", "src/payment/ledger.js", ["writeLedgerRow"]],
+    ["writeLedgerRow", "src/payment/ledger.js"],
+    ["loadCharge", "src/payment/ledger.js"],
+    ["issueRefund", "src/payment/stripe.js", ["stripeRequest"]],
+    ["validatePaymentTest", "test/payment/validation.test.js", ["validatePayment"]],
+    ["toCentsSpec", "test/payment/money.spec.js", ["toCents"]],
+  ],
+  inventory: [
+    ["checkStock", "src/inventory/stock.js · serves GET /stock/:sku", ["readStock"]],
+    ["reserve", "src/inventory/reserve.js", ["readStock", "writeReservation"]],
+    ["release", "src/inventory/reserve.js", ["writeReservation"]],
+    ["readStock", "src/inventory/store.js"],
+    ["writeReservation", "src/inventory/store.js"],
+  ],
+  catalog: [
+    ["listProducts", "src/catalog/routes.js · serves GET /products", ["loadProducts", "applyPricing"]],
+    ["getProduct", "src/catalog/routes.js · serves GET /products/:id", ["loadProducts", "applyPricing"]],
+    ["loadProducts", "src/catalog/store.js"],
+    ["applyPricing", "src/catalog/pricing.js", ["payments:toCents"]],
+  ],
+  search: [
+    ["query", "src/search/routes.js · serves GET /search", ["tokenize", "rank", "highlight"]],
+    ["tokenize", "src/search/text.js"],
+    ["rank", "src/search/rank.js", ["bm25"]],
+    ["bm25", "src/search/rank.js"],
+    ["highlight", "src/search/text.js"],
+  ],
+  notifications: [
+    ["sendReceipt", "src/notify/receipt.js", ["renderTemplate", "sendEmail"]],
+    ["renderTemplate", "src/notify/templates.js"],
+    ["sendEmail", "src/notify/email.js", ["retryWithBackoff"]],
+    ["retryWithBackoff", "src/lib/retry.js"],
+  ],
+};
+const MOCK_COMMITS: [sha: string, message: string, changes: string[]][] = [
+  ["c0ffee1", "Refactor payment validation", ["payments:validatePayment", "payments:toCents"]],
+  ["a11ce22", "docs: update README", ["orders:listOrders"]],
+  ["b4d5eed", "Add velocity check to fraud scoring", ["payments:fraudScore", "payments:velocityCheck"]],
+  ["3e7a901", "Retry Stripe requests with backoff", ["payments:stripeRequest", "payments:retryWithBackoff"]],
+  ["91fe0ab", "Ledger: write rows in one transaction", ["payments:recordLedger", "payments:writeLedgerRow"]],
+  ["5c2d8e4", "Currency rates cache", ["payments:checkCurrency", "payments:loadRates"]],
+  ["e0f1a77", "Refunds endpoint", ["payments:refundPayment", "payments:issueRefund"]],
+  ["7aa31c0", "Round half-even for cents", ["payments:roundHalfEven"]],
+  ["0d9b6f2", "Reserve items before charging", ["orders:reserveItems", "inventory:reserve"]],
+  ["fa12c3d", "Cart validation reads live stock", ["orders:validateCart", "inventory:checkStock"]],
+  ["2b8e4a1", "Shorter JWT expiry", ["auth:issueToken", "auth:signJwt"]],
+  ["66c0de9", "Rate limit per API key", ["gateway:rateLimit", "gateway:readBucket"]],
+  ["d3adb33", "BM25 ranking for search", ["search:rank", "search:bm25"]],
+  ["8f00d11", "Receipt template redesign", ["notifications:renderTemplate"]],
+  ["4a4a4a4", "Catalog pricing in cents", ["catalog:applyPricing"]],
+];
 const mockCodeGraph = (repo: string): components["schemas"]["CodeGraph"] => {
-  const fn = (svc: string, name: string, detail = "") => ({ id: `${svc}:${name}`, kind: "function" as const, label: name, parent: `svc:${svc}`, state: "ok" as "ok" | "failing" | "suspect", incident_id: null as string | null, detail });
-  const nodes: components["schemas"]["GraphNode"][] = [
-    { id: "svc:payments", kind: "service", label: "payments", parent: null, state: "ok", incident_id: null, detail: "" },
-    { id: "svc:orders", kind: "service", label: "orders", parent: null, state: "ok", incident_id: null, detail: "" },
-    fn("payments", "handlePayment", "src/routes.js · serves POST /payments"),
-    fn("payments", "validatePayment", "src/payment/validation.js"),
-    fn("payments", "toCents"),
-    fn("orders", "createOrder", "src/app.js · serves POST /orders"),
-    fn("orders", "listOrders"),
-    { id: "commit:c0ffee1", kind: "commit", label: "c0ffee1", parent: null, state: "ok", incident_id: null, detail: "Refactor payment validation" },
-    { id: "commit:a11ce22", kind: "commit", label: "a11ce22", parent: null, state: "ok", incident_id: null, detail: "docs: update README" },
-  ];
+  const nodes: components["schemas"]["GraphNode"][] = [];
+  const edges: components["schemas"]["GraphEdge"][] = [];
+  for (const [svc, fns] of Object.entries(MOCK_SERVICES)) {
+    nodes.push({ id: `svc:${svc}`, kind: "service", label: svc, parent: null, state: "ok", incident_id: null, detail: "" });
+    for (const [name, detail, calls = []] of fns) {
+      nodes.push({ id: `${svc}:${name}`, kind: "function", label: name, parent: `svc:${svc}`, state: "ok", incident_id: null, detail });
+      for (const c of calls) edges.push({ source: `${svc}:${name}`, target: c.includes(":") ? c : `${svc}:${c}`, rel: "calls" });
+    }
+  }
+  for (const [sha, message, changes] of MOCK_COMMITS) {
+    nodes.push({ id: `commit:${sha}`, kind: "commit", label: sha, parent: null, state: "ok", incident_id: null, detail: message });
+    for (const c of changes) edges.push({ source: `commit:${sha}`, target: c, rel: "modifies" });
+  }
   if (injected) {
-    nodes.find((n) => n.id === "payments:validatePayment")!.state = "failing";
-    nodes.find((n) => n.id === "payments:validatePayment")!.incident_id = "inc-3";
+    const fn = nodes.find((n) => n.id === "payments:validatePayment")!;
+    fn.state = "failing";
+    fn.incident_id = "inc-3";
     nodes.find((n) => n.id === "commit:c0ffee1")!.state = "suspect";
   }
-  const edges = [
-    { source: "payments:handlePayment", target: "payments:validatePayment", rel: "calls" },
-    { source: "payments:handlePayment", target: "payments:toCents", rel: "calls" },
-    { source: "orders:createOrder", target: "payments:handlePayment", rel: "calls" },
-    { source: "orders:createOrder", target: "orders:listOrders", rel: "calls" },
-    { source: "commit:c0ffee1", target: "payments:validatePayment", rel: "modifies" },
-    { source: "commit:a11ce22", target: "orders:listOrders", rel: "modifies" },
-  ];
   return { repo, nodes, edges, demo_enabled: true, query_ms: { functions: 4.1, failing: 1.2 }, queries: { functions: "MATCH (f:Function)-[:belongs_to]->(s:Service) RETURN f.id, f.name, f.path, s.id", failing: "MATCH (i:Incident)-[:evidenced_by]->(:Error)-[:thrown_in]->(f:Function) WHERE i.status <> 'resolved' RETURN DISTINCT f.id, i.id" } };
 };
 

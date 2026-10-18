@@ -177,7 +177,7 @@ investigation if Slack is down.
 - `CD_ALERT_GITHUB_ISSUES=true` also opens a GitHub issue per incident (needs the App to have
   Issues: write).
 
-**Live graph and demo** (`/graph`). The page draws the repository's functions, services and recent
+**Graph map and demo** (`/map`; `/graph` redirects). The page draws the repository's functions, services and recent
 commits from FalkorDB: green while healthy, red on the function that failed, amber on the
 suspect commit, with the Cypher behind the view and the engine (Postgres or FalkorDB) of every
 step. `CD_DEMO_INJECT_ENABLED` adds **Inject a problem**: it records a deployment containing the

@@ -79,7 +79,7 @@ function LoginInner() {
     const r = await api.POST("/auth/demo").catch(() => null);
     if (!r?.response.ok) return void setLeaving(false);
     const repo = install.data?.demo_repo;
-    window.location.assign(repo ? `/graph?repo=${encodeURIComponent(repo)}` : "/overview");
+    window.location.assign(repo ? `/map?repo=${encodeURIComponent(repo)}` : "/overview");
   }
 
   return (

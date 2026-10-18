@@ -6,7 +6,7 @@ AI agent that connects production failures to the code changes behind them using
 knowledge graph, ranks root causes with explainable evidence, proposes fixes, and verifies them
 before anything ships.
 
-**Try it:** <https://kaizen.akkki.tech> -> **Try the demo** (no GitHub account needed) -> *Live graph*
+**Try it:** <https://kaizen.akkki.tech> -> **Try the demo** (no GitHub account needed) -> *Graph map*
 -> **Inject a problem**. Walkthrough: [`docs/demo.md`](docs/demo.md).
 
 When a deploy breaks something, Kaizen does not wait for someone to open a dashboard. It detects the
@@ -27,7 +27,7 @@ It then proposes a revert, verifies it in staging, and merges only after a perso
 | | |
 |---|---|
 | **Alerts** | Slack message per incident: service/endpoint, culprit commit and author, the function that changed vs the one that threw, confidence, link. Once per incident; optional GitHub issue. |
-| **Live graph** (`/graph`) | Every function, service and recent commit of the repository from FalkorDB. Green when healthy; only the failing function turns red; the suspect commit is amber. Shows the Cypher behind the view and which engine (Postgres / FalkorDB) runs each step. |
+| **Graph map** (`/map`) | Every function, service and recent commit of the repository from FalkorDB, drawn one service at a time (commits → call path → endpoints) or as a selectable table. Only the failing function turns red; the suspect commit is amber; clicking a node explains it. Shows the Cypher behind the view and which engine (Postgres / FalkorDB) runs each step. |
 | **Explainable ranking** | Ten graph features (path distance, endpoint, blast radius, PageRank, history...) combined by a fixed formula. The LLM never sets a score; every number has its Cypher next to it, with a "graph off" comparison. |
 | **Connect any repo** | Sign in with GitHub -> install the App -> pick a repository -> Start monitoring. Kaizen imports commits and functions (JavaScript/TypeScript function mapping) and watches deploys. |
 | **Safe fixes** | Revert PR, verification in staging, human approval; nothing merges without it. |

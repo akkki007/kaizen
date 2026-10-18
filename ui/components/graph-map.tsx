@@ -11,76 +11,90 @@ type Node = components["schemas"]["GraphNode"];
 
 /** The one saturated colour in the diagram, as in the reference: the node the story is about. */
 const BLUE = "#0b5cff";
-const MAX_FUNCS = 4;
-const MAX_COMMITS = 3;
+/** Functions drawn per service before "Show all"; the rest stay one click away in the table. */
+export const MAX_FUNCS = 12;
+const MAX_COMMITS = 6;
+const MAX_ENDPOINTS = 4;
 
 const LABEL = "font-mono text-[11px] uppercase tracking-[0.06em]";
 
-/** One service of the code graph, read left to right: commits that changed it, its call path, what it serves. */
+export const isTestFile = (n: Node) => /(^|[/_.-])(test|tests|spec|__tests__)([/_.-]|$)/i.test(n.detail.split(" · ")[0] ?? "");
+export const endpointId = (serviceId: string, route: string) => `${serviceId}:endpoint:${route}`;
+const routeOf = (f: Node) => /serves (.+)$/.exec(f.detail)?.[1] ?? null;
+
+/** One service of the code graph, read left to right: commits that changed it, its functions by call depth, what it serves. */
 export type ServiceSlice = {
   service: Node;
   commits: Node[];
-  funcs: Node[];
+  moreCommits: number;
+  layers: Node[][];
   hidden: number;
+  total: number;
   focus: Node | undefined;
-  endpoint: string | null;
+  endpoints: { route: string; fn: string }[];
   callers: Node[];
   calls: { source: string; target: string }[];
+  modifies: { source: string; target: string }[];
 };
 
-export function sliceService(g: Graph, serviceId: string): ServiceSlice | null {
+export function sliceService(g: Graph, serviceId: string, opts: { showAll?: boolean; showTests?: boolean } = {}): ServiceSlice | null {
   const service = g.nodes.find((n) => n.id === serviceId);
   if (!service) return null;
-  const all = g.nodes.filter((n) => n.kind === "function" && n.parent === serviceId);
+  const all = g.nodes.filter((n) => n.kind === "function" && n.parent === serviceId && (opts.showTests || !isTestFile(n)));
   const ids = new Set(all.map((f) => f.id));
   const calls = g.edges.filter((e) => e.rel === "calls");
   const modifies = g.edges.filter((e) => e.rel === "modifies" && ids.has(e.target));
   const touched = new Set(modifies.map((e) => e.target));
-
-  // Call order: entry points (nothing in this service calls them) first, then breadth-first.
   const inner = calls.filter((e) => ids.has(e.source) && ids.has(e.target));
-  const called = new Set(inner.map((e) => e.target));
-  const order: Node[] = [];
-  const queue = all.filter((f) => !called.has(f.id));
-  const seen = new Set<string>();
-  while (queue.length) {
-    const f = queue.shift()!;
-    if (seen.has(f.id)) continue;
-    seen.add(f.id);
-    order.push(f);
-    for (const e of inner) if (e.source === f.id) queue.push(all.find((x) => x.id === e.target)!);
-  }
-  for (const f of all) if (!seen.has(f.id)) order.push(f);
 
-  // Keep the functions that matter when there are many: failing, changed, then call order.
-  const rank = (f: Node) => (f.state === "failing" ? 0 : touched.has(f.id) ? 1 : 2);
-  const keep = new Set([...order].sort((a, b) => rank(a) - rank(b)).slice(0, MAX_FUNCS).map((f) => f.id));
-  const funcs = order.filter((f) => keep.has(f.id));
+  // Call depth: entry points (nothing in this service calls them) at 0, then breadth-first.
+  const called = new Set(inner.map((e) => e.target));
+  const depth = new Map<string, number>();
+  const queue = all.filter((f) => !called.has(f.id)).map((f) => f.id);
+  for (const id of queue) depth.set(id, 0);
+  while (queue.length) {
+    const id = queue.shift()!;
+    for (const e of inner) {
+      if (e.source !== id || depth.has(e.target)) continue;
+      depth.set(e.target, depth.get(id)! + 1);
+      queue.push(e.target);
+    }
+  }
+  for (const f of all) if (!depth.has(f.id)) depth.set(f.id, 0); // cycles with no entry
+
+  // Keep what matters when there are many: failing, entry points and endpoints, changed, then shallow before deep.
+  const score = (f: Node) => (f.state === "failing" ? 0 : routeOf(f) || !called.has(f.id) ? 1 : touched.has(f.id) ? 2 : 3) * 100 + depth.get(f.id)!;
+  const ranked = [...all].sort((a, b) => score(a) - score(b) || a.label.localeCompare(b.label));
+  const keep = new Set((opts.showAll ? ranked : ranked.slice(0, MAX_FUNCS)).map((f) => f.id));
+  const layers: Node[][] = [];
+  for (const f of all) {
+    if (!keep.has(f.id)) continue;
+    (layers[depth.get(f.id)!] ??= []).push(f);
+  }
+  const packed = layers.filter(Boolean).map((l) => l.sort((a, b) => a.label.localeCompare(b.label)));
 
   const commitIds = new Set(modifies.map((e) => e.source));
-  const commits = g.nodes
-    .filter((n) => n.kind === "commit" && commitIds.has(n.id))
-    .sort((a, b) => Number(b.state === "suspect") - Number(a.state === "suspect"))
-    .slice(0, MAX_COMMITS);
-
-  const callerSvcs = new Set(
-    calls.filter((e) => ids.has(e.target) && !ids.has(e.source)).map((e) => g.nodes.find((n) => n.id === e.source)?.parent).filter(Boolean),
-  );
-  const endpoint = all.map((f) => /serves (.+)$/.exec(f.detail)?.[1]).find(Boolean) ?? null;
+  const commitsAll = g.nodes.filter((n) => n.kind === "commit" && commitIds.has(n.id)).sort((a, b) => Number(b.state === "suspect") - Number(a.state === "suspect"));
+  const callerSvcs = new Set(calls.filter((e) => ids.has(e.target) && !ids.has(e.source)).map((e) => g.nodes.find((n) => n.id === e.source)?.parent));
+  const endpoints = all.flatMap((f) => (routeOf(f) ? [{ route: routeOf(f)!, fn: f.id }] : [])).slice(0, MAX_ENDPOINTS);
+  const visible = packed.flat();
 
   return {
     service,
-    commits,
-    funcs,
-    hidden: all.length - funcs.length,
-    focus: funcs.find((f) => f.state === "failing") ?? funcs[0],
-    endpoint,
-    callers: g.nodes.filter((n) => callerSvcs.has(n.id)),
+    commits: commitsAll.slice(0, MAX_COMMITS),
+    moreCommits: Math.max(0, commitsAll.length - MAX_COMMITS),
+    layers: packed,
+    hidden: all.length - keep.size,
+    total: all.length,
+    focus: visible.find((f) => f.state === "failing") ?? packed[0]?.[0],
+    endpoints,
+    callers: g.nodes.filter((n) => n.kind === "service" && callerSvcs.has(n.id)),
     calls: inner.filter((e) => keep.has(e.source) && keep.has(e.target)),
+    modifies: modifies.filter((e) => keep.has(e.target)),
   };
 }
 
-function Tile({ id, icon, active, tone, selected, onClick, size = 64, label }: { id: string; icon: ReactNode; active?: boolean; tone?: "red" | "amber"; selected?: boolean; onClick?: () => void; size?: number; label: string }) {
+function Tile({ id, icon, active, tone, selected, dim, onClick, size = 56, label }: { id: string; icon: ReactNode; active?: boolean; tone?: "red" | "amber"; selected?: boolean; dim?: boolean; onClick?: () => void; size?: number; label: string }) {
   return (
     <button
       type="button"
@@ -90,11 +104,12 @@ function Tile({ id, icon, active, tone, selected, onClick, size = 64, label }: {
       onClick={onClick}
       style={{ width: size, height: size, ...(active ? { background: tone === "red" ? "var(--color-red)" : BLUE, borderColor: "transparent" } : {}) }}
       className={cn(
-        "grid shrink-0 place-items-center border transition-[box-shadow,transform] duration-150 hover:-translate-y-px",
+        "grid shrink-0 place-items-center border transition-[box-shadow,transform,opacity] duration-150 hover:-translate-y-px",
         active ? "text-white" : "border-line bg-raised text-ink",
         !active && tone === "amber" && "border-amber text-amber",
         !active && tone === "red" && "border-red text-red",
         selected && "ring-2 ring-offset-2 ring-offset-panel [--tw-ring-color:var(--accent)]",
+        dim && "opacity-25",
       )}
     >
       {icon}
@@ -102,10 +117,10 @@ function Tile({ id, icon, active, tone, selected, onClick, size = 64, label }: {
   );
 }
 
-type Line = { d: string; pulse?: boolean };
+type Line = { d: string; pulse?: boolean; strong?: boolean };
 
 /** Orthogonal dashed connectors measured from the rendered tiles, so the layout can stay plain flexbox. */
-function useConnectors(root: React.RefObject<HTMLDivElement | null>, slice: ServiceSlice) {
+function useConnectors(root: React.RefObject<HTMLDivElement | null>, slice: ServiceSlice, active: string | null) {
   const [lines, setLines] = useState<Line[]>([]);
   useLayoutEffect(() => {
     const el = root.current;
@@ -115,130 +130,158 @@ function useConnectors(root: React.RefObject<HTMLDivElement | null>, slice: Serv
       const box = (t: Element | null) => {
         if (!t) return null;
         const r = t.getBoundingClientRect();
-        const l = r.left - base.left + el.scrollLeft;
+        const l = r.left - base.left;
         const top = r.top - base.top;
         return { l, r: l + r.width, cx: l + r.width / 2, t: top, b: top + r.height, cy: top + r.height / 2 };
       };
       const tile = (id: string) => box(el.querySelector(`[data-tile="${CSS.escape(id)}"]`));
-      const out: Line[] = [];
-      const funcs = slice.funcs.map((f) => tile(f.id)!);
       const frame = box(el.querySelector("[data-frame]"));
-      const end = tile(`${slice.service.id}:endpoint`);
-      if (!funcs.length || !frame) return setLines(out);
+      const out: Line[] = [];
+      if (!frame) return setLines(out);
 
-      const entry = funcs[0];
-      const commits = slice.commits.map((c) => tile(c.id)!);
+      // Commits merge into one bus that enters the service, as in the reference.
+      const commits = slice.commits.map((c) => tile(c.id)).filter((c) => c !== null);
+      const entryY = frame.t + (frame.b - frame.t) / 2;
       const bus = (Math.max(0, ...commits.map((c) => c.r)) + frame.l) / 2;
-      for (const c of commits) out.push({ d: `M${c.r},${c.cy} H${bus} V${entry.cy}` });
-      if (commits.length) out.push({ d: `M${bus},${entry.cy} H${entry.l}` });
+      for (const c of commits) out.push({ d: `M${c.r},${c.cy} H${bus} V${entryY}` });
+      if (commits.length) out.push({ d: `M${bus},${entryY} H${frame.l}` });
+      // The active commit also shows exactly which functions it changed.
+      for (const e of slice.modifies) {
+        if (e.source !== active) continue;
+        const c = tile(e.source);
+        const f = tile(e.target);
+        if (c && f) out.push({ d: `M${c.r},${c.cy} H${bus} V${f.cy} H${f.l}`, strong: true });
+      }
 
-      // The pulse runs into the failing function, else out of the highlighted one.
+      // Calls: forward edges step between columns; same-column or backward edges route underneath.
       const focus = slice.focus?.id;
       const failing = slice.focus?.state === "failing";
       const pulseEdge = slice.calls.find((e) => (failing ? e.target === focus : e.source === focus));
-      const index = new Map(slice.funcs.map((f, i) => [f.id, i]));
       let lane = 0;
       for (const e of slice.calls) {
-        const a = funcs[index.get(e.source)!];
-        const b = funcs[index.get(e.target)!];
+        const a = tile(e.source);
+        const b = tile(e.target);
+        if (!a || !b) continue;
+        const strong = active === e.source || active === e.target;
         const pulse = e === pulseEdge;
-        if (Math.abs(index.get(e.source)! - index.get(e.target)!) === 1) {
-          out.push(a.l < b.l ? { d: `M${a.r},${a.cy} H${b.l}`, pulse } : { d: `M${a.l},${a.cy} H${b.r}`, pulse });
+        if (b.l > a.r + 4) {
+          const mid = a.r + (b.l - a.r) / 2;
+          out.push({ d: `M${a.r},${a.cy} H${mid} V${b.cy} H${b.l}`, pulse, strong });
         } else {
-          const y = a.b + 54 + 8 * lane++; // below the name and state labels
-          out.push({ d: `M${a.cx},${a.b + 42} V${y} H${b.cx} V${b.b + 42}`, pulse });
+          const y = frame.b - 14 - 6 * (lane++ % 4);
+          out.push({ d: `M${a.cx},${a.b + 30} V${y} H${b.cx} V${b.b + 30}`, pulse, strong });
         }
       }
-      if (end) out.push({ d: `M${frame.r},${end.cy} H${end.l}` });
+
+      for (const ep of slice.endpoints) {
+        const t = tile(endpointId(slice.service.id, ep.route));
+        if (t) out.push({ d: `M${frame.r},${t.cy} H${t.l}`, strong: active === ep.fn });
+      }
       setLines(out);
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [root, slice]);
+  }, [root, slice, active]);
   return lines;
 }
 
-export function GraphMapDiagram({ slice, selected, onToggle }: { slice: ServiceSlice; selected: Set<string>; onToggle: (id: string) => void }) {
+export function GraphMapDiagram({ slice, selected, active, match, onToggle }: { slice: ServiceSlice; selected: Set<string>; active: string | null; match: (n: Node) => boolean; onToggle: (id: string) => void }) {
   const root = useRef<HTMLDivElement>(null);
-  const lines = useConnectors(root, slice);
-  const failing = slice.funcs.some((f) => f.state === "failing");
+  const lines = useConnectors(root, slice, active);
+  const failing = slice.layers.some((l) => l.some((f) => f.state === "failing"));
+  const accent = failing ? "var(--color-red)" : BLUE;
 
   return (
-    <div
-      ref={root}
-      className="relative overflow-x-auto border border-line bg-panel px-8 py-10 scrollbar-thin"
-    >
-      <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
-        {lines.map((l, i) => (
-          <g key={i}>
-            <path d={l.d} fill="none" stroke="color-mix(in srgb, var(--ink) 40%, transparent)" strokeWidth={1} strokeDasharray="3 3" />
-            {l.pulse && (
-              <path d={l.d} fill="none" stroke={failing ? "var(--color-red)" : BLUE} strokeWidth={2} strokeLinecap="round" strokeDasharray="24 96" className="animate-map-pulse motion-reduce:hidden" />
-            )}
-          </g>
-        ))}
-      </svg>
-
-      <div className="relative mx-auto flex w-max items-center gap-20">
-        {/* Inputs */}
-        <div data-col="commits" className="flex flex-col items-center gap-3">
-          <p className={cn(LABEL, "text-ink-2")}>Commits</p>
-          {slice.commits.length === 0 && <p className={cn(LABEL, "text-ink-4")}>None mapped</p>}
-          {slice.commits.map((c) => (
-            <div key={c.id} className="flex flex-col items-center gap-2">
-              <Tile id={c.id} label={`Commit ${c.label}: ${c.detail}`} icon={<GitCommitHorizontal size={22} strokeWidth={1.6} />} tone={c.state === "suspect" ? "amber" : undefined} selected={selected.has(c.id)} onClick={() => onToggle(c.id)} size={56} />
-              <span className={cn(LABEL, c.state === "suspect" ? "text-amber" : "text-ink-2")} title={c.detail}>
-                {c.label}
-              </span>
-            </div>
+    <div className="overflow-x-auto border border-line bg-panel scrollbar-thin" data-testid="graph-map">
+      <div ref={root} className="relative mx-auto w-max px-8 py-10">
+        <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
+          {lines.map((l, i) => (
+            <g key={i}>
+              <path d={l.d} fill="none" stroke={l.strong ? "var(--accent)" : "color-mix(in srgb, var(--ink) 40%, transparent)"} strokeWidth={l.strong ? 1.5 : 1} strokeDasharray={l.strong ? undefined : "3 3"} />
+              {l.pulse && <path d={l.d} fill="none" stroke={accent} strokeWidth={2} strokeLinecap="round" strokeDasharray="24 96" className="animate-map-pulse motion-reduce:hidden" />}
+            </g>
           ))}
-        </div>
+        </svg>
 
-        {/* The service */}
-        <div data-frame className="relative border border-line px-8 pb-20 pt-14">
-          <p className={cn(LABEL, "absolute -top-2 left-4 bg-panel px-1.5 font-semibold text-ink")}>{slice.service.label}</p>
-          {/* Dashed inner frame; the tiles sit over its lower edge, as in the reference. */}
-          <div aria-hidden="true" className="absolute inset-x-5 top-5 h-[60px] border border-b-0 border-dashed border-ink-4" />
-          <p className={cn(LABEL, "absolute inset-x-5 top-8 whitespace-nowrap text-center")} style={{ color: failing ? "var(--color-red)" : BLUE }}>
-            {failing ? "Failure on the call path" : "Call path"}
-          </p>
-          <div data-col="funcs" className="relative flex items-start gap-16">
-            {slice.funcs.map((f) => {
-              const isFocus = f.id === slice.focus?.id;
-              const fail = f.state === "failing";
+        <div className="relative flex items-center gap-20">
+          {/* Inputs */}
+          <div data-col="commits" className="flex flex-col items-center gap-3">
+            <p className={cn(LABEL, "text-ink-2")}>Commits</p>
+            {slice.commits.length === 0 && <p className={cn(LABEL, "text-ink-4")}>None mapped</p>}
+            {slice.commits.map((c) => (
+              <div key={c.id} className="flex flex-col items-center gap-1.5">
+                <Tile id={c.id} label={`Commit ${c.label}: ${c.detail}`} icon={<GitCommitHorizontal size={20} strokeWidth={1.6} />} tone={c.state === "suspect" ? "amber" : undefined} selected={selected.has(c.id)} dim={!match(c)} onClick={() => onToggle(c.id)} size={48} />
+                <span className={cn(LABEL, c.state === "suspect" ? "text-amber" : "text-ink-2")} title={c.detail}>
+                  {c.label}
+                </span>
+              </div>
+            ))}
+            {slice.moreCommits > 0 && <p className={cn(LABEL, "text-ink-4")}>+{slice.moreCommits} more</p>}
+          </div>
+
+          {/* The service */}
+          <div data-frame className="relative border border-line px-8 pb-24 pt-16">
+            <p className={cn(LABEL, "absolute -top-2 left-4 bg-panel px-1.5 font-semibold text-ink")}>
+              {slice.service.label}
+              <span className="ml-2 font-normal text-ink-4">
+                {slice.total} {slice.total === 1 ? "function" : "functions"}
+              </span>
+            </p>
+            {/* Dashed inner frame; the first row of tiles sits over its lower edge, as in the reference. */}
+            <div aria-hidden="true" className="absolute inset-x-5 top-5 h-[64px] border border-b-0 border-dashed border-ink-4" />
+            <p className={cn(LABEL, "absolute inset-x-5 top-8 whitespace-nowrap text-center")} style={{ color: accent }}>
+              {failing ? "Failure on the call path" : "Call path"}
+            </p>
+            <div data-col="funcs" className="relative flex items-start gap-16">
+              {slice.layers.length === 0 && <p className={cn(LABEL, "py-6 text-ink-4")}>No functions mapped</p>}
+              {slice.layers.map((layer, depth) => (
+                <div key={depth} className="flex flex-col gap-7">
+                  {layer.map((f) => {
+                    const fail = f.state === "failing";
+                    return (
+                      <div key={f.id} className="flex w-[104px] flex-col items-center gap-1.5">
+                        <Tile id={f.id} label={`Function ${f.label}`} icon={<Braces size={20} strokeWidth={1.6} />} active={f.id === slice.focus?.id} tone={fail ? "red" : undefined} selected={selected.has(f.id)} dim={!match(f)} onClick={() => onToggle(f.id)} />
+                        <span className={cn(LABEL, "max-w-[120px] truncate normal-case tracking-normal text-ink-2")} title={f.label}>
+                          {f.label}
+                        </span>
+                        {fail && <span className={cn(LABEL, "-mt-1 text-red")}>Failing</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            {slice.hidden > 0 && <p className={cn(LABEL, "absolute bottom-3 right-4 text-ink-4")}>+{slice.hidden} more</p>}
+          </div>
+
+          {/* Outputs */}
+          <div data-col="out" className="flex flex-col items-center gap-3">
+            <p className={cn(LABEL, "text-ink-2")}>Serves</p>
+            {slice.endpoints.length === 0 && <p className={cn(LABEL, "text-ink-4")}>No endpoint</p>}
+            {slice.endpoints.map((ep) => {
+              const id = endpointId(slice.service.id, ep.route);
               return (
-                <div key={f.id} className="flex w-[88px] flex-col items-center gap-2">
-                  <Tile id={f.id} label={`Function ${f.label}`} icon={<Braces size={22} strokeWidth={1.6} />} active={isFocus} tone={fail ? "red" : undefined} selected={selected.has(f.id)} onClick={() => onToggle(f.id)} />
-                  <span className={cn(LABEL, "max-w-[120px] truncate normal-case tracking-normal text-ink-2")} title={f.label}>
-                    {f.label}
-                  </span>
-                  {fail && <span className={cn(LABEL, "-mt-1.5 text-red")}>Failing</span>}
+                <div key={id} className="flex flex-col items-center gap-1.5">
+                  <Tile id={id} label={`Endpoint ${ep.route}`} icon={<Globe size={20} strokeWidth={1.6} />} selected={selected.has(id)} onClick={() => onToggle(id)} size={48} />
+                  <span className={cn(LABEL, "max-w-[160px] text-center text-ink-2")}>{ep.route}</span>
                 </div>
               );
             })}
+            {slice.callers.length > 0 && (
+              <>
+                <span className={cn(LABEL, "mt-1 text-ink-4")}>Called by</span>
+                <div className="flex max-w-[160px] flex-wrap justify-center gap-2">
+                  {slice.callers.map((s) => (
+                    <span key={s.id} title={s.label} className="grid size-7 place-items-center border border-line bg-raised text-ink-2">
+                      <Server size={13} strokeWidth={1.8} />
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-          {slice.hidden > 0 && <p className={cn(LABEL, "absolute bottom-2 right-3 text-ink-4")}>+{slice.hidden} more in table</p>}
-        </div>
-
-        {/* Output */}
-        <div data-col="out" className="flex flex-col items-center gap-2">
-          <p className={cn(LABEL, "text-ink-2")}>Serves</p>
-          <Tile id={`${slice.service.id}:endpoint`} label={slice.endpoint ?? "No endpoint mapped"} icon={<Globe size={22} strokeWidth={1.6} />} selected={selected.has(`${slice.service.id}:endpoint`)} onClick={() => onToggle(`${slice.service.id}:endpoint`)} />
-          <span className={cn(LABEL, "max-w-[160px] text-center text-ink-2")}>{slice.endpoint ?? "No endpoint"}</span>
-          {slice.callers.length > 0 && (
-            <>
-              <span className={cn(LABEL, "text-ink-4")}>Called by</span>
-              <div className="flex gap-2">
-                {slice.callers.map((s) => (
-                  <span key={s.id} title={s.label} className="grid size-7 place-items-center border border-line bg-raised text-ink-2">
-                    <Server size={13} strokeWidth={1.8} />
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
         </div>
       </div>
     </div>
@@ -248,20 +291,20 @@ export function GraphMapDiagram({ slice, selected, onToggle }: { slice: ServiceS
 const STATE_TEXT: Record<Node["state"], string> = { ok: "Healthy", failing: "Failing", suspect: "Suspect" };
 
 /** Every function and commit of the repository, one row each; rows are selectable and drive the diagram highlight. */
-export function GraphMapTable({ graph, selected, onToggle, onSet }: { graph: Graph; selected: Set<string>; onToggle: (id: string) => void; onSet: (ids: string[]) => void }) {
+export function GraphMapTable({ graph, selected, match, showTests, onToggle, onSet }: { graph: Graph; selected: Set<string>; match: (n: Node) => boolean; showTests: boolean; onToggle: (id: string) => void; onSet: (ids: string[]) => void }) {
   const rows = useMemo(() => {
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
     const degree = (id: string, side: "source" | "target") => graph.edges.filter((e) => e[side] === id).length;
     return graph.nodes
-      .filter((n) => n.kind !== "service")
+      .filter((n) => n.kind !== "service" && match(n) && (showTests || n.kind !== "function" || !isTestFile(n)))
       .map((n) => ({
         node: n,
-        service: n.kind === "function" ? byId.get(n.parent ?? "")?.label : graph.edges.filter((e) => e.source === n.id).map((e) => byId.get(byId.get(e.target)?.parent ?? "")?.label).filter(Boolean).join(", "),
+        service: n.kind === "function" ? byId.get(n.parent ?? "")?.label : [...new Set(graph.edges.filter((e) => e.source === n.id).map((e) => byId.get(byId.get(e.target)?.parent ?? "")?.label).filter(Boolean))].join(", "),
         out: degree(n.id, "source"),
         inn: degree(n.id, "target"),
       }))
       .sort((a, b) => Number(b.node.state !== "ok") - Number(a.node.state !== "ok") || a.node.kind.localeCompare(b.node.kind));
-  }, [graph]);
+  }, [graph, match, showTests]);
   const allIds = rows.map((r) => r.node.id);
   const every = allIds.length > 0 && allIds.every((id) => selected.has(id));
   const some = allIds.some((id) => selected.has(id));
@@ -359,18 +402,26 @@ export function NodeExplain({ graph, slice, id, onClose }: { graph: Graph; slice
   let tone: "red" | "amber" | undefined;
   let incident: string | null | undefined;
 
-  if (id === `${slice.service.id}:endpoint`) {
-    const serving = graph.nodes.filter((f) => f.kind === "function" && f.parent === slice.service.id && /serves /.test(f.detail));
+  const prefix = `${slice.service.id}:endpoint:`;
+  if (id.startsWith(prefix)) {
+    const route = id.slice(prefix.length);
+    const serving = graph.nodes.filter((f) => f.kind === "function" && f.parent === slice.service.id && routeOf(f) === route);
     kind = "Endpoint";
-    title = slice.endpoint ?? "No endpoint mapped";
-    summary = slice.endpoint
-      ? <>Requests to <code className="font-mono">{slice.endpoint}</code> enter the <b>{slice.service.label}</b> service here. A failure anywhere on its call path shows up to users as errors on this endpoint.</>
-      : <>No function in <b>{slice.service.label}</b> is mapped to an HTTP route yet.</>;
+    title = route;
+    summary = (
+      <>
+        Requests to <code className="font-mono">{route}</code> enter the <b>{slice.service.label}</b> service here. A failure anywhere on its call path shows up to users as errors on this endpoint.
+      </>
+    );
     facts = (
       <>
         <Fact label="Service">{slice.service.label}</Fact>
-        <Fact label="Handled by"><NodeList nodes={serving} empty="Not mapped" /></Fact>
-        <Fact label="Called by services"><NodeList nodes={slice.callers} empty="None (external traffic only)" /></Fact>
+        <Fact label="Handled by">
+          <NodeList nodes={serving} empty="Not mapped" />
+        </Fact>
+        <Fact label="Called by services">
+          <NodeList nodes={slice.callers} empty="None (external traffic only)" />
+        </Fact>
       </>
     );
   } else {

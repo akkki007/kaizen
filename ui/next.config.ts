@@ -12,6 +12,8 @@ const config: NextConfig = {
     return [
       { source: "/dashboard", destination: "/overview", permanent: false },
       { source: "/repos", destination: "/repositories", permanent: false },
+      // The Live graph page was folded into the Graph map.
+      { source: "/graph", destination: "/map", permanent: false },
     ];
   },
   async rewrites() {

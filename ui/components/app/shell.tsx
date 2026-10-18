@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartColumn, ChevronDown, Flame, Network, Workflow, FolderGit2, LayoutGrid, LogOut, Menu, Settings2, Siren, X } from "lucide-react";
+import { ChartColumn, ChevronDown, Flame, Workflow, FolderGit2, LayoutGrid, LogOut, Menu, Settings2, Siren, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -154,7 +154,6 @@ function Sidebar({ me, ws, syncedAt, failed, onNavigate }: { me: User; ws: Works
         <NavLink href="/overview" active={path === "/overview"} icon={LayoutGrid} label="Overview" />
         <NavLink href="/incidents" active={path.startsWith("/incidents") && !service} icon={Siren} label="Incidents" count={ws.open.length} />
         <NavLink href="/repositories" active={path.startsWith("/repositories")} icon={FolderGit2} label="Repositories" count={ws.repos.length} />
-        <NavLink href="/graph" active={path.startsWith("/graph")} icon={Network} label="Live graph" />
         <NavLink href="/map" active={path.startsWith("/map")} icon={Workflow} label="Graph map" />
         <NavLink href="/hotspots" active={path.startsWith("/hotspots")} icon={Flame} label="Hotspots" />
         <NavLink href="/evaluation" active={path.startsWith("/evaluation")} icon={ChartColumn} label="Evaluation" />

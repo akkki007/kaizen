@@ -14,7 +14,7 @@ ranking and the Slack alert are the production code.
 | Step | Check |
 |---|---|
 | 1. Services healthy | `curl https://shoplite-demo.duckdns.org/readyz` -> `{"postgres":true,"redis":true,"falkordb":true}` |
-| 2. Clean slate | open <https://kaizen.akkki.tech>, **Try the demo**, *Live graph* -> **Reset** (no red nodes, no incidents) |
+| 2. Clean slate | open <https://kaizen.akkki.tech>, **Try the demo**, *Graph map* -> **Reset** (no red nodes, no incidents) |
 | 3. Slack | the alerts channel is open in a second window; the last message is old |
 | 4. Hard refresh | `Ctrl+Shift+R` so the latest UI is loaded (clear the site's cache if the old page appears) |
 
@@ -23,13 +23,13 @@ ranking and the Slack alert are the production code.
 | Time | Screen | Say |
 |---|---|---|
 | 0:00-0:20 | Login page, **Try the demo** | "Kaizen watches a repository's deploys. This is ShopLite, three Node services. No account needed for the demo." |
-| 0:20-0:50 | *Live graph*: green map of services, functions, commits. Point at "FalkorDB · N functions · N commits · N edges" and open the **Powered by FalkorDB** queries | "Every function and commit is a node in FalkorDB. Calls, changes, endpoints are edges. This whole view is built from these Cypher queries, run live." |
+| 0:20-0:50 | *Graph map*: services, functions and commits, one service at a time. Point at "FalkorDB · N functions · N commits · N edges" and open the **Powered by FalkorDB** queries | "Every function and commit is a node in FalkorDB. Calls, changes, endpoints are edges. This whole view is built from these Cypher queries, run live." |
 | 0:50-1:10 | Click **Inject a problem** | "Now I simulate a bad deploy: failing traffic on `POST /payments`. I'm not telling Kaizen which commit did it." |
 | 1:10-1:50 | The right panel steps tick: ingest, detect (Postgres), then three FalkorDB steps; the failing function turns red and pulses, the commit turns amber | "Detection is two failing 30-second windows over the baseline. From here it is the graph: the error maps to the function that threw, the deployment's commits come from the graph, and the ranking uses path distance, blast radius and PageRank. Only the failing function turned red." |
 | 1:50-2:10 | Switch to Slack: the alert | "And nobody had to look: the team gets the culprit commit, the author, the function that changed versus the one that threw, the confidence, and a link." |
 | 2:10-2:40 | Open the incident: suspects with the score breakdown; expand `path` to show its Cypher; toggle **graph off** | "The score is deterministic, not the model, and every number has its query. Without the graph, 'latest commit' or keyword search points elsewhere." |
 | 2:40-3:10 | **Propose the revert (demo)**: diff of the real commit, inverted; staging verification passes; **Approve** | "The fix is a revert, verified before anyone merges. In the demo no pull request is opened; in production this is a real PR and only an approver can merge it." |
-| 3:10-3:30 | Incident resolved; back to *Live graph*: green again | "Resolved, and the fix is written back into the graph so the next similar incident is recognised." |
+| 3:10-3:30 | Incident resolved; back to *Graph map*: green again | "Resolved, and the fix is written back into the graph so the next similar incident is recognised." |
 | 3:30-4:00 | Numbers table below, or `docs/results/latest.html` | read the measured numbers |
 
 ## Real repository (optional second take)
@@ -95,7 +95,7 @@ From `docs/results/latest.md` (28 scenario variants S1-S10, replay benchmark, we
 
 | Failure | Fallback |
 |---|---|
-| **Inject** says an incident is already open | press **Reset** on the Live graph page, then inject again |
+| **Inject** says an incident is already open | press **Reset** on the Graph map page, then inject again |
 | Slack message does not show | the incident page and graph still show the answer; send a test with `POST /api/v1/repos/<repo>/alerts/test` and check `CD_SLACK_WEBHOOK_URL` |
 | Page shows the old UI or a 404 after a deploy | hard refresh; clear the site's cache and flush DNS (`resolvectl flush-caches`) |
 | Fix stays on "verifying" | wait ~5 s; if it does not move, **Reset** and run it again |
