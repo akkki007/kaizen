@@ -1,4 +1,5 @@
 import { Brain, GitCommitHorizontal, ShieldCheck, Waypoints } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { GetStartedButton, SignInButton } from "@/components/landing/arrow-button";
 import { LandingMotion } from "@/components/landing/landing-motion";
@@ -41,9 +42,6 @@ const STEPS = [
   { title: "Fix and remember", body: "Approve a checked fix; the outcome is stored so the next investigation starts smarter." },
 ];
 
-const VALLEY_MASK =
-  "radial-gradient(ellipse 36% 62% at 50% 0%, transparent 62%, #000 92%), linear-gradient(to bottom, transparent 0%, #000 18%)";
-
 const INTEGRATIONS = ["GitHub", "GitHub Actions", "FalkorDB", "OpenAI", "PostgreSQL"];
 
 const EYEBROW = "text-[11px] font-semibold uppercase tracking-[0.07em] text-accent";
@@ -53,70 +51,63 @@ export default function LandingPage() {
   return (
     <LandingMotion>
       <div className="min-h-dvh bg-panel text-ink">
-        <header className="relative z-10 mx-auto flex max-w-[1240px] items-center justify-between gap-6 px-4 py-4 sm:px-8">
-          <div className="flex items-center gap-10">
-            <Link href="/" aria-label="Kaizen home" className="rounded-sm">
-              <Logo />
-            </Link>
-            <nav aria-label="Main" className="hidden items-center gap-6 text-[13.5px] text-ink-2 md:flex">
-              {NAV.map((n) => (
-                <a key={n.href} href={n.href} className="transition-colors duration-150 hover:text-ink">
-                  {n.label}
-                </a>
-              ))}
-            </nav>
+        {/* Header and hero share one landscape: sky behind the copy, hills under the product window. */}
+        <div className="relative overflow-hidden">
+          <div aria-hidden="true" className="absolute inset-0 dark:opacity-25">
+            <Image src="/hero-bg.png" alt="" fill priority sizes="100vw" className="object-cover object-bottom" />
+            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-panel" />
           </div>
-          <SignInButton />
-        </header>
 
-        <section className="relative overflow-hidden">
-          {/* Dithered sky rises behind the lower half of the hero; its top edge fades into the page. */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 bottom-0 top-[270px] bg-no-repeat [image-rendering:pixelated] dark:opacity-25 sm:top-[290px]"
-            style={{
-              backgroundImage: "url(/hero-bg.jpg)",
-              backgroundSize: "max(140%, 1500px) auto",
-              backgroundPosition: "center 24%",
-              maskImage: VALLEY_MASK,
-              WebkitMaskImage: VALLEY_MASK,
-              maskComposite: "intersect",
-              WebkitMaskComposite: "source-in",
-            }}
-          />
-
-          <div className="relative mx-auto flex max-w-[1240px] flex-col items-center px-4 pt-12 text-center sm:pt-20">
-            <p data-hero="eyebrow" className={EYEBROW}>
-              Graph-powered root-cause analysis
-            </p>
-            <h1 className="mt-4 text-[38px] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-[54px] lg:text-[62px]">
-              <span className="block overflow-hidden pb-[0.06em]">
-                <span data-hero="line" className="block">
-                  Find the change
-                </span>
-              </span>
-              <span className="block overflow-hidden pb-[0.06em]">
-                <span data-hero="line" className="block">
-                  that broke production
-                </span>
-              </span>
-            </h1>
-            <p data-hero="sub" className="mt-5 max-w-[560px] text-[15px] leading-[1.55] text-ink-2 sm:text-[16.5px]">
-              Kaizen links every incident to the deployment, commit and function behind it, and shows the evidence path
-              from change to failure.
-            </p>
-            <div data-hero="cta" className="mt-8">
-              <GetStartedButton />
+          <header className="relative z-10 mx-auto flex max-w-[1240px] items-center justify-between gap-6 px-4 py-4 sm:px-8">
+            <div className="flex items-center gap-10">
+              <Link href="/" aria-label="Kaizen home" className="rounded-sm">
+                <Logo />
+              </Link>
+              <nav aria-label="Main" className="hidden items-center gap-6 text-[13.5px] text-ink-2 md:flex">
+                {NAV.map((n) => (
+                  <a key={n.href} href={n.href} className="transition-colors duration-150 hover:text-ink">
+                    {n.label}
+                  </a>
+                ))}
+              </nav>
             </div>
+            <SignInButton />
+          </header>
 
-            {/* The window is cropped by the bottom of the hero, like a screenshot running off the page. */}
-            <div className="relative mt-16 h-[320px] w-full max-w-[1080px] overflow-hidden sm:mt-24 sm:h-[380px]">
-              <div data-hero="preview" className="origin-top">
-                <ProductPreview />
+          <section className="relative">
+            <div className="relative mx-auto flex max-w-[1240px] flex-col items-center px-4 pt-12 text-center sm:pt-20">
+              <p data-hero="eyebrow" className={EYEBROW}>
+                Graph-powered root-cause analysis
+              </p>
+              <h1 className="mt-4 text-[38px] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-[54px] lg:text-[62px]">
+                <span className="block overflow-hidden pb-[0.06em]">
+                  <span data-hero="line" className="block">
+                    Find the change
+                  </span>
+                </span>
+                <span className="block overflow-hidden pb-[0.06em]">
+                  <span data-hero="line" className="block">
+                    that broke production
+                  </span>
+                </span>
+              </h1>
+              <p data-hero="sub" className="mt-5 max-w-[560px] text-[15px] leading-[1.55] text-ink-2 sm:text-[16.5px]">
+                Kaizen links every incident to the deployment, commit and function behind it, and shows the evidence path
+                from change to failure.
+              </p>
+              <div data-hero="cta" className="mt-8">
+                <GetStartedButton />
+              </div>
+
+              {/* The window is cropped by the bottom of the hero, like a screenshot running off the page. */}
+              <div className="relative mt-16 h-[320px] w-full max-w-[1080px] overflow-hidden sm:mt-24 sm:h-[380px]">
+                <div data-hero="preview" className="origin-top">
+                  <ProductPreview />
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
 
         <section id="features" className="mx-auto max-w-[1100px] scroll-mt-8 px-4 py-24 sm:px-8 sm:py-32">
           <p data-reveal className={EYEBROW}>Features</p>
