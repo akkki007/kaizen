@@ -269,6 +269,14 @@
             "title": "Queries",
             "type": "object"
           },
+          "query_ms": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "default": {},
+            "title": "Query Ms",
+            "type": "object"
+          },
           "repo": {
             "title": "Repo",
             "type": "string"

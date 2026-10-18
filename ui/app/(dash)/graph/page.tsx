@@ -15,6 +15,8 @@ import { useIncidentDetail } from "@/lib/api/hooks";
 import { useCodeGraph, useInjectProblem, useResetDemo } from "@/lib/api/hooks-graph";
 import { cn } from "@/lib/utils";
 
+const ALGO: Record<string, string> = { path: "shortestPath", centrality: "algo.pageRank", blast: "variable-length traversal", dependency: "graph traversal" };
+
 type Step = { id: string; label: string; engine: "Postgres" | "FalkorDB" | "Slack"; query?: string; done: boolean };
 
 function Pipeline({ steps, active }: { steps: Step[]; active: boolean }) {
@@ -142,9 +144,12 @@ function GraphPage() {
         <div className="grid flex-1 gap-0 lg:grid-cols-[1fr_360px]">
           <section aria-label="Code graph" className="flex min-h-[640px] flex-col border-b border-line lg:border-b-0 lg:border-r">
             <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5 text-[12px]">
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel-2/90 px-2 py-1 text-ink-2">
-                <Database size={13} className="text-emerald-400" aria-hidden />
-                FalkorDB · {graph.data.nodes.filter((n) => n.kind === "function").length} functions · {graph.data.nodes.filter((n) => n.kind === "service").length} services · {graph.data.nodes.filter((n) => n.kind === "commit").length} commits · {graph.data.edges.length} edges
+              <span data-testid="fdb-bar" className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-ink">
+                <Database size={14} className="text-emerald-400" aria-hidden />
+                <b className="font-semibold text-emerald-300">FalkorDB</b>
+                <span className="text-ink-2">{graph.data.nodes.length} nodes · {graph.data.edges.length} edges</span>
+                <span className="text-ink-3">|</span>
+                <span className="text-ink-2" title="Measured on this refresh">{Object.keys(graph.data.queries).length} Cypher queries in {Math.round(Object.values(graph.data.query_ms ?? {}).reduce((a, b) => a + b, 0))} ms</span>
               </span>
               {failing.length > 0 && <Tag tone="red">{failing.length} failing</Tag>}
               <span className="flex-1" />
@@ -207,6 +212,22 @@ function GraphPage() {
                 <h2 id="res-h" className="text-[13px] font-semibold">Root cause</h2>
                 <p className="mt-1.5 text-[13px]"><code className="font-mono">{top.sha.slice(0, 7)}</code> {top.message}</p>
                 <p className="mt-1 text-[12.5px] text-ink-3">{top.author ? `by ${top.author} · ` : ""}{Math.round(top.confidence * 100)}% confidence</p>
+                <h3 className="mt-3 text-[12px] font-semibold text-ink-2">Why: graph queries behind the score</h3>
+                <ul className="mt-1.5 space-y-1.5" data-testid="why-features">
+                  {[...top.features].sort((a, b) => b.contribution - a.contribution).slice(0, 4).map((f) => (
+                    <li key={f.name}>
+                      <details>
+                        <summary className="flex cursor-pointer items-center gap-2 text-[12px]">
+                          <span className="w-20 shrink-0 font-medium">{f.name}</span>
+                          <span className="h-1.5 flex-1 overflow-hidden rounded bg-raised"><i className="block h-full bg-emerald-400" style={{ width: `${Math.round(Math.min(1, Math.abs(f.value)) * 100)}%` }} /></span>
+                          <span className="num w-10 text-right text-ink-3">{f.value.toFixed(2)}</span>
+                          {ALGO[f.name] && <span className="rounded bg-emerald-500/15 px-1.5 text-[10.5px] text-emerald-400">{ALGO[f.name]}</span>}
+                        </summary>
+                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-[10.5px] leading-[1.45] text-ink-3">{f.cypher}</pre>
+                      </details>
+                    </li>
+                  ))}
+                </ul>
                 {inc && <Link href={`/incidents/${encodeURIComponent(inc.incident.id)}`} className="mt-2 inline-block text-[12.5px] text-link hover:underline">Open evidence, revert PR and score breakdown</Link>}
               </section>
             )}
@@ -216,8 +237,8 @@ function GraphPage() {
               <p className="mt-1 text-[12.5px] leading-[1.5] text-ink-3">This view is built from these Cypher queries, run live against the repository graph{suspects.length ? "" : ""}.</p>
               <div className="mt-2 space-y-1.5">
                 {Object.entries(graph.data.queries).map(([name, cypher]) => (
-                  <details key={name} className="rounded-md border border-line bg-panel-2 px-2.5 py-1.5">
-                    <summary className="cursor-pointer text-[12px] font-medium">{name.replace("_", " ")}</summary>
+                  <details key={name} open={incidentId !== null && (name === "failing" || name === "suspects")} className="rounded-md border border-line bg-panel-2 px-2.5 py-1.5">
+                    <summary className="cursor-pointer text-[12px] font-medium">{name.replace("_", " ")} <span className="font-normal text-ink-3">· {graph.data.query_ms?.[name] ?? "-"} ms</span></summary>
                     <pre className="mt-1.5 overflow-x-auto whitespace-pre-wrap font-mono text-[11px] leading-[1.5] text-ink-3">{cypher}</pre>
                   </details>
                 ))}

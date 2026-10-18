@@ -12,7 +12,8 @@ const args = process.argv.slice(2);
 const cmd = ["dev", "build", "start"].includes(args[0]) ? args : ["dev", ...args];
 const child = spawn(process.execPath, [next, ...cmd], {
   stdio: "inherit",
-  env: { ...process.env, NEXT_PUBLIC_API_MOCK: "1" },
+  // the mock bundle inlines NEXT_PUBLIC_API_MOCK, so it must never share .next with the real app
+  env: { ...process.env, NEXT_PUBLIC_API_MOCK: "1", NEXT_DIST_DIR: ".next-mock" },
 });
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => child.kill(sig));
 child.on("exit", (code, signal) => process.exit(signal ? 1 : (code ?? 0)));

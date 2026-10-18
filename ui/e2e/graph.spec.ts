@@ -5,7 +5,8 @@ test.describe("Live graph (mock)", () => {
     await page.goto("/graph");
     await expect(page.getByRole("heading", { name: "Live graph" }).first()).toBeVisible();
     await expect(page.getByTestId("code-graph")).toBeVisible();
-    await expect(page.getByText(/FalkorDB · \d+ functions/)).toBeVisible();
+    await expect(page.getByTestId("fdb-bar")).toContainText("FalkorDB");
+    await expect(page.getByTestId("fdb-bar")).toContainText(/\d+ Cypher queries in \d+ ms/);
     await expect(page.getByText("1 failing")).toHaveCount(0); // nothing failing yet
 
     await page.getByTestId("inject").click();
@@ -15,6 +16,7 @@ test.describe("Live graph (mock)", () => {
     // every graph step names its engine
     await expect(page.locator("[data-step='map']")).toContainText("FalkorDB");
     await expect(page.locator("[data-step='rank']")).toContainText("algo.pageRank");
+    await expect(page.getByTestId("why-features")).toBeVisible();
 
     // the map is searchable and the legend/toolbar are usable
     await page.getByLabel("Find a function or commit").fill("validate");

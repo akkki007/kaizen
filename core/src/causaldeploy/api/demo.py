@@ -1,6 +1,7 @@
 """Live code graph for the UI, plus the demo controls (inject a simulated bad deploy, reset)."""
 
 import asyncio
+import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -51,12 +52,18 @@ class CodeGraph(BaseModel):
     nodes: list[GraphNode]
     edges: list[GraphEdge]
     queries: dict[str, str]  # the Cypher that produced this view, shown in the UI
+    query_ms: dict[str, float] = {}  # measured time of each query against FalkorDB
     demo_enabled: bool
 
 
 def _build(repo: str) -> CodeGraph:
     store = GraphStore(repo)
-    q = {k: store.read(v) for k, v in QUERIES.items()}
+    q: dict[str, list[list[Any]]] = {}
+    ms: dict[str, float] = {}
+    for k, v in QUERIES.items():
+        t0 = time.perf_counter()
+        q[k] = store.read(v)
+        ms[k] = round((time.perf_counter() - t0) * 1000, 1)
     failing = {r[0]: r[1] for r in q["failing"]}
     suspects = {r[0]: r[1] for r in q["suspects"]}
     endpoint_of = {r[0]: r[1] for r in q["endpoints"]}
@@ -84,7 +91,7 @@ def _build(repo: str) -> CodeGraph:
         )  # fmt: skip
         edges += [GraphEdge(source=cid, target=f, rel="modifies") for f in fns if f in nodes]
     return CodeGraph(
-        repo=repo, nodes=list(nodes.values()), edges=edges, queries=QUERIES,
+        repo=repo, nodes=list(nodes.values()), edges=edges, queries=QUERIES, query_ms=ms,
         demo_enabled=get_settings().is_demo_repo(repo),
     )  # fmt: skip
 

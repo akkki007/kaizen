@@ -157,7 +157,7 @@ const mockCodeGraph = (repo: string): components["schemas"]["CodeGraph"] => {
     { source: "commit:c0ffee1", target: "payments:validatePayment", rel: "modifies" },
     { source: "commit:a11ce22", target: "orders:listOrders", rel: "modifies" },
   ];
-  return { repo, nodes, edges, demo_enabled: true, queries: { functions: "MATCH (f:Function)-[:belongs_to]->(s:Service) RETURN f.id, f.name, f.path, s.id", failing: "MATCH (i:Incident)-[:evidenced_by]->(:Error)-[:thrown_in]->(f:Function) WHERE i.status <> 'resolved' RETURN DISTINCT f.id, i.id" } };
+  return { repo, nodes, edges, demo_enabled: true, query_ms: { functions: 4.1, failing: 1.2 }, queries: { functions: "MATCH (f:Function)-[:belongs_to]->(s:Service) RETURN f.id, f.name, f.path, s.id", failing: "MATCH (i:Incident)-[:evidenced_by]->(:Error)-[:thrown_in]->(f:Function) WHERE i.status <> 'resolved' RETURN DISTINCT f.id, i.id" } };
 };
 
 const json = (body: unknown, status = 200) =>
