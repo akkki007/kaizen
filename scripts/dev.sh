@@ -8,6 +8,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Terminals inside AppImage apps leak their bundled Python's PYTHONHOME/PYTHONPATH, which breaks
+# uv's interpreter ("No module named 'encodings'").
+unset PYTHONHOME PYTHONPATH
+
 busy() { ss -ltnH "sport = :$1" 2>/dev/null | grep -q .; }
 
 # Sets $1 to the host port for a compose service: the one it already publishes, else the first
