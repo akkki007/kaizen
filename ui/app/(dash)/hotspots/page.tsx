@@ -4,9 +4,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ServiceDot, SectionHead, Tag } from "@/components/app/kit";
 import { useWorkspace } from "@/components/app/shell";
-import { workspaceTabs } from "@/components/app/tabs";
-import { Topbar } from "@/components/app/topbar";
-import { LogoMark } from "@/components/landing/logo";
 import { useHotspots } from "@/lib/api/hooks-dashboard";
 import { ago, serviceColor } from "@/lib/workspace";
 
@@ -34,10 +31,6 @@ export default function HotspotsPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <Topbar
-        crumbs={[{ label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" }, { label: "Hotspots" }]}
-        tabs={workspaceTabs(ws, "hotspots")}
-      />
       <header data-enter className="flex flex-wrap items-end gap-3 border-b border-line px-6 py-6">
         <div className="min-w-0 flex-1">
           <h1 className="text-[20px] font-semibold tracking-[-0.015em]">Hotspots</h1>

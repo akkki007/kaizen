@@ -102,12 +102,18 @@
 
   --animate-rise: rise 0.36s var(--ease-out-strong) both;
   --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-map-pulse: map-pulse 1.4s linear infinite;
   @keyframes rise {
     from { opacity: 0; transform: translateY(6px); }
   }
   @keyframes shimmer {
     from { background-position: 100% 0; }
     to { background-position: 0 0; }
+  }
+  /* A short dash travelling along a graph-map connector (dasharray 24 96). */
+  @keyframes map-pulse {
+    from { stroke-dashoffset: 24; }
+    to { stroke-dashoffset: -96; }
   }
 }
 

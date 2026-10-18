@@ -8,9 +8,6 @@ import { AskIncident, CauseSummary, IncidentFacts } from "@/components/app/incid
 import { IconButton, Kbd, ServiceDot, SeverityTag, StatusBadge, StatusGlyph, Tag, buttonClass } from "@/components/app/kit";
 import { SuspectLine } from "@/components/dashboard/suspect";
 import { useWorkspace } from "@/components/app/shell";
-import { workspaceTabs } from "@/components/app/tabs";
-import { Topbar } from "@/components/app/topbar";
-import { LogoMark } from "@/components/landing/logo";
 import { useIncidentSearch } from "@/lib/api/hooks-dashboard";
 import { EASE, gsap, haptic } from "@/lib/motion";
 import { ACTIVE_STATUSES, ARCHIVE_STATUSES, INCIDENT_STATUSES, SEVERITIES, STATUS_META, isIncidentStatus, type IncidentStatus, type Severity } from "@/lib/status";
@@ -138,13 +135,8 @@ export default function IncidentsPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <Topbar
-        crumbs={[{ label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" }, { label: service ? `Incidents in ${service}` : "Incidents" }]}
-        tabs={workspaceTabs(ws, "incidents")}
-      />
-
       {/* Filters */}
-      <div data-enter className="sticky top-[46px] z-10 flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-line bg-panel/90 px-4 backdrop-blur-md scrollbar-none sm:px-6">
+      <div data-enter className="sticky top-0 z-10 flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-line bg-panel/90 px-4 backdrop-blur-md scrollbar-none sm:px-6">
         <div role="radiogroup" aria-label="Lifecycle" className="flex items-center gap-0.5">
           {(["all", "active", "archive"] as const).map((v) => {
             const on = !status && view === v;

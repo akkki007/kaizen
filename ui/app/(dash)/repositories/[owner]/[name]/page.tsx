@@ -4,9 +4,7 @@ import { ArrowUpRight, KeyRound } from "lucide-react";
 import { use, useState, type FormEvent } from "react";
 import { Button, Skeleton, Tag, buttonClass, type TagTone } from "@/components/app/kit";
 import { avatarUrl, useWorkspace } from "@/components/app/shell";
-import { Topbar } from "@/components/app/topbar";
 import { Section } from "@/components/incident-investigation";
-import { LogoMark } from "@/components/landing/logo";
 import { CodeBlock } from "@/components/ui/code-block";
 import { useApiKeys, useBackfillStatus, useCreateKey, useInstallUrl, useReimport, useRevokeKey } from "@/lib/api/hooks";
 import { haptic } from "@/lib/motion";
@@ -37,19 +35,6 @@ export default function RepositoryPage({ params }: { params: Promise<{ owner: st
 
   return (
     <div className="flex flex-1 flex-col">
-      <Topbar
-        crumbs={[
-          { label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" },
-          { label: "Repositories", href: "/repositories" },
-          { label: name },
-        ]}
-        actions={
-          <a href={`https://github.com/${repo}`} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
-            Open on GitHub <ArrowUpRight size={13} />
-          </a>
-        }
-      />
-
       <header data-enter className="flex flex-col gap-4 border-b border-line px-6 py-6 sm:flex-row sm:items-center">
         {/* eslint-disable-next-line @next/next/no-img-element -- owner avatar */}
         <img src={avatarUrl(owner, 96)} alt="" className="size-12 rounded-xl border border-line bg-raised" />
@@ -75,6 +60,9 @@ export default function RepositoryPage({ params }: { params: Promise<{ owner: st
             </div>
           </div>
         )}
+        <a href={`https://github.com/${repo}`} target="_blank" rel="noreferrer" className={buttonClass("secondary", "shrink-0")}>
+          Open on GitHub <ArrowUpRight size={13} />
+        </a>
       </header>
 
       {role ? (

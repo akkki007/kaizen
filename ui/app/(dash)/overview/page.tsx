@@ -5,12 +5,9 @@ import Link from "next/link";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { CountUp, EmptyLine, SectionHead, Segmented, ServiceDot, SeverityTag, Sparkline, StatusGlyph, Tag, buttonClass } from "@/components/app/kit";
 import { avatarUrl, useWorkspace } from "@/components/app/shell";
-import { workspaceTabs } from "@/components/app/tabs";
-import { Topbar } from "@/components/app/topbar";
 import { DeployTimeline } from "@/components/dashboard/deploy-timeline";
 import { HealthCards } from "@/components/dashboard/health-cards";
 import { SuspectLine } from "@/components/dashboard/suspect";
-import { LogoMark } from "@/components/landing/logo";
 import { useDeployments, useServicesHealth } from "@/lib/api/hooks-dashboard";
 import { useInstallUrl } from "@/lib/api/hooks";
 import { EASE, gsap } from "@/lib/motion";
@@ -43,18 +40,6 @@ export default function OverviewPage() {
 
   return (
     <div ref={root} className="flex flex-1 flex-col">
-      <Topbar
-        crumbs={[{ label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" }, { label: "Overview" }]}
-        tabs={workspaceTabs(ws, "overview")}
-        actions={
-          install.data?.url && (
-            <a href={install.data.url} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
-              Connect repository <ArrowUpRight size={13} />
-            </a>
-          )
-        }
-      />
-
       {/* Header */}
       <section data-enter className="flex flex-col gap-5 border-b border-line px-6 py-7 sm:flex-row sm:items-start">
         {/* eslint-disable-next-line @next/next/no-img-element -- GitHub avatar */}
@@ -82,12 +67,19 @@ export default function OverviewPage() {
             )}
           </ul>
         </div>
-        <Link href="/incidents?status=open" className="inline-flex h-7 shrink-0 self-start items-stretch overflow-hidden rounded-md border border-line text-[12.5px] font-medium transition-colors hover:bg-hover">
-          <span className="flex items-center gap-1.5 px-2.5">
-            <Siren size={13} className={ws.open.length ? "text-red" : "text-ink-3"} /> Open
-          </span>
-          <span className="num flex items-center border-l border-line px-2.5 text-ink-2">{ws.open.length}</span>
-        </Link>
+        <div className="flex shrink-0 items-center gap-2 self-start">
+          {install.data?.url && (
+            <a href={install.data.url} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
+              Connect repository <ArrowUpRight size={13} />
+            </a>
+          )}
+          <Link href="/incidents?status=open" className="inline-flex h-7 shrink-0 self-start items-stretch overflow-hidden rounded-md border border-line text-[12.5px] font-medium transition-colors hover:bg-hover">
+            <span className="flex items-center gap-1.5 px-2.5">
+              <Siren size={13} className={ws.open.length ? "text-red" : "text-ink-3"} /> Open
+            </span>
+            <span className="num flex items-center border-l border-line px-2.5 text-ink-2">{ws.open.length}</span>
+          </Link>
+        </div>
       </section>
 
       {/* Stat strip */}

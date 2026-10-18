@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartColumn, ChevronDown, Flame, Network, FolderGit2, LayoutGrid, LogOut, Menu, Settings2, Siren, X } from "lucide-react";
+import { ChartColumn, ChevronDown, Flame, Network, Workflow, FolderGit2, LayoutGrid, LogOut, Menu, Settings2, Siren, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -155,6 +155,7 @@ function Sidebar({ me, ws, syncedAt, failed, onNavigate }: { me: User; ws: Works
         <NavLink href="/incidents" active={path.startsWith("/incidents") && !service} icon={Siren} label="Incidents" count={ws.open.length} />
         <NavLink href="/repositories" active={path.startsWith("/repositories")} icon={FolderGit2} label="Repositories" count={ws.repos.length} />
         <NavLink href="/graph" active={path.startsWith("/graph")} icon={Network} label="Live graph" />
+        <NavLink href="/map" active={path.startsWith("/map")} icon={Workflow} label="Graph map" />
         <NavLink href="/hotspots" active={path.startsWith("/hotspots")} icon={Flame} label="Hotspots" />
         <NavLink href="/evaluation" active={path.startsWith("/evaluation")} icon={ChartColumn} label="Evaluation" />
         <NavLink href="/settings" active={path === "/settings"} icon={Settings2} label="Settings" />
@@ -231,7 +232,7 @@ function Sidebar({ me, ws, syncedAt, failed, onNavigate }: { me: User; ws: Works
 
 /**
  * The signed-in app: a labeled sidebar on the dark frame and an inset work panel.
- * Pages render their own <Topbar> and content inside the panel, which scrolls with Lenis.
+ * Pages render their content inside the panel, which scrolls with Lenis.
  */
 export function AppShell({ me, children }: { me: User; children: ReactNode }) {
   const q = useIncidents();
@@ -277,8 +278,15 @@ export function AppShell({ me, children }: { me: User; children: ReactNode }) {
           </div>
         )}
 
-        <main className="min-w-0 flex-1 md:py-2 md:pr-2">
-          <div ref={scroller} className="h-full overflow-y-auto overscroll-contain border-line bg-panel scrollbar-thin md:rounded-[10px] md:border">
+        <main className="flex min-w-0 flex-1 flex-col md:py-2 md:pr-2">
+          {/* The sidebar is the navigation; below md it opens from this bar. */}
+          <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-panel px-4 md:hidden">
+            <NavButton />
+            <Link href="/overview" aria-label="Kaizen home" className="text-accent">
+              <LogoMark className="size-4" />
+            </Link>
+          </div>
+          <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-line bg-panel scrollbar-thin md:rounded-[10px] md:border">
             <div ref={content} className="flex min-h-full flex-col">
               {q.data ? children : q.isError ? <PanelError error={q.error} onRetry={() => q.refetch()} /> : <PanelSkeleton />}
             </div>
@@ -290,7 +298,7 @@ export function AppShell({ me, children }: { me: User; children: ReactNode }) {
 }
 
 /** Opens the slide-over navigation on small screens. */
-export function NavButton() {
+function NavButton() {
   const { openNav } = useWorkspace();
   return (
     <button type="button" aria-label="Open navigation" onClick={openNav} className="-ml-1 grid size-7 place-items-center rounded-md text-ink-2 hover:bg-hover md:hidden">
@@ -302,7 +310,6 @@ export function NavButton() {
 function PanelSkeleton() {
   return (
     <div role="status" aria-label="Loading" className="flex flex-col">
-      <div className="h-[46px] border-b border-line" />
       <div className="flex items-center gap-4 border-b border-line px-6 py-7">
         <Skeleton className="size-14 rounded-xl" />
         <div className="flex flex-col gap-2">

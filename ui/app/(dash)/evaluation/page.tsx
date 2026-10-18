@@ -3,11 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
 import { SectionHead, Segmented, Tag } from "@/components/app/kit";
-import { useWorkspace } from "@/components/app/shell";
-import { workspaceTabs } from "@/components/app/tabs";
-import { Topbar } from "@/components/app/topbar";
 import { EvalBarChart } from "@/components/dashboard/eval-chart";
-import { LogoMark } from "@/components/landing/logo";
 import { useEvalLatest } from "@/lib/api/hooks-dashboard";
 import { SPLITS, SPLIT_COLUMNS, graphMisses, memorySummary, pct, scenarioGroups, scenarioRow, splitRow, type EvalResult, type Split } from "@/lib/eval";
 import { cn } from "@/lib/utils";
@@ -16,14 +12,9 @@ const SPLIT_OPTIONS = SPLITS.map((s) => ({ id: s, label: s }));
 
 /** The latest `make eval` result (docs/results/latest.json), rendered as is. */
 export default function EvaluationPage() {
-  const { ws } = useWorkspace();
   const q = useEvalLatest();
   return (
     <div className="flex flex-1 flex-col">
-      <Topbar
-        crumbs={[{ label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" }, { label: "Evaluation" }]}
-        tabs={workspaceTabs(ws, "evaluation")}
-      />
       {q.isError ? (
         <div role="alert" className="px-6 py-16 text-center">
           <p className="text-[14px] font-medium">No evaluation result</p>

@@ -5,9 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { Tag, buttonClass } from "@/components/app/kit";
 import { avatarUrl, useWorkspace } from "@/components/app/shell";
-import { workspaceTabs } from "@/components/app/tabs";
-import { Topbar } from "@/components/app/topbar";
-import { LogoMark } from "@/components/landing/logo";
 import { useInstallUrl } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
 import { ago } from "@/lib/workspace";
@@ -29,17 +26,14 @@ export default function RepositoriesPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <Topbar
-        crumbs={[{ label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" }, { label: "Repositories" }]}
-        tabs={workspaceTabs(ws, "repositories")}
-        actions={connect}
-      />
-
-      <header data-enter className="border-b border-line px-6 py-6">
-        <h1 className="text-[20px] font-semibold tracking-[-0.015em]">Repositories</h1>
-        <p className="mt-1 text-[13px] text-ink-2">
-          Repositories come from the Kaizen GitHub App installation. Your role follows your GitHub permissions.
-        </p>
+      <header data-enter className="flex flex-col gap-4 border-b border-line px-6 py-6 sm:flex-row sm:items-start">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[20px] font-semibold tracking-[-0.015em]">Repositories</h1>
+          <p className="mt-1 text-[13px] text-ink-2">
+            Repositories come from the Kaizen GitHub App installation. Your role follows your GitHub permissions.
+          </p>
+        </div>
+        {connect}
       </header>
 
       {ws.repos.length === 0 ? (

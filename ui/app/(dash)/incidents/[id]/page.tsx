@@ -5,10 +5,8 @@ import { use, useState } from "react";
 import { AskIncident, IncidentFacts } from "@/components/app/incident-brief";
 import { STATUS, StatusBadge, Tag, buttonClass } from "@/components/app/kit";
 import { useWorkspace } from "@/components/app/shell";
-import { Topbar } from "@/components/app/topbar";
 import { IncidentEvidence } from "@/components/incident-evidence";
 import { IncidentInvestigation, Section } from "@/components/incident-investigation";
-import { LogoMark } from "@/components/landing/logo";
 import { IncidentActions, IncidentTimeline, SimilarIncidents } from "@/components/incident-actions";
 import { IncidentFocusProvider } from "@/components/incident-focus";
 import { IncidentMetricsChart } from "@/components/incident-metrics";
@@ -51,14 +49,18 @@ function IncidentView({ id }: { id: string }) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <Topbar
-        crumbs={[
-          { label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" },
-          { label: "Incidents", href: "/incidents" },
-          { label: <code className="font-mono text-[12.5px]">{id}</code> },
-        ]}
-        actions={
-          <>
+      <header data-enter className="border-b border-line px-6 py-6">
+        <div className="flex items-start gap-4">
+          <h1 className="min-w-0 flex-1 text-[22px] font-semibold leading-[1.25] tracking-[-0.02em]">
+            {incident ? (
+              <>
+                Elevated failures in <code className="font-mono text-[20px]">{incident.service}</code>
+              </>
+            ) : (
+              id
+            )}
+          </h1>
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               className={buttonClass("ghost")}
@@ -76,20 +78,8 @@ function IncidentView({ id }: { id: string }) {
                 <span className="max-sm:hidden">Open on</span> GitHub <ArrowUpRight size={13} />
               </a>
             )}
-          </>
-        }
-      />
-
-      <header data-enter className="border-b border-line px-6 py-6">
-        <h1 className="text-[22px] font-semibold leading-[1.25] tracking-[-0.02em]">
-          {incident ? (
-            <>
-              Elevated failures in <code className="font-mono text-[20px]">{incident.service}</code>
-            </>
-          ) : (
-            id
-          )}
-        </h1>
+          </div>
+        </div>
         {incident && (
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] text-ink-3">
             <StatusBadge status={incident.status} />
@@ -152,7 +142,7 @@ function IncidentView({ id }: { id: string }) {
           )}
         </div>
 
-        <aside data-enter className="flex flex-col gap-6 border-t border-line px-6 py-5 xl:sticky xl:top-[46px] xl:h-[calc(100dvh-16px-48px)] xl:overflow-y-auto xl:border-t-0" data-lenis-prevent>
+        <aside data-enter className="flex flex-col gap-6 border-t border-line px-6 py-5 xl:sticky xl:top-0 xl:h-[calc(100dvh-18px)] xl:overflow-y-auto xl:border-t-0" data-lenis-prevent>
           {incident && (
             <section aria-labelledby="actions-title">
               <h2 id="actions-title" className="mb-3 text-[13px] font-semibold">

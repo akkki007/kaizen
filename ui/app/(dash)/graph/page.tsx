@@ -6,11 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { Button, Tag } from "@/components/app/kit";
 import { useWorkspace } from "@/components/app/shell";
-import { workspaceTabs } from "@/components/app/tabs";
-import { Topbar } from "@/components/app/topbar";
 import { CodeGraphView } from "@/components/code-graph";
 import { Maximize2, Search } from "lucide-react";
-import { LogoMark } from "@/components/landing/logo";
 import { useIncidentDetail } from "@/lib/api/hooks";
 import { useCodeGraph, useInjectProblem, useResetDemo } from "@/lib/api/hooks-graph";
 import { cn } from "@/lib/utils";
@@ -116,10 +113,6 @@ function GraphPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <Topbar
-        crumbs={[{ label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" }, { label: "Live graph" }]}
-        tabs={workspaceTabs(ws, "graph")}
-      />
       <header data-enter className="flex flex-wrap items-end gap-3 border-b border-line px-6 py-6">
         <div className="min-w-0 flex-1">
           <h1 className="text-[20px] font-semibold tracking-[-0.015em]">Live graph</h1>

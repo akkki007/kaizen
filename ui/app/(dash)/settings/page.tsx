@@ -4,8 +4,6 @@ import { useTheme } from "next-themes";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, Kbd, Segmented } from "@/components/app/kit";
 import { avatarUrl, useWorkspace } from "@/components/app/shell";
-import { Topbar } from "@/components/app/topbar";
-import { LogoMark } from "@/components/landing/logo";
 import { useSignOut } from "@/lib/api/hooks";
 
 const THEMES = [
@@ -46,7 +44,6 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <Topbar crumbs={[{ label: <span className="inline-flex items-center gap-1.5"><LogoMark className="size-3.5 text-accent" />Kaizen</span>, href: "/overview" }, { label: "Settings" }]} />
       <header data-enter className="border-b border-line px-6 py-6">
         <h1 className="text-[20px] font-semibold tracking-[-0.015em]">Settings</h1>
         <p className="mt-1 text-[13px] text-ink-2">Your account and how Kaizen looks in this browser.</p>
