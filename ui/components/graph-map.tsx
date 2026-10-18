@@ -389,8 +389,9 @@ function NodeList({ nodes, empty }: { nodes: Node[]; empty: string }) {
 }
 
 /** Plain-language explanation of the clicked node, built from the graph edges around it. */
-export function NodeExplain({ graph, slice, id, onClose }: { graph: Graph; slice: ServiceSlice; id: string; onClose: () => void }) {
-  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+export function NodeExplain({ graph, slice, id, showTests, onClose }: { graph: Graph; slice: ServiceSlice; id: string; showTests: boolean; onClose: () => void }) {
+  // Hidden test code stays out of the explanation too.
+  const byId = new Map(graph.nodes.filter((n) => showTests || n.kind !== "function" || !isTestFile(n)).map((n) => [n.id, n]));
   const from = (rel: string, target: string) => graph.edges.filter((e) => e.rel === rel && e.target === target).map((e) => byId.get(e.source)!).filter(Boolean);
   const to = (rel: string, source: string) => graph.edges.filter((e) => e.rel === rel && e.source === source).map((e) => byId.get(e.target)!).filter(Boolean);
   const svc = (n: Node | undefined) => byId.get(n?.parent ?? "")?.label;

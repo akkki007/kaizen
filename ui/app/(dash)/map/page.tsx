@@ -250,7 +250,7 @@ function GraphMapPage() {
                 <>
                   <GraphMapDiagram slice={slice} selected={selected} active={active} match={match} onToggle={toggle} />
                   {active ? (
-                    <NodeExplain key={active} graph={g} slice={slice} id={active} onClose={() => setActive(null)} />
+                    <NodeExplain key={active} graph={g} slice={slice} id={active} showTests={showTests} onClose={() => setActive(null)} />
                   ) : (
                     <p className={cn(LABEL, "text-ink-4")}>Click a node to see what it is and how it connects</p>
                   )}
