@@ -868,6 +868,13 @@ export interface components {
             queries: {
                 [key: string]: string;
             };
+            /**
+             * Query Ms
+             * @default {}
+             */
+            query_ms: {
+                [key: string]: number;
+            };
             /** Repo */
             repo: string;
         };

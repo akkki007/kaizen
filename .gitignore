@@ -10,6 +10,7 @@ __pycache__/
 .pytest_cache/
 node_modules/
 .next/
+.next-mock/
 dist/
 *.pem
 .DS_Store
