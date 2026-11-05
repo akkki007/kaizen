@@ -1,4 +1,5 @@
 import base64
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -32,6 +33,12 @@ class Settings(BaseSettings):
     ingest_max_bytes: int = Field(1_048_576, ge=1024)  # request body size for the ingest route
 
     falkordb_host: str = "localhost"
+    falkordb_username: str = ""  # FalkorDB Cloud uses a named user (e.g. "falkordb")
+    falkordb_password: SecretStr = SecretStr("")  # FalkorDB Cloud / any password-protected server
+    falkordb_ssl: bool = False
+    # Serverless hosting (Vercel): no worker process and no Redis. Jobs run inside the request
+    # that created them (no scheduled retries) and database connections are not pooled.
+    jobs_inline: bool = False
     falkordb_port: int = Field(6380, ge=1, le=65535)
     postgres_dsn: str = "postgresql://causaldeploy:causaldeploy@localhost:5432/causaldeploy"
     redis_url: str = "redis://localhost:6379/0"
@@ -212,6 +219,7 @@ class Settings(BaseSettings):
                 self.session_secret,
                 self.openai_api_key,
                 self.slack_webhook_url,
+                self.falkordb_password,
             )
             if v.get_secret_value()
         ]
@@ -230,8 +238,10 @@ class Settings(BaseSettings):
     def sqlalchemy_url(self) -> str:
         dsn = self.postgres_dsn
         if dsn.startswith("postgresql://"):
-            return dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return dsn
+            dsn = dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
+        # managed Postgres (Neon) hands out libpq-style options; asyncpg spells them differently
+        dsn = dsn.replace("sslmode=require", "ssl=require")
+        return re.sub(r"[?&]channel_binding=[^&]*", "", dsn)
 
 
 @lru_cache

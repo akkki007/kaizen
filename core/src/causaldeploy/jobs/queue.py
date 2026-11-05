@@ -1,5 +1,6 @@
 """Typed job enqueue with idempotency keys and persisted status."""
 
+import logging
 import uuid
 from functools import lru_cache
 from typing import Literal
@@ -122,6 +123,9 @@ async def enqueue(
                 select(JobRecord.id).where(JobRecord.idempotency_key == idempotency_key)
             )
             return existing.scalar_one(), False
+    if get_settings().jobs_inline and pool is None:
+        await run_inline(job_id)
+        return job_id, True
     own = pool is None
     pool = pool or await get_pool()
     try:
@@ -130,3 +134,21 @@ async def enqueue(
         if own:
             await pool.aclose()
     return job_id, True
+
+
+async def run_inline(job_id: str) -> None:
+    """Serverless mode: run the job now, inside the caller.
+
+    No scheduled retry: a failure leaves the job `queued` (or `dead` after MAX_ATTEMPTS) with its
+    error recorded, and never fails the caller.
+    """
+    from arq import Retry
+
+    from causaldeploy.jobs.worker import run_job
+
+    try:
+        await run_job({}, job_id)
+    except Retry:
+        pass
+    except Exception:
+        logging.getLogger(__name__).exception("inline job %s failed", job_id)

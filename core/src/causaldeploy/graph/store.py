@@ -31,7 +31,13 @@ _BATCH = 500
 @lru_cache
 def get_client() -> FalkorDB:
     s = get_settings()
-    return FalkorDB(host=s.falkordb_host, port=s.falkordb_port)
+    return FalkorDB(
+        host=s.falkordb_host,
+        port=s.falkordb_port,
+        username=s.falkordb_username or None,
+        password=s.falkordb_password.get_secret_value() or None,
+        ssl=s.falkordb_ssl,
+    )
 
 
 def graph_name(repo: str) -> str:

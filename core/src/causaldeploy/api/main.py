@@ -15,6 +15,7 @@ from causaldeploy.api.auth import router as auth_router
 from causaldeploy.api.demo import router as demo_router
 from causaldeploy.api.deps import BodySizeLimit
 from causaldeploy.api.errors import install_error_handlers
+from causaldeploy.api.internal import router as internal_router
 from causaldeploy.api.onboarding import router as onboarding_router
 from causaldeploy.api.routes import v1, webhooks
 from causaldeploy.config import get_settings
@@ -42,6 +43,8 @@ async def _postgres() -> None:
 
 
 async def _redis() -> None:
+    if get_settings().jobs_inline:
+        return  # serverless mode has no queue
     r = Redis.from_url(get_settings().redis_url)
     try:
         await r.ping()
@@ -51,7 +54,13 @@ async def _redis() -> None:
 
 async def _falkordb() -> None:
     s = get_settings()
-    db = AsyncFalkorDB(host=s.falkordb_host, port=s.falkordb_port)
+    db = AsyncFalkorDB(
+        host=s.falkordb_host,
+        port=s.falkordb_port,
+        username=s.falkordb_username or None,
+        password=s.falkordb_password.get_secret_value() or None,
+        ssl=s.falkordb_ssl,
+    )
     try:
         await db.connection.ping()
     finally:
@@ -102,9 +111,12 @@ def create_app() -> FastAPI:
     app.include_router(onboarding_router)
     app.include_router(demo_router)
     app.include_router(webhooks)
+    app.include_router(internal_router)
 
     @app.get("/metrics", include_in_schema=False)
     async def metrics() -> Response:
+        if get_settings().jobs_inline:
+            return Response(render_metrics(), media_type="text/plain; version=0.0.4")
         r = Redis.from_url(get_settings().redis_url)
         try:
             QUEUE_DEPTH.set(await r.zcard("arq:queue"))

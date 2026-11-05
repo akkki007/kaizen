@@ -6,7 +6,7 @@ const API_URL = process.env.API_URL ?? "http://localhost:8000";
 
 const config: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  output: "standalone", // small production image (ui/Dockerfile)
+  output: process.env.VERCEL ? undefined : "standalone", // small production image (ui/Dockerfile); Vercel builds its own
   // Old routes from before every page moved into the dashboard.
   async redirects() {
     return [
@@ -20,6 +20,9 @@ const config: NextConfig = {
     return [
       { source: "/api/v1/:path*", destination: `${API_URL}/api/v1/:path*` },
       { source: "/auth/:path*", destination: `${API_URL}/auth/:path*` },
+      { source: "/webhooks/:path*", destination: `${API_URL}/webhooks/:path*` },
+      { source: "/healthz", destination: `${API_URL}/healthz` },
+      { source: "/readyz", destination: `${API_URL}/readyz` },
     ];
   },
 };

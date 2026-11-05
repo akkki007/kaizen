@@ -8,13 +8,24 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from causaldeploy.config import get_settings
 
 
 @lru_cache
 def get_engine() -> AsyncEngine:
-    return create_async_engine(get_settings().sqlalchemy_url, pool_pre_ping=True)
+    s = get_settings()
+    if (
+        s.jobs_inline
+    ):  # serverless: every invocation may run on a new event loop, so never reuse connections
+        # the pooled Neon endpoint is pgbouncer in transaction mode: no prepared-statement cache
+        return create_async_engine(
+            s.sqlalchemy_url,
+            poolclass=NullPool,
+            connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0},
+        )
+    return create_async_engine(s.sqlalchemy_url, pool_pre_ping=True)
 
 
 @asynccontextmanager
